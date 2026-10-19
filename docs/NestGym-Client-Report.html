@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NestGym — Product Report</title>
+<style>
+:root{--blue:#024BAB;--ink:#111;--mute:#555;--line:#ddd;--bg:#fff;--soft:#f3f6fb}
+@media (prefers-color-scheme:dark){:root:not([data-print]){--ink:#eee;--mute:#aaa;--line:#333;--bg:#14161a;--soft:#1c2028}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 system-ui,Segoe UI,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+main{max-width:920px;margin:0 auto;padding:0 16px 48px}
+header{background:var(--blue);color:#fff;padding:48px 16px;margin-bottom:32px}
+header div{max-width:920px;margin:0 auto}
+header h1{margin:0 0 6px;font-size:34px}
+header p{margin:0;opacity:.9}
+h2{margin:40px 0 12px;font-size:23px;border-bottom:3px solid var(--blue);padding-bottom:6px}
+h3{margin:22px 0 6px;font-size:17px;color:var(--blue)}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--soft)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.card{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.card b{display:block;font-size:26px;color:var(--blue)}
+ul{padding-left:20px;margin:6px 0}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;background:var(--blue);color:#fff}
+.tag.soon{background:#b45309}
+.tbl{overflow-x:auto}
+@media print{header{-webkit-print-color-adjust:exact;print-color-adjust:exact}h2{break-after:avoid}table,.card{break-inside:avoid}}
+</style>
+</head>
+<body>
+<header><div>
+<h1>NestGym</h1>
+<p>Complete gym management software — front desk, members, training, billing, reports and member portal in one platform.</p>
+<p style="margin-top:10px;font-size:13px">Product report · Prepared by Pixelate Nest · October 2026</p>
+</div></header>
+<main>
+
+<h2>1. Overview</h2>
+<p>NestGym is a cloud (SaaS) platform that runs the daily operations of a gym or fitness chain: selling and renewing memberships, controlling entry, managing trainers and classes, billing with GST, selling products, tracking expenses and giving the owner clear business numbers. Members get their own mobile-friendly portal.</p>
+<div class="grid">
+<div class="card"><b>25+</b>screens across the staff app and member portal</div>
+<div class="card"><b>5</b>staff roles with permission control</div>
+<div class="card"><b>Multi-gym</b>strict data isolation between gyms; multi-branch support</div>
+<div class="card"><b>Face check-in</b>AI face-recognition entry kiosk</div>
+</div>
+
+<h2>2. Who uses it</h2>
+<table>
+<tr><th>Role</th><th>Typical work</th></tr>
+<tr><td>Gym Owner</td><td>Everything: reports, plans, staff, subscription, settings</td></tr>
+<tr><td>Branch Manager</td><td>Runs a branch: plans, staff, coupons, equipment, announcements</td></tr>
+<tr><td>Receptionist</td><td>Check-ins, enquiries, selling memberships, billing, lockers, POS</td></tr>
+<tr><td>Trainer</td><td>Members, classes, personal training, workout &amp; diet plans, body progress</td></tr>
+<tr><td>Accountant</td><td>Invoices, shop sales, reports, expenses, payroll</td></tr>
+<tr><td>Member</td><td>Own portal: membership, bills, classes, plans, progress</td></tr>
+</table>
+<p>Each role only sees the screens it needs; permissions are enforced on the server, not just hidden in the menu.</p>
+
+<h2>3. Application structure (menu &amp; pages)</h2>
+<table>
+<tr><th>Section</th><th>Page</th><th>What it does</th></tr>
+<tr><td>Overview</td><td>Dashboard</td><td>Revenue trend, attendance trend, active/expiring members, today's activity at a glance</td></tr>
+<tr><td rowspan="3">Front Desk</td><td>Check-in / Entry</td><td>Search or scan a member, see live access status (valid / expired / dues / frozen), check in and out</td></tr>
+<tr><td>Face Kiosk</td><td>Hands-free entry by face recognition, same access rules as the desk</td></tr>
+<tr><td>Enquiries &amp; Trials</td><td>Track walk-in leads, follow-ups, free trials, and convert to a member in one click</td></tr>
+<tr><td rowspan="3">Members</td><td>Members</td><td>Member list with search and filters, add / edit, health details, ID proof</td></tr>
+<tr><td>Member Profile (360°)</td><td>Memberships, bills, attendance, PT, plans and progress on one page; sell, renew, upgrade, freeze, cancel, transfer</td></tr>
+<tr><td>Membership Plans · Lockers</td><td>Plan catalogue with fees, GST and rules · locker allotment and release</td></tr>
+<tr><td rowspan="5">Training</td><td>Group Classes</td><td>Schedule, capacity, bookings, automatic waitlist, class attendance</td></tr>
+<tr><td>Personal Training</td><td>PT packages, session scheduling, trainer clash prevention, commission report</td></tr>
+<tr><td>Workout &amp; Diet</td><td>Plan builders with reusable templates, assigned per member</td></tr>
+<tr><td>Body Progress</td><td>Weight and body measurements over time</td></tr>
+<tr><td>Trainers</td><td>Trainer list and member assignments</td></tr>
+<tr><td rowspan="3">Sales &amp; Billing</td><td>Invoices &amp; Payments</td><td>GST invoices, part-payments, dues, refunds, printable invoice</td></tr>
+<tr><td>Shop / POS</td><td>Sell supplements, merchandise and more; stock updates automatically</td></tr>
+<tr><td>Coupons &amp; Offers</td><td>Discount codes for plans and billing</td></tr>
+<tr><td rowspan="5">Business</td><td>Reports &amp; Insights</td><td>Profit &amp; loss, dues, renewal worklist, at-risk members, birthdays, peak-hour heatmap, GST register (CSV export)</td></tr>
+<tr><td>Expenses</td><td>Rent, salaries, utilities and other costs by category</td></tr>
+<tr><td>Staff &amp; Payroll</td><td>Staff attendance and monthly payroll</td></tr>
+<tr><td>Equipment</td><td>Equipment list and service-due tracking</td></tr>
+<tr><td>Announcements</td><td>Notices shown to staff and members, pinned or scheduled</td></tr>
+<tr><td rowspan="2">System</td><td>Subscription</td><td>Choose / upgrade the NestGym plan, pay online</td></tr>
+<tr><td>Settings</td><td>Business profile (name, GSTIN, PAN, address, invoice prefix, timings, footer), member online payments, user access</td></tr>
+<tr><td>Member Portal</td><td>(separate mobile-first app for members)</td><td>See section 5</td></tr>
+</table>
+
+<h2>4. Key features in detail</h2>
+
+<h3>Membership management</h3>
+<ul>
+<li>Flexible plans: duration, price, admission fee, GST mode, inclusions, access hours, freeze / transfer rules, grace period</li>
+<li>Sell, renew (queued after the running plan so no days are lost), upgrade (unused days credited), freeze / unfreeze (end date extended), cancel with refund, transfer to another person</li>
+<li>Automatic hourly expiry processing</li>
+<li>Full history kept — renewals never overwrite old records</li>
+</ul>
+
+<h3>Entry control &amp; attendance</h3>
+<ul>
+<li>One rule-set for desk, QR/manual and face check-in: expired, dues pending, frozen, outside plan hours, already inside</li>
+<li>Manager override with a mandatory reason, recorded in the audit trail</li>
+<li>Face-recognition kiosk (AI service) with member face enrolment from the profile</li>
+<li>Visit duration and auto check-out</li>
+</ul>
+
+<h3>Billing &amp; money</h3>
+<ul>
+<li>Itemised GST invoices with discount and coupon, running invoice numbers per gym (never reused)</li>
+<li>Part-payments and dues; every payment and refund is an append-only ledger entry, so the books always reconcile</li>
+<li>Printable invoice with GSTIN, address and footer</li>
+<li>Safe against double-clicks and retries — a payment is never counted twice</li>
+</ul>
+
+<h3>Sales growth</h3>
+<ul>
+<li>Enquiry pipeline with notes, follow-up dates, free trial and one-click conversion</li>
+<li>Renewal worklist with one-tap WhatsApp message links, expiring-soon and at-risk (lapsing) members, birthdays</li>
+<li>Coupons and offers</li>
+</ul>
+
+<h3>Training</h3>
+<ul>
+<li>Group classes with capacity, waitlist auto-promotion and monthly class credits</li>
+<li>Personal-training packages with session scheduling, trainer-clash guard and per-session trainer commission</li>
+<li>Workout and diet plan builders, reusable templates, body-measurement tracking</li>
+</ul>
+
+<h3>Operations</h3>
+<ul>
+<li>Lockers, equipment service tracker, announcements</li>
+<li>Shop / POS with stock control; expenses and profit &amp; loss</li>
+<li>Staff attendance and payroll; multi-branch with per-branch staff</li>
+<li>Activity / audit log of important actions</li>
+</ul>
+
+<h3>Security</h3>
+<ul>
+<li>Every gym's data is isolated at the database layer — one gym can never read another's records</li>
+<li>Role-based permissions, role ceilings (a manager cannot create an owner), login lock-out protection</li>
+<li>Payment secrets stored encrypted; payments verified server-side with the gateway</li>
+</ul>
+
+<h2>5. Member portal</h2>
+<p>Members sign in on the normal login page and get a mobile-first portal. The front desk creates the login from the member profile (with a ready WhatsApp message containing the credentials) and can reset or disable it any time.</p>
+<ul>
+<li>Membership status and days left</li>
+<li>Bills and <b>online payment</b> through the gym's own Razorpay account</li>
+<li>Class booking and cancellation, with waitlist</li>
+<li>Trainer, personal training and locker details</li>
+<li>Workout and diet plan, self-logged weigh-ins, announcements</li>
+</ul>
+<p>A member login can only reach the member's own records and is blocked from every staff screen.</p>
+
+<h2>6. Technology</h2>
+<table>
+<tr><th>Layer</th><th>Technology</th></tr>
+<tr><td>Web app</td><td>React 18, TypeScript, Vite, Tailwind CSS, Recharts (charts)</td></tr>
+<tr><td>Server</td><td>Node.js, Express</td></tr>
+<tr><td>Database</td><td>MongoDB (Mongoose)</td></tr>
+<tr><td>Face recognition</td><td>Separate Python service (FastAPI, DeepFace, OpenCV)</td></tr>
+<tr><td>Payments</td><td>Razorpay (members' online payments and NestGym subscription)</td></tr>
+<tr><td>Deployment</td><td>Docker Compose (database, API, face service); runs on any cloud or VPS</td></tr>
+<tr><td>Quality</td><td>28 automated integration tests plus an HTTP smoke test covering billing, check-in and data isolation</td></tr>
+</table>
+
+<h2>7. NestGym subscription plans</h2>
+<p>14-day free trial. Prices per month, excluding GST. Longer terms: quarterly −10%, half-yearly −20%, yearly −30%.</p>
+<table>
+<tr><th>Plan</th><th>₹ / month</th><th>Members</th><th>Branches</th><th>Staff logins</th><th>Highlights</th></tr>
+<tr><td>Starter</td><td>799</td><td>150</td><td>1</td><td>5</td><td>Plans, dues, GST invoices, attendance, enquiries</td></tr>
+<tr><td>Growth <span class="tag">Popular</span></td><td>1,499</td><td>500</td><td>1</td><td>15</td><td>+ face check-in, classes, PT, workout &amp; diet, lockers, POS, WhatsApp links</td></tr>
+<tr><td>Pro</td><td>2,499</td><td>1,500</td><td>3</td><td>40</td><td>+ staff &amp; payroll, equipment, coupons, advanced reports</td></tr>
+<tr><td>Elite</td><td>3,999</td><td>Unlimited</td><td>10</td><td>150</td><td>+ dedicated account manager, data migration, phone support</td></tr>
+<tr><td>Enterprise</td><td>Custom</td><td>Unlimited</td><td>Unlimited</td><td>Unlimited</td><td>Tailored to your chain</td></tr>
+</table>
+
+<h2>8. Roadmap <span class="tag soon">Planned</span></h2>
+<p>To be transparent about what is available today versus coming next:</p>
+<ul>
+<li>Native member mobile app (the web portal works on any phone today)</li>
+<li>Fully automated WhatsApp / SMS reminders (today: one-tap WhatsApp links from the worklists)</li>
+<li>Turnstile / biometric hardware integration</li>
+</ul>
+
+<h2>9. Next steps</h2>
+<ol>
+<li>Live demo with sample data for your gym</li>
+<li>Choose a plan and set up your business profile (GSTIN, invoice prefix, timings)</li>
+<li>We import your existing members and plans</li>
+<li>Staff training and go-live</li>
+</ol>
+<p style="margin-top:28px;color:var(--mute);font-size:13px">Pixelate Nest · NestGym</p>
+
+</main>
+</body>
+</html>
