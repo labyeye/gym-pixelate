@@ -4,7 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DoorOpen, LayoutDashboard, Menu, Receipt, Users } from 'lucide-react-native';
+import { LayoutDashboard, Menu, Receipt, Users } from 'lucide-react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { C, FONT } from '../theme';
 import TabBounce from '../components/motion/TabBounce';
@@ -18,16 +18,14 @@ import WelcomeScreen from '../screens/WelcomeScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import MembersScreen from '../screens/MembersScreen';
 import MemberProfileScreen from '../screens/MemberProfileScreen';
-import FrontDeskScreen from '../screens/FrontDeskScreen';
 import InvoicesScreen from '../screens/InvoicesScreen';
-import FollowUpsScreen from '../screens/FollowUpsScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import MemberPortalScreen from '../screens/MemberPortalScreen';
 import MoreScreen from '../screens/MoreScreen';
 import {
-  AnnouncementsScreen, CouponsScreen, EnquiriesScreen, EquipmentScreen, ExpensesScreen, LockersScreen, MeasurementsScreen, PlansScreen,
+  AnnouncementsScreen, CouponsScreen, EquipmentScreen, ExpensesScreen, LockersScreen, MeasurementsScreen, PlansScreen,
 } from '../screens/gym/Resources';
 import { StaffScreen, TrainersScreen } from '../screens/gym/TeamScreens';
 import { ClassesScreen, PersonalTrainingScreen } from '../screens/gym/TrainingScreens';
@@ -38,10 +36,8 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // Screens reachable from the "More" menu, keyed by the route name in navConfig.
-// (Members / FrontDesk / Invoices are bottom tabs, so they are not repeated here.)
+// (Members / Invoices are bottom tabs, so they are not repeated here.)
 const MORE_SCREENS: Record<string, React.ComponentType<any>> = {
-  Enquiries: EnquiriesScreen,
-  FollowUps: FollowUpsScreen,
   Plans: PlansScreen,
   Lockers: LockersScreen,
   Classes: ClassesScreen,
@@ -67,7 +63,6 @@ function Tabs() {
   const tabs: [string, string, any, React.ComponentType<any>][] = [
     ['Dashboard', 'Home', LayoutDashboard, DashboardScreen],
     ...(canOpen(role, 'Members', modules) ? [['Members', 'Members', Users, MembersScreen] as any] : []),
-    ...(canOpen(role, 'FrontDesk', modules) ? [['FrontDesk', 'Desk', DoorOpen, FrontDeskScreen] as any] : []),
     ...(canOpen(role, 'Invoices', modules) ? [['Invoices', 'Billing', Receipt, InvoicesScreen] as any] : []),
     ['More', 'More', Menu, MoreScreen],
   ];

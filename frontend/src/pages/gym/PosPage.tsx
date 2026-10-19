@@ -29,12 +29,22 @@ import {
   StatGrid,
   Tabs,
   Td,
+  Thumb,
+  Toolbar,
+  Pager,
+  Field,
+  inputCls,
+  fmtDate,
+  fmtDateTime,
   TextInput,
   Tr,
   inr,
   titleCase,
 } from "@/components/gym/kit";
 import { MemberPicker } from "@/components/gym/pickers";
+import { ExportImport } from "@/components/gym/ExportImport";
+import { PhotoUpload } from "@/components/gym/PhotoUpload";
+import { PurchasesTab, SalesTab } from "./PosPurchases";
 import { printInvoice } from "@/components/gym/printInvoice";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +59,8 @@ const CATS = [
 const blank = {
   name: "",
   sku: "",
+  photo: "",
+  vendor: "",
   category: "supplement",
   price: "",
   costPrice: "",
@@ -172,6 +184,14 @@ export default function PosPage() {
     }
   };
 
+  const [catF, setCatF] = useState("");
+  const [stockF, setStockF] = useState("");
+  const shown = products.filter(
+    (p) =>
+      (!catF || p.category === catF) &&
+      (!stockF ||
+        (stockF === "out" ? p.stock <= 0 : p.stock <= p.reorderLevel)),
+  );
   const low = products.filter((p) => p.isActive && p.stock <= p.reorderLevel);
   const value = products.reduce((s, p) => s + p.stock * (p.costPrice || 0), 0);
 
@@ -209,6 +229,8 @@ export default function PosPage() {
         tabs={[
           { id: "sell", label: "Sell" },
           { id: "stock", label: "Inventory" },
+          { id: "purchases", label: "Purchases / GRN" },
+          { id: "history", label: "Sales history" },
         ]}
       />
 
@@ -235,7 +257,7 @@ export default function PosPage() {
                       cart[p._id] && "bg-[#024BAB]/10",
                     )}
                   >
-                    <p className="font-black truncate">{p.name}</p>
+                    <Thumb photo={p.photo} name={p.name} />
                     <p className="text-xs font-bold text-black/50 capitalize">
                       {titleCase(p.category)} · {p.gstPercent}% GST
                     </p>
@@ -348,54 +370,93 @@ export default function PosPage() {
 
       {tab === "stock" && (
         <>
-          <div className="flex justify-end mb-3">
-            {can("Products", "create") && (
-              <Btn
-                onClick={() => {
-                  setForm(blank);
-                  setEdit("new");
-                }}
-              >
-                <Plus className="w-4 h-4" /> Add product
-              </Btn>
-            )}
-          </div>
-          <DataTable
-            head={[
-              "Product",
-              "Category",
-              "Price",
-              "Cost",
-              "Stock",
-              "Status",
-              "Actions",
-            ]}
-            empty={products.length === 0}
+          <Toolbar
+            right={
+              <>
+                <ExportImport
+                  name="products"
+                  rows={shown}
+                  cols={[
+                    { header: "Code", value: (p: any) => p.sku },
+                    { header: "Name", value: (p: any) => p.name },
+                    { header: "Category", value: (p: any) => p.category },
+                    { header: "Selling price", value: (p: any) => p.price },
+                    { header: "Cost price", value: (p: any) => p.costPrice },
+                    { header: "GST %", value: (p: any) => p.gstPercent },
+                    { header: "Stock", value: (p: any) => p.stock },
+                    { header: "Reorder level", value: (p: any) => p.reorderLevel },
+                    { header: "Vendor", value: (p: any) => p.vendor },
+                    { header: "Active", value: (p: any) => (p.isActive ? "Yes" : "No") },
+                  ]}
+                  importTemplate={{
+                    headers: ["Name", "Code", "Category", "Selling price", "Cost price", "GST %", "Opening stock", "Reorder level", "Vendor"],
+                    example: ["Whey 1kg", "", "supplement", 2500, 1900, 18, 10, 5, "ABC Nutrition"],
+                  }}
+                  onImportRow={
+                    can("Products", "create")
+                      ? (r) => {
+                          if (!r.Name) throw new Error("Name is required");
+                          return gym.products.create({
+                            name: r.Name,
+                            sku: r.Code || undefined,
+                            category: String(r.Category || "supplement").toLowerCase(),
+                            price: Number(r["Selling price"]) || 0,
+                            costPrice: Number(r["Cost price"]) || 0,
+                            gstPercent: r["GST %"] === "" ? 18 : Number(r["GST %"]),
+                            stock: Number(r["Opening stock"]) || 0,
+                            reorderLevel: r["Reorder level"] === "" ? 5 : Number(r["Reorder level"]),
+                            vendor: r.Vendor || undefined,
+                          });
+                        }
+                      : undefined
+                  }
+                  onImported={refresh}
+                />
+                {can("Products", "create") && (
+                  <Btn
+                    onClick={() => {
+                      setForm(blank);
+                      setEdit("new");
+                    }}
+                  >
+                    <Plus className="w-4 h-4" /> Add product
+                  </Btn>
+                )}
+              </>
+            }
           >
-            {products.map((p, i) => (
+            <SearchBox value={q} onChange={setQ} placeholder="Name, code or vendor…" />
+            <select className={inputCls + " sm:w-40 font-bold"} value={catF} onChange={(e) => setCatF(e.target.value)}>
+              <option value="">Category: all</option>
+              {CATS.map((c) => (
+                <option key={c} value={c}>{titleCase(c)}</option>
+              ))}
+            </select>
+            <select className={inputCls + " sm:w-40 font-bold"} value={stockF} onChange={(e) => setStockF(e.target.value)}>
+              <option value="">Stock: all</option>
+              <option value="low">Low stock</option>
+              <option value="out">Out of stock</option>
+            </select>
+          </Toolbar>
+          <DataTable
+            head={["Code", "Product", "Category", "Vendor", "Price", "Cost", "Stock", "Status", "Actions"]}
+            empty={shown.length === 0}
+          >
+            {shown.map((p, i) => (
               <Tr key={p._id} i={i}>
+                <Td className="text-xs font-bold whitespace-nowrap">{p.sku || "—"}</Td>
                 <Td>
-                  <p className="font-black">{p.name}</p>
-                  <p className="text-xs text-black/50">{p.sku}</p>
+                  <Thumb photo={p.photo} name={p.name} />
                 </Td>
-                <Td className="capitalize text-xs font-bold">
-                  {titleCase(p.category)}
-                </Td>
-                <Td className="font-bold">{inr(p.price)}</Td>
+                <Td className="capitalize text-xs">{titleCase(p.category)}</Td>
+                <Td className="text-xs">{p.vendor || "—"}</Td>
+                <Td className="font-medium">{inr(p.price)}</Td>
                 <Td>{inr(p.costPrice)}</Td>
                 <Td>
-                  <span
-                    className={cn(
-                      "font-black",
-                      p.stock <= p.reorderLevel && "text-red-600",
-                    )}
-                  >
+                  <span className={cn("font-bold", p.stock <= p.reorderLevel && "text-red-600")}>
                     {p.stock}
                   </span>
-                  <span className="text-xs text-black/40">
-                    {" "}
-                    (reorder {p.reorderLevel})
-                  </span>
+                  <span className="text-xs text-black/40"> (reorder {p.reorderLevel})</span>
                 </Td>
                 <Td>
                   <Pill value={p.isActive ? "active" : "inactive"} />
@@ -405,7 +466,6 @@ export default function PosPage() {
                     <ActionButton
                       label="Adjust stock"
                       icon={PackagePlus}
-                      tone="primary"
                       onClick={() => {
                         setStockFor(p);
                         setDelta("");
@@ -450,6 +510,9 @@ export default function PosPage() {
         </>
       )}
 
+      {tab === "purchases" && <PurchasesTab products={products} />}
+      {tab === "history" && <SalesTab />}
+
       <Modal
         open={!!edit}
         title={edit === "new" ? "Add product" : "Edit product"}
@@ -466,6 +529,13 @@ export default function PosPage() {
         }
       >
         <div className="grid grid-cols-2 gap-4">
+          <Field label="Photo" className="col-span-2">
+            <PhotoUpload
+              value={form.photo || ""}
+              name={form.name || "P"}
+              onChange={(url) => setForm({ ...form, photo: url })}
+            />
+          </Field>
           <TextInput
             className="col-span-2"
             label="Name"
@@ -474,9 +544,15 @@ export default function PosPage() {
             onChange={(e: any) => setForm({ ...form, name: e.target.value })}
           />
           <TextInput
-            label="SKU"
+            label="Product code"
+            hint="Leave blank to auto-generate (PRD-0001)"
             value={form.sku}
             onChange={(e: any) => setForm({ ...form, sku: e.target.value })}
+          />
+          <TextInput
+            label="Vendor"
+            value={form.vendor || ""}
+            onChange={(e: any) => setForm({ ...form, vendor: e.target.value })}
           />
           <SelectInput
             label="Category"

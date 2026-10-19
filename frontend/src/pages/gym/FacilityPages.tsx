@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   BadgeIndianRupee,
@@ -26,6 +26,8 @@ import {
   TextArea,
   TextInput,
   SelectInput,
+  Thumb,
+  tagFor,
   fmtDate,
   inr,
   titleCase,
@@ -237,6 +239,15 @@ const EXP_CATS = [
   "other",
 ];
 export function ExpensesPage() {
+  // categories already used (any custom ones too) + defaults — typing a new name creates it
+  const { data: all } = useQuery({
+    queryKey: ["expenses", "categories"],
+    queryFn: () => gym.expenses.list({ limit: 1000 }),
+    staleTime: 30_000,
+  });
+  const cats = Array.from(
+    new Set([...EXP_CATS, ...(all?.data || []).map((e: any) => e.category)]),
+  );
   return (
     <ResourcePage<any>
       title="Expenses"
@@ -244,7 +255,7 @@ export function ExpensesPage() {
       permission="Expenses"
       api={gym.expenses}
       queryKey="expenses"
-      filters={[{ key: "category", label: "categories", options: EXP_CATS }]}
+      filters={[{ key: "category", label: "categories", options: cats }]}
       stats={(rows, total) => {
         const sum = rows.reduce((s, r) => s + r.amount, 0);
         const top = Object.entries(
@@ -287,7 +298,11 @@ export function ExpensesPage() {
         },
         {
           label: "Category",
-          render: (r) => <Pill value={r.category} className="nb-tag-white" />,
+          render: (r) => (
+            <span className={"nb-badge capitalize whitespace-nowrap " + tagFor(r.category)}>
+              {r.category}
+            </span>
+          ),
         },
         { label: "Vendor", render: (r) => r.vendor || "—" },
         {
@@ -313,10 +328,11 @@ export function ExpensesPage() {
         {
           key: "category",
           label: "Category",
-          type: "select",
-          options: EXP_CATS,
+          type: "combo",
+          options: cats,
           required: true,
           default: "rent",
+          hint: "Type a new name to add a category",
         },
         {
           key: "amount",
@@ -637,14 +653,17 @@ export function EquipmentPage() {
       )}
       columns={[
         {
+          label: "Code",
+          render: (r) => <span className="text-xs font-bold">{r.code || "—"}</span>,
+        },
+        {
           label: "Equipment",
           render: (r) => (
-            <div>
-              <p className="font-black">{r.name}</p>
-              <p className="text-xs text-black/50">
-                {[r.brand, r.serialNo].filter(Boolean).join(" · ")}
-              </p>
-            </div>
+            <Thumb
+              photo={r.photo}
+              name={r.name}
+              sub={[r.brand, r.serialNo].filter(Boolean).join(" · ")}
+            />
           ),
         },
         {
@@ -656,11 +675,17 @@ export function EquipmentPage() {
           ),
         },
         { label: "Status", render: (r) => <Pill value={r.status} /> },
+        { label: "Vendor", render: (r) => r.vendor || "—" },
+        {
+          label: "Price",
+          render: (r) =>
+            r.purchaseCost ? <span className="font-bold">{inr(r.purchaseCost)}</span> : "—",
+        },
         { label: "Last service", render: (r) => fmtDate(r.lastServiceOn) },
         {
           label: "Next service",
           render: (r) => (
-            <span className={due(r) ? "font-black text-red-600" : "font-bold"}>
+            <span className={due(r) ? "font-bold text-red-600" : ""}>
               {fmtDate(r.nextServiceOn)}
             </span>
           ),
@@ -668,7 +693,9 @@ export function EquipmentPage() {
         { label: "Warranty", render: (r) => fmtDate(r.warrantyTill) },
       ]}
       fields={[
+        { key: "photo", label: "Photo", type: "photo" },
         { key: "name", label: "Name", required: true },
+        { key: "vendor", label: "Vendor (bought from)" },
         {
           key: "category",
           label: "Category",
@@ -769,119 +796,6 @@ export function EquipmentPage() {
           </div>
         </Modal>
       }
-    />
-  );
-}
-
-/* ------------------------------------------------------------------ body measurements */
-export function MeasurementsPage() {
-  return (
-    <ResourcePage<any>
-      title="Body Progress"
-      noun="measurement"
-      permission="Measurements"
-      api={gym.measurements}
-      queryKey="measurements"
-      stats={(rows, total) => (
-        <StatGrid cols={3}>
-          <StatCard
-            label="Check-ins logged"
-            value={total}
-            icon={Ruler}
-            color="#024BAB"
-          />
-          <StatCard
-            label="Avg weight"
-            value={
-              rows.length
-                ? `${(rows.reduce((s, r) => s + (r.weightKg || 0), 0) / rows.filter((r) => r.weightKg).length || 0).toFixed(1)} kg`
-                : "—"
-            }
-            icon={Ruler}
-            color="#A855F7"
-          />
-          <StatCard
-            label="Avg body fat"
-            value={
-              rows.filter((r) => r.bodyFatPct).length
-                ? `${(rows.reduce((s, r) => s + (r.bodyFatPct || 0), 0) / rows.filter((r) => r.bodyFatPct).length).toFixed(1)}%`
-                : "—"
-            }
-            icon={Ruler}
-            color="#FA731C"
-          />
-        </StatGrid>
-      )}
-      searchable={false}
-      columns={[
-        {
-          label: "Member",
-          render: (r) => (
-            <div>
-              <p className="font-black">{r.memberId?.name}</p>
-              <p className="text-xs text-black/50">{r.memberId?.memberCode}</p>
-            </div>
-          ),
-        },
-        { label: "Date", render: (r) => fmtDate(r.measuredAt) },
-        {
-          label: "Weight",
-          render: (r) => (r.weightKg ? `${r.weightKg} kg` : "—"),
-        },
-        {
-          label: "BMI",
-          render: (r) => <span className="font-bold">{r.bmi ?? "—"}</span>,
-        },
-        {
-          label: "Body fat",
-          render: (r) => (r.bodyFatPct ? `${r.bodyFatPct}%` : "—"),
-        },
-        {
-          label: "Waist",
-          render: (r) => (r.waistCm ? `${r.waistCm} cm` : "—"),
-        },
-        {
-          label: "Chest / Arm",
-          render: (r) =>
-            [r.chestCm, r.armCm].filter(Boolean).join(" / ") || "—",
-        },
-      ]}
-      fields={[
-        {
-          key: "memberId",
-          label: "Member",
-          type: "member",
-          required: true,
-          span: 2,
-          createOnly: true,
-        },
-        { key: "measuredAt", label: "Date", type: "date", default: todayStr() },
-        { key: "weightKg", label: "Weight (kg)", type: "number", step: "0.1" },
-        { key: "heightCm", label: "Height (cm)", type: "number" },
-        {
-          key: "bodyFatPct",
-          label: "Body fat (%)",
-          type: "number",
-          step: "0.1",
-        },
-        {
-          key: "muscleMassKg",
-          label: "Muscle mass (kg)",
-          type: "number",
-          step: "0.1",
-        },
-        { key: "visceralFat", label: "Visceral fat", type: "number" },
-        { key: "restingHr", label: "Resting HR (bpm)", type: "number" },
-        { key: "bpSystolic", label: "BP systolic", type: "number" },
-        { key: "bpDiastolic", label: "BP diastolic", type: "number" },
-        { key: "chestCm", label: "Chest (cm)", type: "number" },
-        { key: "waistCm", label: "Waist (cm)", type: "number" },
-        { key: "hipsCm", label: "Hips (cm)", type: "number" },
-        { key: "armCm", label: "Arm (cm)", type: "number" },
-        { key: "thighCm", label: "Thigh (cm)", type: "number" },
-        { key: "notes", label: "Notes", type: "textarea", span: 2 },
-      ]}
-      wide
     />
   );
 }

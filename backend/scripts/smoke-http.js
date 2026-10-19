@@ -100,20 +100,6 @@ const assert = require("assert");
     });
     assert.strictEqual(pay.data.status, "paid");
   });
-  await step("check-in then double check-in conflicts", async () => {
-    assert.strictEqual(
-      (await call("POST", "/attendance/checkin", { memberId: member._id }))
-        .status,
-      201,
-    );
-    assert.strictEqual(
-      (await call("POST", "/attendance/checkin", { memberId: member._id }))
-        .status,
-      409,
-    );
-    const live = await call("GET", "/attendance/live");
-    assert.strictEqual(live.data.insideCount, 1);
-  });
   await step("dashboard + reports respond", async () => {
     const s = await call("GET", "/dashboard/summary");
     assert.strictEqual(s.data.todayRevenue, 2360);
@@ -125,16 +111,8 @@ const assert = require("assert");
     assert.strictEqual((await call("GET", "/dashboard/charts")).status, 200);
   });
   await step(
-    "generic resources: enquiry -> convert, class, product, expense",
+    "generic resources: class, product, expense",
     async () => {
-      const e = await call("POST", "/enquiries", {
-        name: "Walk In",
-        phone: "9000011111",
-        source: "walk_in",
-      });
-      assert.strictEqual(e.status, 201, JSON.stringify(e));
-      const c = await call("POST", `/enquiries/${e.data._id}/convert`, {});
-      assert.strictEqual(c.status, 201, JSON.stringify(c));
       assert.strictEqual(
         (
           await call("POST", "/classes", {

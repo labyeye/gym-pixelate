@@ -27,8 +27,8 @@ export default function MemberProfileScreen() {
   if (loading && !o) return <Screen title="Member" back><Loader /></Screen>;
   if (!o) return <Screen title="Member" back><Empty text="Could not load member" /></Screen>;
 
-  const { member, access, memberships, invoices, visits, measurements, pt, workout, diet, trainers, locker } = o;
-  const current = access?.membership;
+  const { member, memberships, invoices, measurements, pt, workout, diet, trainers, locker } = o;
+  const current = memberships.find((m: any) => ['active', 'frozen'].includes(m.status) && new Date(m.endDate) >= new Date());
   const left = current ? daysFromNow(current.endDate) : null;
   const run = async (fn: () => Promise<any>, ok: string) => {
     try { await fn(); notify.success(ok); reload(); } catch (e: any) { notify.error('Failed', e.message); }
@@ -46,35 +46,28 @@ export default function MemberProfileScreen() {
             <Text style={S.small}>{member.memberCode} · {member.phone}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
               <Pill value={member.status} />
-              {member.faceRegistered && <Pill value="Face ID" tone="purple" />}
               {(member.health?.conditions || []).map((c: string) => <Pill key={c} value={c} tone="red" />)}
             </View>
           </View>
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
           <Btn small label={current ? 'New plan' : 'Sell plan'} onPress={() => setSell({ mode: 'sell' })} />
-          <Btn small color="#00A070" label="Check in" onPress={() => run(() => gym.attendance.checkin({ memberId: member._id }), 'Checked in')} />
           <Btn small color="#0D9488" label={member.userId ? 'Reset portal login' : 'Portal login'} onPress={async () => { try { const r = await gym.members.portalAccess(member._id); setPortal(r.data); reload(); } catch (e: any) { notify.error('Could not create login', e.message); } }} />
           {wa && <Btn small light label="WhatsApp" onPress={() => Linking.openURL(wa)} />}
         </View>
       </RCard>
 
-      <RCard style={brut({ backgroundColor: access?.allowed ? '#DCFCE7' : '#FEE2E2', padding: 12, marginBottom: 14 })}>
-        <Text style={S.h3}>{access?.allowed ? 'Can enter — valid membership' : `Entry blocked${access?.reason ? ': ' + access.reason : ''}`}</Text>
-        {(access?.warnings || []).map((w: string) => <Text key={w} style={[S.small, { color: '#C2410C' }]}>⚠ {w}</Text>)}
-      </RCard>
 
       <StatGrid>
         <StatCard label="Plan" value={current?.planName || 'None'} sub={current ? `${fmtDate(current.startDate)} → ${fmtDate(current.endDate)}` : 'No active plan'} icon={I(CalendarCheck)} color="#024BAB" />
         <StatCard label="Days left" value={left === null ? '—' : Math.max(0, left)} sub={left !== null && left < 0 ? `expired ${-left}d ago` : undefined} icon={I(Sun)} color={left !== null && left <= 7 ? '#FA731C' : '#00C48C'} />
         <StatCard label="Outstanding" value={inr(o.due)} icon={I(Wallet)} color={o.due > 0 ? '#EF4444' : '#14B8A6'} />
-        <StatCard label="Visits (30 days)" value={o.visitCount30} sub={locker ? `Locker #${locker.number}` : 'No locker'} icon={I(TrendingUp)} color="#A855F7" />
+        <StatCard label="Locker" value={locker ? `#${locker.number}` : 'None'} icon={I(TrendingUp)} color="#A855F7" />
       </StatGrid>
 
       <Tabs value={tab} onChange={setTab} tabs={[
         { id: 'plans', label: 'Memberships', count: memberships.length },
         { id: 'bills', label: 'Invoices', count: invoices.length },
-        { id: 'visits', label: 'Attendance', count: visits.length },
         { id: 'progress', label: 'Progress', count: measurements.length },
         { id: 'train', label: 'Training' },
         { id: 'about', label: 'About' },
@@ -119,15 +112,6 @@ export default function MemberProfileScreen() {
             {['pending', 'partial'].includes(v.status) && <Btn small label="Collect payment" onPress={() => setPay({ inv: v, mode: 'pay' })} />}
             {v.paidAmount > 0 && ['paid', 'partial'].includes(v.status) && <Btn small light label="Refund" onPress={() => setPay({ inv: v, mode: 'refund' })} />}
           </View>
-        </RCard>
-      )))}
-
-      {tab === 'visits' && (visits.length === 0 ? <Empty text="No visits yet" /> : visits.map((v: any) => (
-        <RCard key={v._id} style={S.card}>
-          <Row k="Check-in" v={fmtDateTime(v.checkinAt)} bold />
-          <Row k="Check-out" v={v.checkoutAt ? fmtDateTime(v.checkoutAt) : 'Inside'} />
-          <Row k="Duration" v={v.durationMin ? `${v.durationMin} min${v.autoCheckout ? ' (auto)' : ''}` : '—'} />
-          <Row k="Method" v={titleCase(v.method)} />
         </RCard>
       )))}
 

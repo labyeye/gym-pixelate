@@ -92,18 +92,15 @@ app.use("/api/branches", require("./routes/branchRoutes"));
 app.use("/api/members", require("./routes/memberRoutes"));
 app.use("/api/membership-plans", require("./routes/membershipPlanRoutes"));
 app.use("/api/memberships", require("./routes/membershipRoutes"));
-app.use("/api/attendance", require("./routes/attendanceRoutes"));
 app.use("/api/invoices", require("./routes/invoiceRoutes"));
 app.use("/api/trainers", require("./routes/trainerRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
-app.use("/api/face", require("./routes/faceRoutes"));
 app.use("/api/settings", require("./routes/settingRoutes"));
 app.use("/api/activity", require("./routes/activityRoutes"));
 app.use("/api/api-keys", require("./routes/apiKeyRoutes"));
 app.use("/api/billing", require("./routes/billingRoutes"));
 app.use("/api/upload", require("./routes/uploadRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
-app.use("/api/retention", require("./routes/retentionRoutes"));
 app.use("/api/portal", require("./routes/portalRoutes"));
 app.use("/api/pay", require("./routes/payRoutes")); // public, token-authenticated
 app.use("/api/payment-links", require("./routes/paymentLinkRoutes"));

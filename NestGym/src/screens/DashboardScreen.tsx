@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
-  BadgeCheck, BadgeX, Boxes, Clock3, DoorOpen, IndianRupee, Receipt, ScanFace, UserPlus, Users, Wallet, Wrench,
+  BadgeCheck, BadgeX, Boxes, Clock3, IndianRupee, Receipt, Users, Wallet, Wrench,
 } from 'lucide-react-native';
 import { gym } from '../api/gym';
 import { request } from '../api/api';
@@ -27,20 +27,18 @@ export default function DashboardScreen() {
   const charts = useFetch(() => gym.dashboard.charts(), []);
   const renew = useFetch(() => gym.reports.renewals({ days: 7, includeLapsed: 'false' }), [], desk);
   const dues = useFetch(() => gym.reports.dues(), [], money);
-  const enq = useFetch(() => gym.enquiries.list({ limit: 50 }), [], desk);
   const ann = useFetch(() => gym.announcements.active(), []);
   const sessions = useFetch(() => gym.classes.sessions({ days: 1 }), []);
   const bday = useFetch(() => gym.reports.birthdays(), [], desk);
   const log = useFetch(() => request<any>('/activity?limit=8').catch(() => ({ data: [] })), [], manager);
 
-  const refreshAll = () => [sum, charts, renew, dues, enq, ann, sessions, bday, log].forEach(f => f.reload());
+  const refreshAll = () => [sum, charts, renew, dues, ann, sessions, bday, log].forEach(f => f.reload());
   const st = sum.data?.data || {};
   const ch = charts.data?.data || {};
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const today = new Date().getDate();
   const birthdays = (bday.data?.data || []).filter((m: any) => m.day === today);
-  const followUps = (enq.data?.data || []).filter((e: any) => e.followUpAt && new Date(e.followUpAt) <= new Date() && !['converted', 'lost'].includes(e.status));
   const daysLeft = tenant?.planExpiresAt ? Math.ceil((new Date(tenant.planExpiresAt).getTime() - Date.now()) / 86400000) : null;
 
   const List = ({ items, empty }: { items: React.ReactNode[]; empty: string }) =>
@@ -69,13 +67,10 @@ export default function DashboardScreen() {
 
       <StatGrid>
         {money && <StatCard label="Collected today" value={inr(st.todayRevenue)} icon={I(IndianRupee)} color="#00C48C" />}
-        <StatCard label="Inside gym now" value={st.membersInsideGym ?? 0} icon={I(DoorOpen)} color="#024BAB" />
-        <StatCard label="Check-ins today" value={st.todayCheckins ?? 0} icon={I(ScanFace)} color="#A855F7" />
         <StatCard label="New members today" value={st.newMembersToday ?? 0} icon={I(Users)} color="#14B8A6" />
         <StatCard label="Active memberships" value={st.activeMemberships ?? 0} icon={I(BadgeCheck)} color="#84CC16" />
         <StatCard label="Expired" value={st.expiredMemberships ?? 0} icon={I(BadgeX)} color="#EF4444" />
         <StatCard label="Renewals (7 days)" value={st.pendingRenewals ?? 0} icon={I(Clock3)} color="#FA731C" />
-        <StatCard label="Open enquiries" value={st.openEnquiries ?? 0} icon={I(UserPlus)} color="#8B5CF6" />
         {money && <StatCard label="This month" value={inr(st.monthlyRevenue)} icon={I(Wallet)} color="#00C48C" />}
         {money && <StatCard label="Dues outstanding" value={inr(st.pendingPayments)} sub={`${st.membersWithDues ?? 0} members`} icon={I(Receipt)} color={st.pendingPayments > 0 ? '#EF4444' : '#14B8A6'} />}
         <StatCard label="Low-stock products" value={st.lowStockProducts ?? 0} icon={I(Boxes)} color={st.lowStockProducts ? '#EF4444' : '#14B8A6'} />
@@ -87,9 +82,6 @@ export default function DashboardScreen() {
           <BarChart data={(ch.revenueByDay || []).map((d: any) => ({ label: String(d.date).slice(8), value: d.revenue }))} color="#024BAB" fmt={inr} />
         </Panel>
       )}
-      <Panel title="Footfall — last 30 days">
-        <BarChart data={(ch.attendanceByDay || []).map((d: any) => ({ label: String(d.date).slice(8), value: d.count }))} color="#A855F7" />
-      </Panel>
       <Panel title="New memberships — 12 months">
         <BarChart data={(ch.membershipGrowth || []).map((d: any) => ({ label: String(d.month).slice(-2), value: d.newMemberships }))} color="#00C48C" />
       </Panel>
@@ -105,11 +97,6 @@ export default function DashboardScreen() {
       {money && (
         <Panel title="Biggest dues" right={<Text style={[S.label, { color: C.primary }]} onPress={() => nav.navigate('Reports')}>All</Text>}>
           <List empty="All clear" items={(dues.data?.data || []).slice(0, 6).map((r: any, i: number) => <LRow key={i} left={r.member?.name} right={inr(r.due)} color={C.danger} onPress={() => nav.navigate('MemberProfile', { id: r.member?._id })} />)} />
-        </Panel>
-      )}
-      {desk && (
-        <Panel title="Follow-ups due" right={<Text style={[S.label, { color: C.primary }]} onPress={() => nav.navigate('Enquiries')}>All</Text>}>
-          <List empty="No follow-ups pending" items={followUps.slice(0, 6).map((e: any) => <LRow key={e._id} left={e.name} right={e.phone} />)} />
         </Panel>
       )}
       <Panel title="Announcements">

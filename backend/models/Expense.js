@@ -12,22 +12,7 @@ const expenseSchema = new mongoose.Schema(
       ref: "Branch",
       required: true,
     },
-    category: {
-      type: String,
-      enum: [
-        "rent",
-        "salary",
-        "electricity",
-        "water",
-        "equipment",
-        "maintenance",
-        "marketing",
-        "supplies",
-        "software",
-        "other",
-      ],
-      required: true,
-    },
+    category: { type: String, required: true, trim: true, lowercase: true },
     amount: { type: Number, required: true, min: 0 },
     paidOn: { type: Date, default: Date.now },
     method: {

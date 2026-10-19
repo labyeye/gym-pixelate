@@ -2,7 +2,6 @@ const asyncHandler = require("express-async-handler");
 const Member = require("../models/Member");
 const Membership = require("../models/Membership");
 const Invoice = require("../models/Invoice");
-const Attendance = require("../models/Attendance");
 const BodyMeasurement = require("../models/BodyMeasurement");
 const PTPackage = require("../models/PTPackage");
 const WorkoutPlan = require("../models/WorkoutPlan");
@@ -15,7 +14,6 @@ const {
   fail,
   assertCapacity,
   nextCode,
-  evaluateAccess,
   r2,
 } = require("../utils/gym");
 
@@ -25,8 +23,6 @@ const PROTECTED = [
   "tenantId",
   "userId",
   "memberCode",
-  "faceEmbedding",
-  "faceRegistered",
   "createdAt",
   "updatedAt",
 ];
@@ -36,7 +32,18 @@ const clean = (body) =>
   );
 
 const getMembers = asyncHandler(async (req, res) => {
-  const { branchId, status, search, page = 1, limit = 50 } = req.query;
+  const {
+    branchId,
+    status,
+    search,
+    page = 1,
+    limit = 50,
+    gender,
+    goal,
+    source,
+    plan,
+    planStatus,
+  } = req.query;
 
   const query = {};
   if (req.user.tenantId) query.tenantId = req.user.tenantId;
@@ -47,7 +54,36 @@ const getMembers = asyncHandler(async (req, res) => {
       { name: { $regex: search, $options: "i" } },
       { email: { $regex: search, $options: "i" } },
       { phone: { $regex: search, $options: "i" } },
+      { memberCode: { $regex: search, $options: "i" } },
     ];
+  }
+  if (gender) query.gender = gender;
+  if (goal) query["fitness.goal"] = goal;
+  if (source) query.source = source;
+  if (plan || planStatus) {
+    const mq = {};
+    if (req.user.tenantId) mq.tenantId = req.user.tenantId;
+    if (plan) mq.planName = plan;
+    const soon = new Date(Date.now() + 7 * 86400000);
+    if (planStatus === "active") mq.status = "active";
+    else if (planStatus === "expiring") {
+      mq.status = "active";
+      mq.endDate = { $lte: soon };
+    } else if (planStatus === "expired") mq.status = "expired";
+    else if (planStatus === "dues") {
+      mq.status = { $ne: "cancelled" };
+      mq.$expr = { $gt: ["$totalAmount", "$paidAmount"] };
+    } else mq.status = { $in: ["active", "frozen", "upcoming"] };
+    if (planStatus === "none") delete mq.status;
+    const ids = await Membership.distinct("memberId", mq);
+    if (planStatus === "none") query._id = { $nin: ids };
+    else if (planStatus === "expired") {
+      const live = await Membership.distinct("memberId", {
+        status: { $in: ["active", "frozen", "upcoming"] },
+        ...(req.user.tenantId ? { tenantId: req.user.tenantId } : {}),
+      });
+      query._id = { $in: ids, $nin: live };
+    } else query._id = { $in: ids };
   }
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -204,14 +240,13 @@ const updateMember = asyncHandler(async (req, res) => {
   res.json({ success: true, data: member });
 });
 
-// A member with history is deactivated, not erased: invoices and attendance must keep pointing at someone.
+// A member with history is deactivated, not erased: invoices and memberships must keep pointing at someone.
 const deleteMember = asyncHandler(async (req, res) => {
   const member = await Member.findById(req.params.id);
   if (!member) throw fail(404, "Member not found");
   const hasHistory =
     (await Membership.exists({ memberId: member._id })) ||
-    (await Invoice.exists({ memberId: member._id })) ||
-    (await Attendance.exists({ memberId: member._id }));
+    (await Invoice.exists({ memberId: member._id }));
   if (hasHistory) {
     member.status = "inactive";
     await member.save();
@@ -257,23 +292,15 @@ const getMemberOverview = asyncHandler(async (req, res) => {
   const [
     memberships,
     invoices,
-    visits,
-    visitCount30,
     measurements,
     pt,
     workout,
     diet,
     trainers,
     locker,
-    access,
   ] = await Promise.all([
     Membership.find({ memberId: id }).sort("-startDate").limit(20),
     Invoice.find({ memberId: id }).sort("-issuedAt").limit(20),
-    Attendance.find({ memberId: id }).sort("-checkinAt").limit(30),
-    Attendance.countDocuments({
-      memberId: id,
-      checkinAt: { $gte: new Date(Date.now() - 30 * 86400000) },
-    }),
     BodyMeasurement.find({ memberId: id }).sort("-measuredAt").limit(12),
     PTPackage.find({ memberId: id })
       .sort("-createdAt")
@@ -286,7 +313,6 @@ const getMemberOverview = asyncHandler(async (req, res) => {
       "name phone",
     ),
     Locker.findOne({ memberId: id, status: "assigned" }),
-    evaluateAccess(member),
   ]);
   const due = r2(
     invoices
@@ -297,12 +323,9 @@ const getMemberOverview = asyncHandler(async (req, res) => {
     success: true,
     data: {
       member,
-      access,
       due,
-      visitCount30,
       memberships,
       invoices,
-      visits,
       measurements,
       pt,
       workout,
@@ -313,21 +336,6 @@ const getMemberOverview = asyncHandler(async (req, res) => {
   });
 });
 
-const updateFaceStatus = asyncHandler(async (req, res) => {
-  const { faceRegistered } = req.body;
-
-  const member = await Member.findById(req.params.id);
-  if (!member) {
-    res.status(404);
-    throw new Error("Member not found");
-  }
-
-  member.faceRegistered = !!faceRegistered;
-  await member.save();
-
-  res.json({ success: true, data: member });
-});
-
 module.exports = {
   getMembers,
   searchMembers,
@@ -335,6 +343,5 @@ module.exports = {
   createMember,
   updateMember,
   deleteMember,
-  updateFaceStatus,
   getMemberOverview,
 };

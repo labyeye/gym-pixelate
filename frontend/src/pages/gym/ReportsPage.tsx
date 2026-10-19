@@ -1,5 +1,6 @@
 import { waDigits } from "@/lib/countries";
 import { useState } from "react";
+import { ArrowLeft, FileText, Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -37,8 +38,28 @@ import {
 } from "@/components/gym/kit";
 import { cn } from "@/lib/utils";
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const iso = (d: Date) => todayStr(d);
+
+type Cat = "finance" | "members";
+const CATS: Record<Cat, { label: string; color: string }> = {
+  finance: { label: "Finance", color: "#024BAB" },
+  members: { label: "Members", color: "#00C48C" },
+};
+const REPORTS: { id: string; name: string; desc: string; cat: Cat; icon: any }[] = [
+  { id: "overview", name: "P&L Overview", desc: "Income, expenses, profit, collections by method, revenue by type and plan sales for any date range.", cat: "finance", icon: IndianRupee },
+  { id: "gst", name: "GST Register", desc: "Invoice-wise taxable value, GST and totals for filing — pick any date range.", cat: "finance", icon: FileText },
+  { id: "dues", name: "Outstanding Dues", desc: "Members with unpaid balances, oldest invoice and days overdue, with WhatsApp reminders.", cat: "finance", icon: Wallet },
+  { id: "renewals", name: "Upcoming Renewals", desc: "Memberships ending in the next few days so the desk can follow up before they lapse.", cat: "members", icon: CalendarClock },
+  { id: "birthdays", name: "Birthdays This Month", desc: "Members celebrating a birthday this month — send wishes on WhatsApp.", cat: "members", icon: Cake },
+];
+const CatTag = ({ cat }: { cat: Cat }) => (
+  <span
+    className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider border border-black text-white"
+    style={{ backgroundColor: CATS[cat].color }}
+  >
+    {CATS[cat].label}
+  </span>
+);
 
 function Bars({
   rows,
@@ -76,7 +97,9 @@ function Bars({
 }
 
 export default function ReportsPage() {
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("");
+  const [search, setSearch] = useState("");
+  const [filterCat, setFilterCat] = useState<Cat | "all">("all");
   const [from, setFrom] = useState(
     iso(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
   );
@@ -99,20 +122,10 @@ export default function ReportsPage() {
     queryFn: () => gym.reports.renewals({ days }),
     enabled: tab === "renewals",
   });
-  const risk = useQuery({
-    queryKey: ["rep-risk"],
-    queryFn: () => gym.reports.atRisk({ days: 14 }),
-    enabled: tab === "risk",
-  });
   const bdays = useQuery({
     queryKey: ["rep-bday"],
     queryFn: () => gym.reports.birthdays(),
     enabled: tab === "birthdays",
-  });
-  const heat = useQuery({
-    queryKey: ["rep-heat", from, to],
-    queryFn: () => gym.reports.heatmap(range),
-    enabled: tab === "peak",
   });
   const gst = useQuery({
     queryKey: ["rep-gst", from, to],
@@ -121,12 +134,6 @@ export default function ReportsPage() {
   });
 
   const o = overview.data?.data;
-  const grid = (() => {
-    const g: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
-    (heat.data?.data || []).forEach((c: any) => (g[c.day][c.hour] = c.count));
-    return g;
-  })();
-  const maxHeat = Math.max(1, ...grid.flat());
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => settingsAPI.get() });
   const company = settings.data?.data?.companyName;
   const period = `${fmtDate(from)} – ${fmtDate(to)}`;
@@ -161,23 +168,11 @@ export default function ReportsPage() {
           headers: ["Member", "Phone", "Plan", "Ends", "Days left", "Due"],
           rows: (renewals.data?.data || []).map((r: any) => [r.member.name, r.member.phone, r.plan, fmtDate(r.endDate), r.daysLeft, r.due]),
         };
-      case "risk":
-        return {
-          ...base, title: "At-risk Members", period: "No visit in 14 days", filename: "at-risk",
-          headers: ["Member", "Phone", "Plan", "Plan ends", "Last visit", "Days absent"],
-          rows: (risk.data?.data || []).map((r: any) => [r.member.name, r.member.phone, r.plan, fmtDate(r.endDate), r.lastVisit ? fmtDate(r.lastVisit) : "Never came", r.daysAbsent ?? ""]),
-        };
       case "birthdays":
         return {
           ...base, title: "Birthdays This Month", period: new Date().toLocaleString("en-IN", { month: "long", year: "numeric" }), filename: "birthdays",
           headers: ["Member", "Phone", "Day"],
           rows: (bdays.data?.data || []).map((m: any) => [m.name, m.phone, m.day]),
-        };
-      case "peak":
-        return {
-          ...base, title: "Peak Hours (check-ins)", period, filename: `peak-hours_${from}_${to}`,
-          headers: ["Day", ...Array.from({ length: 24 }, (_, h) => `${h}:00`)],
-          rows: grid.map((row, d) => [DAYS[d], ...row]),
         };
       case "gst":
         return {
@@ -215,20 +210,36 @@ export default function ReportsPage() {
 
   return (
     <AppLayout title="Reports & Insights">
-      <Tabs
-        value={tab}
-        onChange={setTab}
-        tabs={[
-          { id: "overview", label: "P&L overview" },
-          { id: "dues", label: "Dues" },
-          { id: "renewals", label: "Renewals" },
-          { id: "risk", label: "At risk" },
-          { id: "birthdays", label: "Birthdays" },
-          { id: "peak", label: "Peak hours" },
-          { id: "gst", label: "GST register" },
-        ]}
-      />
+      <div className="mb-6">
+        <h1 className="text-3xl font-display font-semibold text-black">Reports</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Generate, filter, and export gym reports
+        </p>
+      </div>
 
+      {tab && (
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={() => setTab("")}
+              className="flex items-center gap-2 border-2 border-black px-3 py-2 text-sm font-semibold bg-white hover:bg-gray-50"
+            >
+              <ArrowLeft className="w-4 h-4" /> All Reports
+            </button>
+            <div className="flex items-center gap-2">
+              <CatTag cat={REPORTS.find((r) => r.id === tab)!.cat} />
+              <h2 className="text-xl font-semibold text-black">
+                {REPORTS.find((r) => r.id === tab)!.name}
+              </h2>
+            </div>
+            <button
+              onClick={() => setTab("")}
+              className="ml-auto border-2 border-black p-1.5 bg-white hover:bg-gray-50"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="border-2 border-black bg-white p-5">
       {actions}
 
       {tab === "overview" && (
@@ -314,23 +325,6 @@ export default function ReportsPage() {
                   </Tr>
                 ))}
               </DataTable>
-            </Panel>
-            <Panel title="Enquiry funnel">
-              <p className="text-sm font-bold mb-2">
-                {o?.enquiries?.total ?? 0} enquiries ·{" "}
-                {o?.enquiries?.converted ?? 0} joined ·{" "}
-                <span className="text-[#00A070]">
-                  {o?.enquiries?.conversionPercent ?? 0}% conversion
-                </span>{" "}
-                · {o?.newMembers ?? 0} new members
-              </p>
-              <Bars
-                rows={Object.entries(o?.enquiries?.byStatus || {}).map(
-                  ([k, v]) => ({ label: titleCase(k), value: v as number }),
-                )}
-                color="#A855F7"
-                fmt={(n) => String(n)}
-              />
             </Panel>
           </div>
         </>
@@ -484,56 +478,6 @@ export default function ReportsPage() {
         </>
       )}
 
-      {tab === "risk" && (
-        <>
-          <p className="text-xs font-bold text-black/60 mb-3">
-            Paying members with no visit in the last 14 days — a call now is
-            cheaper than losing the renewal.
-          </p>
-          <DataTable
-            head={[
-              "Member",
-              "Plan",
-              "Plan ends",
-              "Last visit",
-              "Absent",
-              "Actions",
-            ]}
-            loading={risk.isLoading}
-            empty={!(risk.data?.data || []).length}
-          >
-            {(risk.data?.data || []).map((r: any, i: number) => (
-              <Tr key={r.member._id} i={i}>
-                <Td>
-                  <p className="font-black">{r.member.name}</p>
-                  <p className="text-xs text-black/50">{r.member.phone}</p>
-                </Td>
-                <Td className="font-bold">{r.plan}</Td>
-                <Td className="text-xs font-bold">{fmtDate(r.endDate)}</Td>
-                <Td className="text-xs font-bold">
-                  {r.lastVisit ? fmtDate(r.lastVisit) : "Never came"}
-                </Td>
-                <Td className="font-black text-red-600">
-                  {r.daysAbsent != null ? `${r.daysAbsent}d` : "—"}
-                </Td>
-                <Td>
-                  <div className="flex justify-end">
-                    <a
-                      className="nb-btn px-3 py-1 text-xs bg-[#25D366] text-white"
-                      target="_blank"
-                      rel="noreferrer"
-                      href={`https://wa.me/${waDigits(r.member.phone)}?text=${encodeURIComponent(`Hi ${r.member.name}, we've missed you at the gym! Everything okay? Come in this week — your trainer is ready to help you get back on track.`)}`}
-                    >
-                      <MessageCircle className="inline w-3 h-3" /> Nudge
-                    </a>
-                  </div>
-                </Td>
-              </Tr>
-            ))}
-          </DataTable>
-        </>
-      )}
-
       {tab === "birthdays" && (
         <DataTable
           head={["Member", "Phone", "Birthday", "Actions"]}
@@ -564,52 +508,6 @@ export default function ReportsPage() {
             </Tr>
           ))}
         </DataTable>
-      )}
-
-      {tab === "peak" && (
-        <>
-          {dateFilter}
-          <div className="border-2 border-black bg-white p-3 overflow-x-auto">
-            <table className="text-[10px] font-bold">
-              <thead>
-                <tr>
-                  <th />
-                  {Array.from({ length: 24 }, (_, h) => (
-                    <th key={h} className="px-0.5 w-7 text-center">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {grid.map((row, d) => (
-                  <tr key={d}>
-                    <td className="pr-2 font-black uppercase">{DAYS[d]}</td>
-                    {row.map((n, h) => (
-                      <td
-                        key={h}
-                        title={`${DAYS[d]} ${h}:00 — ${n} check-ins`}
-                        className="w-7 h-7 border border-white text-center"
-                        style={{
-                          background: n
-                            ? `rgba(2,75,171,${0.12 + (n / maxHeat) * 0.88})`
-                            : "#f3f4f6",
-                          color: n / maxHeat > 0.5 ? "#fff" : "#0a0a0a",
-                        }}
-                      >
-                        {n || ""}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-xs font-bold text-black/50 mt-2">
-            Check-ins by weekday and hour (IST). Schedule classes and staff
-            around the dark cells.
-          </p>
-        </>
       )}
 
       {tab === "gst" && (
@@ -670,6 +568,97 @@ export default function ReportsPage() {
           </DataTable>
         </>
       )}
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-3 mb-6">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search reports..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full border-2 border-black pl-9 pr-4 py-2.5 text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-[#024BAB]"
+          />
+        </div>
+        <div className="flex gap-1 border-2 border-black">
+          {([["all", "All"], ["finance", "Finance"], ["members", "Members"]] as [Cat | "all", string][]).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setFilterCat(id)}
+              className={cn(
+                "px-4 py-2 text-sm font-semibold border-r-2 border-black last:border-r-0 transition-all",
+                filterCat === id ? "bg-black text-white" : "bg-white text-black hover:bg-gray-50",
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-3 mb-6">
+        {(Object.keys(CATS) as Cat[]).map((c) => (
+          <div key={c} className="flex items-center gap-2 border-2 border-black px-3 py-1.5 bg-white">
+            <span className="w-2.5 h-2.5" style={{ backgroundColor: CATS[c].color }} />
+            <span className="text-xs font-semibold text-black uppercase tracking-wider">{CATS[c].label}</span>
+            <span className="text-xs font-semibold text-muted-foreground">
+              {REPORTS.filter((r) => r.cat === c).length} reports
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {(Object.keys(CATS) as Cat[]).map((cat) => {
+        const list = REPORTS.filter(
+          (r) =>
+            r.cat === cat &&
+            (filterCat === "all" || filterCat === cat) &&
+            `${r.name} ${r.desc}`.toLowerCase().includes(search.toLowerCase()),
+        );
+        if (!list.length) return null;
+        return (
+          <div key={cat} className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-5 w-1 border border-black" style={{ backgroundColor: CATS[cat].color }} />
+              <h2 className="text-base font-semibold text-black uppercase tracking-wider">
+                {CATS[cat].label} ({list.length})
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+              {list.map((r) => {
+                const Icon = r.icon;
+                const on = tab === r.id;
+                return (
+                  <div key={r.id} className={cn("border-2 border-black bg-white p-4 flex flex-col gap-3 transition-all", on && "border-[#024BAB] bg-[#F0F6FF]")}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 border-2 border-black flex items-center justify-center shrink-0 bg-[#024BAB]">
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="mb-1"><CatTag cat={r.cat} /></div>
+                        <p className="font-semibold text-black text-sm leading-tight">{r.name}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed flex-1">{r.desc}</p>
+                    <button
+                      onClick={() => setTab(on ? "" : r.id)}
+                      className={cn(
+                        "w-full py-2 text-sm font-semibold border-2 border-black transition-all",
+                        on ? "bg-black text-white" : "bg-white text-black hover:bg-[#024BAB] hover:text-white",
+                      )}
+                    >
+                      {on ? "Close Report" : "Generate"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </AppLayout>
   );
 }

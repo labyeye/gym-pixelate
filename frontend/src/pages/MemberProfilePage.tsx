@@ -53,7 +53,6 @@ import {
 import { printInvoice } from "@/components/gym/printInvoice";
 import { Modal as PModal } from "@/components/gym/kit";
 import { KeyRound } from "lucide-react";
-import { FaceCaptureModal } from "@/components/members/FaceCaptureModal";
 
 function Spark({
   points,
@@ -65,7 +64,7 @@ function Spark({
   if (points.length < 2)
     return (
       <p className="text-xs font-bold text-black/40 uppercase">
-        Log 2+ check-ins to see a trend
+        Log 2+ weigh-ins to see a trend
       </p>
     );
   const w = 260,
@@ -110,7 +109,6 @@ export default function MemberProfilePage() {
   const [pay, setPay] = useState<{ inv: any; mode: "pay" | "refund" } | null>(
     null,
   );
-  const [face, setFace] = useState(false);
   const [portal, setPortal] = useState<any>(null);
 
   const { data, isLoading } = useQuery({
@@ -129,10 +127,8 @@ export default function MemberProfilePage() {
 
   const {
     member,
-    access,
     memberships,
     invoices,
-    visits,
     measurements,
     pt,
     workout,
@@ -140,7 +136,11 @@ export default function MemberProfilePage() {
     trainers,
     locker,
   } = o;
-  const current = access?.membership;
+  // the plan running right now (active, or frozen but not yet over)
+  const current = memberships.find(
+    (m: any) =>
+      ["active", "frozen"].includes(m.status) && new Date(m.endDate) >= new Date(),
+  );
   const left = current ? daysFromNow(current.endDate) : null;
   const refresh = () =>
     qc.invalidateQueries({ queryKey: ["member-overview", id] });
@@ -153,8 +153,6 @@ export default function MemberProfilePage() {
       notify.error("Failed", e.message);
     }
   };
-  const checkin = () =>
-    run(() => gym.attendance.checkin({ memberId: member._id }), "Checked in");
   const weights = [...measurements]
     .reverse()
     .map((m: any) => m.weightKg)
@@ -191,9 +189,6 @@ export default function MemberProfilePage() {
             </p>
             <div className="flex flex-wrap gap-1.5 mt-1.5">
               <Pill value={member.status} />
-              {member.faceRegistered && (
-                <span className="nb-badge nb-tag-purple">Face ID</span>
-              )}
               {(member.health?.conditions || []).map((c: string) => (
                 <span key={c} className="nb-badge nb-tag-red">
                   {c}
@@ -206,13 +201,6 @@ export default function MemberProfilePage() {
           <Btn onClick={() => setSell({ mode: "sell" })}>
             <ShoppingBag className="w-4 h-4" />{" "}
             {current ? "New plan" : "Sell plan"}
-          </Btn>
-          <Btn color="#00A070" onClick={checkin}>
-            <LogIn className="w-4 h-4" /> Check in
-          </Btn>
-          <Btn color="#A855F7" onClick={() => setFace(true)}>
-            <Camera className="w-4 h-4" />{" "}
-            {member.faceRegistered ? "Update face" : "Register face"}
           </Btn>
           <Btn
             color="#0D9488"
@@ -238,22 +226,6 @@ export default function MemberProfilePage() {
             <MessageCircle className="w-4 h-4" /> WhatsApp
           </Btn>
         </div>
-      </div>
-
-      <div
-        className={`nb-rise border-2 border-black p-3 mb-5 flex flex-wrap items-center gap-3 text-sm font-bold ${access?.allowed ? "bg-[#00C48C]/20" : "bg-[#EF4444]/15"}`}
-      >
-        <span
-          className={`nb-badge ${access?.allowed ? "nb-tag-green" : "nb-tag-red"}`}
-        >
-          {access?.allowed ? "Can enter" : "Entry blocked"}
-        </span>
-        <span>{access?.allowed ? "Valid membership" : access?.reason}</span>
-        {(access?.warnings || []).map((w: string) => (
-          <span key={w} className="nb-badge nb-tag-orange">
-            {w}
-          </span>
-        ))}
       </div>
 
       <StatGrid>
@@ -282,9 +254,9 @@ export default function MemberProfilePage() {
           color={o.due > 0 ? "#EF4444" : "#14B8A6"}
         />
         <StatCard
-          label="Visits (30 days)"
-          value={o.visitCount30}
-          sub={locker ? `Locker #${locker.number}` : "No locker"}
+          label="Locker"
+          value={locker ? `#${locker.number}` : "None"}
+          sub={locker?.validTill ? `till ${fmtDate(locker.validTill)}` : undefined}
           icon={TrendingUp}
           color="#A855F7"
         />
@@ -296,7 +268,6 @@ export default function MemberProfilePage() {
         tabs={[
           { id: "plans", label: "Memberships", count: memberships.length },
           { id: "bills", label: "Invoices", count: invoices.length },
-          { id: "visits", label: "Attendance", count: visits.length },
           { id: "progress", label: "Progress", count: measurements.length },
           { id: "train", label: "Training" },
           { id: "about", label: "About" },
@@ -446,34 +417,6 @@ export default function MemberProfilePage() {
                     onClick={() => printInvoice(v, member)}
                   />
                 </RowActions>
-              </Td>
-            </Tr>
-          ))}
-        </DataTable>
-      )}
-
-      {tab === "visits" && (
-        <DataTable
-          head={["Check-in", "Check-out", "Duration", "Method"]}
-          empty={visits.length === 0}
-        >
-          {visits.map((v: any, i: number) => (
-            <Tr key={v._id} i={i}>
-              <Td className="font-bold">{fmtDateTime(v.checkinAt)}</Td>
-              <Td>
-                {v.checkoutAt ? (
-                  fmtDateTime(v.checkoutAt)
-                ) : (
-                  <span className="nb-badge nb-tag-green">Inside</span>
-                )}
-              </Td>
-              <Td>
-                {v.durationMin
-                  ? `${v.durationMin} min${v.autoCheckout ? " (auto)" : ""}`
-                  : "—"}
-              </Td>
-              <Td>
-                <Pill value={v.method} className="nb-tag-white" />
               </Td>
             </Tr>
           ))}
@@ -760,15 +703,6 @@ export default function MemberProfilePage() {
           </Btn>
         )}
       </PModal>
-      <FaceCaptureModal
-        open={face}
-        onOpenChange={setFace}
-        memberId={member._id}
-        onRegistered={() => {
-          setFace(false);
-          refresh();
-        }}
-      />
     </AppLayout>
   );
 }

@@ -64,18 +64,6 @@ export const gym = {
     refund: (id: string, b: any) => post(`/invoices/${id}/refund`, b),
     cancel: (id: string) => post(`/invoices/${id}/cancel`),
   },
-  attendance: {
-    list: (p?: any) => get('/attendance', p),
-    live: (p?: any) => get('/attendance/live', p),
-    accessCheck: (b: any) => post('/attendance/access-check', b),
-    checkin: (b: any) => post('/attendance/checkin', b),
-    checkout: (b: any) => post('/attendance/checkout', b),
-  },
-  enquiries: {
-    ...resource('enquiries'),
-    note: (id: string, b: any) => post(`/enquiries/${id}/notes`, b),
-    convert: (id: string, b?: any) => post(`/enquiries/${id}/convert`, b),
-  },
   classes: {
     ...resource('classes'),
     sessions: (p?: any) => get('/classes/sessions', p),
@@ -121,15 +109,8 @@ export const gym = {
     overview: (p?: any) => get('/reports/overview', p),
     dues: (p?: any) => get('/reports/dues', p),
     renewals: (p?: any) => get('/reports/renewals', p),
-    atRisk: (p?: any) => get('/reports/at-risk', p),
     birthdays: (p?: any) => get('/reports/birthdays', p),
-    heatmap: (p?: any) => get('/reports/heatmap', p),
     gst: (p?: any) => get('/reports/gst', p),
-  },
-  retention: {
-    opportunities: (p?: any) => get('/retention/opportunities', p),
-    conversion: (p?: any) => get('/retention/conversion', p),
-    addFollowUp: (b: any) => post('/retention/follow-ups', b),
   },
   paymentLinks: {
     forInvoice: (id: string) => post(`/payment-links/invoice/${id}`),

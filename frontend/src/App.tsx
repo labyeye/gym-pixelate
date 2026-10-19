@@ -10,8 +10,6 @@ import PayPage from "./pages/PayPage";
 import DashboardPage from "./pages/DashboardPage";
 import MembersPage from "./pages/MembersPage";
 import MemberProfilePage from "./pages/MemberProfilePage";
-import FrontDeskPage from "./pages/FrontDeskPage";
-import SmartEntryPage from "./pages/SmartEntryPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -21,23 +19,19 @@ import OnboardingPage from "./pages/OnboardingPage";
 import WelcomePage from "./pages/WelcomePage";
 import NotFound from "./pages/NotFound";
 import PlansPage from "./pages/gym/PlansPage";
-import EnquiriesPage from "./pages/gym/EnquiriesPage";
 import ClassesPage from "./pages/gym/ClassesPage";
 import PersonalTrainingPage from "./pages/gym/PersonalTrainingPage";
 import WorkoutDietPage from "./pages/gym/WorkoutDietPage";
 import TrainersTeamPage from "./pages/gym/TrainersTeamPage";
 import PosPage from "./pages/gym/PosPage";
 import MemberPortal from "./pages/portal/MemberPortal";
-import StaffPage from "./pages/gym/StaffPage";
 import ReportsPage from "./pages/gym/ReportsPage";
-import FollowUpsPage from "./pages/gym/FollowUpsPage";
 import {
   LockersPage,
   ExpensesPage,
   CouponsPage,
   AnnouncementsPage,
   EquipmentPage,
-  MeasurementsPage,
 } from "./pages/gym/FacilityPages";
 import { NotificationProvider } from "@/components/ui/Notification";
 
@@ -160,30 +154,6 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/attendance"
-        element={
-          <ProtectedRoute>
-            <FrontDeskPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/attendance/smart-entry"
-        element={
-          <ProtectedRoute>
-            <SmartEntryPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/enquiries"
-        element={
-          <ProtectedRoute>
-            <EnquiriesPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/lockers"
         element={
           <ProtectedRoute>
@@ -212,14 +182,6 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <WorkoutDietPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/progress"
-        element={
-          <ProtectedRoute>
-            <MeasurementsPage />
           </ProtectedRoute>
         }
       />
@@ -256,14 +218,6 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/follow-ups"
-        element={
-          <ProtectedRoute>
-            <FollowUpsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/reports"
         element={
           <ProtectedRoute>
@@ -276,14 +230,6 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <ExpensesPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/staff"
-        element={
-          <ProtectedRoute>
-            <StaffPage />
           </ProtectedRoute>
         }
       />

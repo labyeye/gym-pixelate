@@ -10,7 +10,6 @@ const Branch = require("./models/Branch");
 const MembershipPlan = require("./models/MembershipPlan");
 const Member = require("./models/Member");
 const Membership = require("./models/Membership");
-const Attendance = require("./models/Attendance");
 const Invoice = require("./models/Invoice");
 
 const seed = async () => {
@@ -25,7 +24,6 @@ const seed = async () => {
     const memberIds = members.map((m) => m._id);
 
     await Promise.all([
-      Attendance.deleteMany({ tenantId: existingTenant._id }),
       Invoice.deleteMany({ tenantId: existingTenant._id }),
       Membership.deleteMany({ tenantId: existingTenant._id }),
       Member.deleteMany({ tenantId: existingTenant._id }),
@@ -162,28 +160,6 @@ const seed = async () => {
       status: "active",
     });
     memberships.push(membership);
-  }
-
-  console.log(
-    "Creating attendance records for 2 members over the past week...",
-  );
-  for (let i = 0; i < 2; i++) {
-    for (let d = 6; d >= 0; d -= 2) {
-      const checkinAt = new Date();
-      checkinAt.setDate(checkinAt.getDate() - d);
-      checkinAt.setHours(7, 0, 0, 0);
-      const checkoutAt = new Date(checkinAt);
-      checkoutAt.setHours(8, 30, 0, 0);
-
-      await Attendance.create({
-        tenantId: tenant._id,
-        branchId: branch._id,
-        memberId: members[i]._id,
-        checkinAt,
-        checkoutAt,
-        method: "manual",
-      });
-    }
   }
 
   console.log("Creating invoices...");

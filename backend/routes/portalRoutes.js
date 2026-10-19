@@ -8,12 +8,13 @@ router.use(protect);
 
 router.get("/overview", c.overview);
 router.get("/invoices", c.invoices);
-router.get("/attendance", c.attendance);
 router.get("/plans", c.plans);
 router.post("/measurements", c.addMeasurement);
 router.get("/classes/sessions", c.sessions);
 router.get("/classes/mine", c.myBookings);
 router.post("/classes/book", c.book);
+router.post("/classes/pay-order", c.classPayOrder);
+router.post("/classes/pay-verify", c.classPayVerify);
 router.post("/classes/bookings/:id/cancel", c.cancelBooking);
 router.get("/announcements", c.announcements);
 router.post("/invoices/:id/pay", c.createPayOrder);

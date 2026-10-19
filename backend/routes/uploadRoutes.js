@@ -28,6 +28,26 @@ const upload = multer({
   },
 });
 
+// vendor bills / documents: PDF or photo
+const billUpload = multer({
+  storage,
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).slice(1).toLowerCase();
+    /^(pdf|jpe?g|png|webp)$/.test(ext) ? cb(null, true) : cb(new Error("Only PDF or photo bills are allowed"));
+  },
+});
+router.post("/bill", protect, (req, res, next) => {
+  billUpload.single("file")(req, res, (err) => {
+    if (err) return res.status(400).json({ success: false, message: err.code === "LIMIT_FILE_SIZE" ? "File is too large (max 8 MB)" : err.message });
+    next();
+  });
+}, (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
+  const base = (process.env.API_BASE_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
+  res.json({ success: true, url: `${base}/uploads/${req.file.filename}` });
+});
+
 router.post("/", protect, (req, res, next) => {
   upload.single("file")(req, res, (err) => {
     if (err) return res.status(400).json({ success: false, message: err.code === "LIMIT_FILE_SIZE" ? "Photo is too large (max 8 MB)" : err.message });

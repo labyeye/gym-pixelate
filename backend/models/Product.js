@@ -14,7 +14,9 @@ const productSchema = new mongoose.Schema(
       required: true,
     },
     name: { type: String, required: true, trim: true },
-    sku: { type: String, trim: true },
+    sku: { type: String, trim: true }, // product code, auto PRD-0001 when blank
+    photo: { type: String },
+    vendor: { type: String, trim: true },
     category: {
       type: String,
       enum: [

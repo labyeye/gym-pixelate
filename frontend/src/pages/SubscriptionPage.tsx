@@ -7,6 +7,7 @@ import {
   CreditCard,
   Crown,
   Infinity as Inf,
+  Download,
   Loader2,
   Receipt,
 } from "lucide-react";
@@ -28,6 +29,8 @@ import {
   titleCase,
 } from "@/components/gym/kit";
 import { cn } from "@/lib/utils";
+import { printSubscriptionBill } from "@/lib/subscriptionBill";
+import { settingsAPI } from "@/services/api";
 
 const CYCLES: { id: string; label: string; months: number; off: number }[] = [
   { id: "monthly", label: "Monthly", months: 1, off: 0 },
@@ -56,6 +59,7 @@ export default function SubscriptionPage() {
   const { refreshTenant } = useAuth();
   const [cycle, setCycle] = useState("yearly");
   const [busy, setBusy] = useState("");
+  const { data: gymSettings } = useQuery({ queryKey: ["gym-settings"], queryFn: () => settingsAPI.get() });
 
   const { data: plansRes } = useQuery({
     queryKey: ["saas-plans"],
@@ -372,7 +376,7 @@ export default function SubscriptionPage() {
         Payment history
       </h3>
       <DataTable
-        head={["Invoice", "Plan", "Term", "Amount", "Paid on", "Status"]}
+        head={["Bill no", "Plan", "Term", "Amount", "Paid on", "Status", "Bill"]}
         empty={!(invRes?.data || []).length}
       >
         {(invRes?.data || []).map((v: any, i: number) => (
@@ -386,6 +390,26 @@ export default function SubscriptionPage() {
             <Td className="text-xs font-bold">{fmtDate(v.paidAt)}</Td>
             <Td>
               <Pill value={v.status} />
+            </Td>
+            <Td>
+              <button
+                type="button"
+                title="Download bill"
+                aria-label="Download bill"
+                className="p-1.5 border-2 border-transparent hover:border-black hover:bg-[#024BAB]/10 transition-colors"
+                onClick={() => {
+                  const g = gymSettings?.data || {};
+                  printSubscriptionBill(v, {
+                    name: g.companyName,
+                    address: g.companyAddress,
+                    gst: g.companyGST,
+                    email: g.companyEmail,
+                    phone: g.companyPhone,
+                  });
+                }}
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
             </Td>
           </Tr>
         ))}

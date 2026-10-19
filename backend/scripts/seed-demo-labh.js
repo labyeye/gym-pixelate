@@ -9,7 +9,7 @@ require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const mongoose = require("mongoose");
 
 const models = {};
-for (const n of ["User", "Branch", "MembershipPlan", "Member", "Membership", "Invoice", "Attendance", "Enquiry", "FollowUp", "GymClass", "ClassBooking", "Expense", "Product", "Coupon", "Locker", "Equipment", "PTPackage", "Announcement", "BodyMeasurement", "TrainerAssignment", "WorkoutPlan", "DietPlan", "Setting", "Tenant"]) {
+for (const n of ["User", "Branch", "MembershipPlan", "Member", "Membership", "Invoice", "GymClass", "ClassBooking", "Expense", "Product", "Coupon", "Locker", "Equipment", "PTPackage", "Announcement", "BodyMeasurement", "TrainerAssignment", "WorkoutPlan", "DietPlan", "Setting", "Tenant"]) {
   models[n] = require(`../models/${n}`);
 }
 const { nextCode, computeTotals } = require("../utils/gym");
@@ -164,23 +164,7 @@ const startAt = new Date();
     );
   }
 
-  /* ---- attendance: last 14 days + a few people inside right now ---- */
-  const attendance = [];
-  for (const { doc, kind, start } of members) {
-    if (kind === "expired") continue;
-    const slot = doc.fitness.preferredSlot === "evening" ? 18 : doc.fitness.preferredSlot === "morning" ? 9 : 6;
-    for (let d = 0; d < 14; d++) {
-      if (daysAgo(d) < start || rnd() < 0.4) continue;
-      const inAt = daysAgo(d, slot + between(0, 2), between(0, 59));
-      const dur = between(45, 95);
-      attendance.push({ ...base, memberId: doc._id, checkinAt: inAt, checkoutAt: new Date(inAt.getTime() + dur * 60000), durationMin: dur, method: pick(["face", "face", "manual", "qr"]), recordedBy: owner._id });
-    }
-  }
-  const inside = members.filter((x) => x.kind === "active").slice(0, 4);
-  for (const { doc } of inside) attendance.push({ ...base, memberId: doc._id, checkinAt: new Date(now - between(10, 70) * 60000), method: "face", recordedBy: owner._id });
-  await M.Attendance.insertMany(attendance);
-
-  /* ---- trainer assignments, PT packages, measurements ---- */
+/* ---- trainer assignments, PT packages, measurements ---- */
   const active = members.filter((x) => x.kind !== "expired");
   for (const [i, x] of active.slice(0, 12).entries()) await M.TrainerAssignment.create({ ...base, trainerId: trainers[i % 3]._id, memberId: x.doc._id, assignedAt: x.start });
   for (const [i, x] of active.slice(0, 4).entries()) {
@@ -217,16 +201,7 @@ const startAt = new Date();
   await M.WorkoutPlan.create({ tenantId, branchId, name: "Muscle Gain Push-Pull-Legs", goal: "muscle_gain", level: "intermediate", weeks: 8, isTemplate: true, trainerId: trainers[0]._id, days: [{ label: "Day 1 - Push", focus: "Chest, shoulders, triceps", exercises: [ex("Bench press", 4, "8-10"), ex("Overhead press", 3, "10"), ex("Triceps pushdown", 3, "12")] }, { label: "Day 2 - Pull", focus: "Back, biceps", exercises: [ex("Lat pulldown", 4, "10"), ex("Seated row", 3, "12"), ex("Barbell curl", 3, "10")] }, { label: "Day 3 - Legs", focus: "Quads, hamstrings, calves", exercises: [ex("Squat", 4, "8"), ex("Leg press", 3, "12"), ex("Calf raise", 4, "15")] }] });
   await M.DietPlan.create({ tenantId, branchId, name: "Weight loss - 1,600 kcal (veg)", type: "veg", goal: "weight_loss", targetCalories: 1600, targetProteinG: 90, waterLitres: 3.5, isTemplate: true, trainerId: trainers[1]._id, meals: [{ slot: "breakfast", time: "08:00", items: "Oats with milk, 1 banana", calories: 350 }, { slot: "lunch", time: "13:00", items: "2 roti, dal, sabzi, salad", calories: 500 }, { slot: "evening_snack", time: "17:00", items: "Roasted chana, green tea", calories: 200 }, { slot: "dinner", time: "20:00", items: "Paneer bhurji, 1 roti, soup", calories: 450 }] });
 
-  /* ---- enquiries & follow-ups ---- */
-  const enqs = [];
-  const enqDefs = [["Rohit Malhotra", "new"], ["Sakshi Arora", "contacted"], ["Varun Tiwari", "trial_booked"], ["Nidhi Bhatia", "trial_done"], ["Gaurav Sethi", "negotiating"], ["Pallavi Rao", "lost"], ["Ankit Joshi", "contacted"], ["Shruti Nair", "new"]];
-  for (const [i, [name, status]] of enqDefs.entries()) {
-    enqs.push(await M.Enquiry.create({ ...base, name, phone: `9${between(100000000, 999999999)}`, goal: pick(["Weight loss", "Muscle gain", "General fitness"]), interestedPlanId: pick(plans)._id, source: pick(["walk_in", "call", "instagram", "google"]), status, lostReason: status === "lost" ? "price" : "", assignedTo: owner._id, followUpAt: status === "lost" ? undefined : daysAhead(i % 3), trial: status === "trial_booked" || status === "trial_done" ? { date: status === "trial_done" ? daysAgo(2) : daysAhead(1), slot: "morning", attended: status === "trial_done" } : undefined }));
-  }
-  const fuMembers = members.filter((x) => x.kind === "expiring" || x.kind === "expired").slice(0, 5);
-  for (const [i, x] of fuMembers.entries()) await M.FollowUp.create({ ...base, memberId: x.doc._id, kind: x.kind === "expired" ? "lapsed" : "renewal", outcome: pick(["contacted", "interested", "no_answer"]), note: "Called regarding renewal", nextFollowUpAt: daysAhead(i + 1), by: owner._id, byName: owner.name });
-
-  /* ---- shop, coupons, lockers, equipment, expenses, announcements ---- */
+/* ---- shop, coupons, lockers, equipment, expenses, announcements ---- */
   await M.Product.insertMany([
     ["Whey Protein 1 kg", "supplement", 2400, 1800, 14], ["Creatine Monohydrate 250 g", "supplement", 1200, 800, 9], ["Pre-workout 300 g", "supplement", 1500, 1000, 6], ["BCAA 250 g", "supplement", 1100, 750, 4],
     ["Protein Bar (box of 6)", "snack", 720, 480, 22], ["Shaker Bottle", "accessory", 350, 150, 30], ["Gym Towel", "accessory", 250, 100, 18], ["Electrolyte Drink", "beverage", 60, 35, 3],
@@ -255,13 +230,13 @@ const startAt = new Date();
     { tenantId, title: "Refer a friend, get Rs. 500 off", body: "Use code FRIEND500 on your next renewal.", kind: "offer", audience: "active_members", publishAt: daysAgo(6), expiresAt: daysAhead(60), createdBy: owner._id },
   ]);
 
-  console.log(`Done: ${members.length} members, ${plans.length} plans, ${trainers.length} trainers, ${invoices.length} invoices, ${attendance.length} check-ins, ${enqs.length} enquiries.`);
+  console.log(`Done: ${members.length} members, ${plans.length} plans, ${trainers.length} trainers, ${invoices.length} invoices.`);
   await mongoose.disconnect();
 })().catch(async (e) => {
   console.error("FAILED:", e.message);
   // undo a half-finished run: remove everything this run created (nothing older is touched)
   if (tenantId && !/already has members|not found|No branch/.test(e.message)) {
-    for (const n of ["Member", "Membership", "Invoice", "Attendance", "Enquiry", "FollowUp", "GymClass", "ClassBooking", "Expense", "Product", "Coupon", "Locker", "Equipment", "PTPackage", "Announcement", "BodyMeasurement", "TrainerAssignment", "WorkoutPlan", "DietPlan", "MembershipPlan"]) {
+    for (const n of ["Member", "Membership", "Invoice", "GymClass", "ClassBooking", "Expense", "Product", "Coupon", "Locker", "Equipment", "PTPackage", "Announcement", "BodyMeasurement", "TrainerAssignment", "WorkoutPlan", "DietPlan", "MembershipPlan"]) {
       await M[n].deleteMany({ tenantId, createdAt: { $gte: startAt } }).catch(() => {});
     }
     await M.User.deleteMany({ tenantId, role: { $ne: "gym_owner" }, createdAt: { $gte: startAt } }).catch(() => {});

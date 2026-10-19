@@ -7,7 +7,6 @@ import {
   CheckCircle,
   CreditCard,
   Dumbbell,
-  ScanFace,
   Users,
   CalendarCheck,
   Megaphone,
@@ -15,7 +14,7 @@ import {
 
 const FEATURES = [
   { icon: Users, label: "Members & Plans", color: "#024BAB" },
-  { icon: ScanFace, label: "Face Check-in", color: "#FA731C" },
+  { icon: Dumbbell, label: "Trainers & Classes", color: "#FA731C" },
   { icon: CreditCard, label: "Billing & Invoices", color: "#00C48C" },
   { icon: BarChart3, label: "Reports & Analytics", color: "#A855F7" },
   { icon: CalendarCheck, label: "Classes & Bookings", color: "#EF4444" },
@@ -31,7 +30,7 @@ const STEPS = [
   {
     num: "02",
     title: "Add your members",
-    desc: "Enrol them one by one and capture a face for check-in",
+    desc: "Enrol them one by one from the Members page",
   },
   {
     num: "03",
@@ -90,7 +89,7 @@ export default function WelcomePage() {
               <span className="text-[#FA731C]">{userName}!</span>
             </h1>
             <p className="mt-3 text-white/80 text-sm font-medium max-w-md">
-              Your NestGym workspace is live. Memberships, check-ins, billing
+              Your NestGym workspace is live. Memberships, billing
               and trainers are all set up for you.
             </p>
           </div>

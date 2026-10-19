@@ -29,13 +29,11 @@ export default function ReportsScreen() {
   const overview = useFetch(() => gym.reports.overview(range), [from, to], tab === 'overview');
   const dues = useFetch(() => gym.reports.dues(), [], tab === 'dues');
   const renewals = useFetch(() => gym.reports.renewals({ days }), [days], tab === 'renewals');
-  const risk = useFetch(() => gym.reports.atRisk({ days: 14 }), [], tab === 'risk');
   const bdays = useFetch(() => gym.reports.birthdays(), [], tab === 'birthdays');
-  const heat = useFetch(() => gym.reports.heatmap(range), [from, to], tab === 'peak');
   const gst = useFetch(() => gym.reports.gst(range), [from, to], tab === 'gst');
   const o = overview.data?.data;
 
-  const cur = { overview, dues, renewals, risk, birthdays: bdays, peak: heat, gst }[tab as 'overview']!;
+  const cur = { overview, dues, renewals, birthdays: bdays, gst }[tab as 'overview']!;
   const dateFilter = (
     <View style={{ flexDirection: 'row', gap: 10 }}>
       <View style={{ flex: 1 }}><Input label="From" value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" /></View>
@@ -43,20 +41,11 @@ export default function ReportsScreen() {
     </View>
   );
 
-  const grid = (() => {
-    const g: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
-    (heat.data?.data || []).forEach((c: any) => (g[c.day][c.hour] = c.count));
-    return g;
-  })();
-  const maxHeat = Math.max(1, ...grid.flat());
-  // 6-hour blocks keep the heatmap readable at phone width
-  const BLOCKS = [['Night', 0, 6], ['Morning', 6, 12], ['Afternoon', 12, 18], ['Evening', 18, 24]] as const;
-
   return (
     <Screen title="Reports" refreshing={cur.loading && !!cur.data} onRefresh={cur.reload}>
       <Tabs value={tab} onChange={setTab} tabs={[
-        { id: 'overview', label: 'P&L' }, { id: 'dues', label: 'Dues' }, { id: 'renewals', label: 'Renewals' }, { id: 'risk', label: 'At risk' },
-        { id: 'birthdays', label: 'Birthdays' }, { id: 'peak', label: 'Peak hours' }, { id: 'gst', label: 'GST' },
+        { id: 'overview', label: 'P&L' }, { id: 'dues', label: 'Dues' }, { id: 'renewals', label: 'Renewals' },
+        { id: 'birthdays', label: 'Birthdays' }, { id: 'gst', label: 'GST' },
       ]} />
 
       {tab === 'overview' && (
@@ -78,10 +67,6 @@ export default function ReportsScreen() {
                 {(o?.planSales || []).length === 0 ? <Empty text="No sales" /> : (o?.planSales || []).map((p: any) => (
                   <Row key={p.plan} k={p.plan} v={`${p.sold} sold · ${p.renewals} renewals · ${inr(p.billed)}`} />
                 ))}
-              </Panel>
-              <Panel title="Enquiry funnel">
-                <Text style={[S.body, { marginBottom: 8 }]}>{o?.enquiries?.total ?? 0} enquiries · {o?.enquiries?.converted ?? 0} joined · {o?.enquiries?.conversionPercent ?? 0}% conversion</Text>
-                <HBars rows={Object.entries(o?.enquiries?.byStatus || {}).map(([k, v]) => ({ label: titleCase(k), value: v as number }))} color="#A855F7" />
               </Panel>
             </>
           )}
@@ -136,27 +121,6 @@ export default function ReportsScreen() {
         </>
       )}
 
-      {tab === 'risk' && (
-        <>
-          <Text style={[S.small, { marginBottom: 12 }]}>Paying members with no visit in the last 14 days — a call now is cheaper than losing the renewal.</Text>
-          {risk.loading && !risk.data ? <Loader /> : (risk.data?.data || []).length === 0 ? <Empty text="Nobody at risk" /> : (risk.data?.data || []).map((r: any) => (
-            <RCard key={r.member._id} style={S.card}>
-              <View style={S.rowBetween}>
-                <View style={{ flex: 1 }}>
-                  <Text style={S.h3}>{r.member.name}</Text>
-                  <Text style={S.small}>{r.plan} · ends {fmtDate(r.endDate)}</Text>
-                </View>
-                <Text style={[S.h3, { color: C.danger }]}>{r.daysAbsent != null ? `${r.daysAbsent}d` : '—'}</Text>
-              </View>
-              <Row k="Last visit" v={r.lastVisit ? fmtDate(r.lastVisit) : 'Never came'} />
-              <View style={{ marginTop: 10, alignSelf: 'flex-start' }}>
-                <Btn small color="#25D366" label="WhatsApp" onPress={() => wa(r.member.phone, `Hi ${r.member.name}, we've missed you at the gym! Everything okay? Come in this week — your trainer is ready to help you get back on track.`)} />
-              </View>
-            </RCard>
-          ))}
-        </>
-      )}
-
       {tab === 'birthdays' && (bdays.loading && !bdays.data ? <Loader /> : (bdays.data?.data || []).length === 0 ? <Empty text="No birthdays this month" /> : (bdays.data?.data || []).map((m: any) => (
         <RCard key={m._id} style={S.card}>
           <View style={S.rowBetween}>
@@ -168,35 +132,6 @@ export default function ReportsScreen() {
           </View>
         </RCard>
       )))}
-
-      {tab === 'peak' && (
-        <>
-          {dateFilter}
-          {heat.loading && !heat.data ? <Loader /> : (
-            <Panel title="Check-ins by weekday and time of day">
-              <View style={{ flexDirection: 'row', marginBottom: 6 }}>
-                <View style={{ width: 38 }} />
-                {BLOCKS.map(([n]) => <Text key={n} style={[S.label, { flex: 1, textAlign: 'center', fontSize: 9 }]}>{n}</Text>)}
-              </View>
-              {grid.map((row, d) => (
-                <View key={d} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                  <Text style={[S.label, { width: 38 }]}>{DAYS[d]}</Text>
-                  {BLOCKS.map(([n, a, b]) => {
-                    const sum = row.slice(a, b).reduce((x, y) => x + y, 0);
-                    const k = sum / (maxHeat * 6);
-                    return (
-                      <View key={n} style={{ flex: 1, height: 30, marginHorizontal: 2, borderWidth: 2, borderColor: C.black, alignItems: 'center', justifyContent: 'center', backgroundColor: sum ? `rgba(2,75,171,${Math.min(1, 0.15 + k * 2)})` : '#F3F4F6' }}>
-                        <Text style={{ fontFamily: 'DMSans-Bold', fontSize: 11, color: k > 0.25 ? '#fff' : C.black }}>{sum || ''}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              ))}
-              <Text style={[S.small, { marginTop: 8 }]}>Schedule classes and staff around the dark cells.</Text>
-            </Panel>
-          )}
-        </>
-      )}
 
       {tab === 'gst' && (
         <>

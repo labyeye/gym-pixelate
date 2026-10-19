@@ -49,7 +49,6 @@ export interface Member {
   emergencyContactName?: string;
   emergencyContactPhone?: string;
   photoUrl?: string;
-  faceRegistered?: boolean;
   status: "active" | "inactive" | "expired";
   membershipStatus?: "active" | "expired" | "none";
   createdAt?: string;
@@ -85,18 +84,6 @@ export interface Membership {
   endDate: string;
   status: "active" | "expired" | "cancelled";
   amountPaid?: number;
-}
-
-export type AttendanceMethod = "face" | "manual" | "qr";
-
-export interface Attendance {
-  _id?: string;
-  id?: string;
-  member: string | Member;
-  checkInTime: string;
-  checkOutTime?: string;
-  method: AttendanceMethod;
-  confidence?: number;
 }
 
 export interface Invoice {

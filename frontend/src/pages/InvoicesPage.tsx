@@ -30,6 +30,7 @@ import {
   StatCard,
   StatGrid,
   Td,
+  Thumb,
   TextInput,
   Toolbar,
   Tr,
@@ -37,6 +38,7 @@ import {
   inputCls,
   inr,
 } from "@/components/gym/kit";
+import { ExportImport } from "@/components/gym/ExportImport";
 import { MemberPicker } from "@/components/gym/pickers";
 import { PaymentModal } from "@/components/gym/ActionModals";
 import { printInvoice } from "@/components/gym/printInvoice";
@@ -159,6 +161,27 @@ export default function InvoicesPage() {
     }
   };
 
+  // one sheet row = one single-line invoice; member found by Member ID (blank = walk-in)
+  const importRow = async (r: Record<string, any>) => {
+    let memberId: string | undefined;
+    if (r["Member ID"]) {
+      const code = String(r["Member ID"]).trim();
+      const m = (await gym.members.list({ search: code, limit: 5 })).data.find(
+        (x: any) => x.memberCode === code,
+      );
+      if (!m) throw new Error(`Member ${code} not found`);
+      memberId = m._id;
+    }
+    if (!r.Description) throw new Error("Description is required");
+    const qty = Number(r.Qty) || 1, rate = Number(r.Rate) || 0, gst = Number(r["GST %"] ?? 18);
+    return gym.invoices.create({
+      memberId,
+      items: [{ kind: "other", description: r.Description, quantity: qty, unitPrice: rate, gstPercent: gst }],
+      payNow: r.Paid === "" || r.Paid === undefined ? qty * rate * (1 + gst / 100) : Number(r.Paid),
+      method: String(r.Method || "cash").toLowerCase(),
+    });
+  };
+
   // Staff-side: make the member's pay link and open WhatsApp with the message ready (works without the WhatsApp API).
   const sendLink = async (inv: any) => {
     try {
@@ -240,7 +263,30 @@ export default function InvoicesPage() {
 
       <Toolbar
         right={
-          can("Invoices", "create") && (
+          <>
+            <ExportImport
+              name="invoices"
+              fetchRows={async () =>
+                (await gym.invoices.list({ ...params, page: 1, limit: 5000 })).data
+              }
+              cols={[
+                { header: "Invoice no", value: (v: any) => v.invoiceNumber },
+                { header: "Member ID", value: (v: any) => v.memberId?.memberCode || "Walk-in" },
+                { header: "Member", value: (v: any) => v.memberId?.name },
+                { header: "Date", value: (v: any) => (v.issuedAt || "").slice(0, 10) },
+                { header: "Total", value: (v: any) => v.totalAmount },
+                { header: "Paid", value: (v: any) => v.paidAmount },
+                { header: "Balance", value: (v: any) => v.balance },
+                { header: "Status", value: (v: any) => v.status },
+              ]}
+              importTemplate={{
+                headers: ["Member ID", "Description", "Qty", "Rate", "GST %", "Paid", "Method"],
+                example: ["GYM-00001", "Day pass", 1, 200, 18, 236, "cash"],
+              }}
+              onImportRow={can("Invoices", "create") ? importRow : undefined}
+              onImported={() => qc.invalidateQueries({ queryKey: ["invoices"] })}
+            />
+            {can("Invoices", "create") && (
             <>
               <Btn light onClick={sendReminders}>
                 <Send className="w-4 h-4" /> Send pay-link reminders
@@ -249,7 +295,8 @@ export default function InvoicesPage() {
                 <Plus className="w-4 h-4" /> New invoice
               </Btn>
             </>
-          )
+            )}
+          </>
         }
       >
         <SearchBox
@@ -297,7 +344,8 @@ export default function InvoicesPage() {
 
       <DataTable
         head={[
-          "Invoice",
+          "Invoice no",
+          "Gym ID",
           "Member",
           "Date",
           "Total",
@@ -312,23 +360,16 @@ export default function InvoicesPage() {
         {invoices.map((v, i) => (
           <Tr key={v._id} i={i}>
             <Td>
-              <p className="font-black">{v.invoiceNumber}</p>
-              <p className="text-[10px] text-black/50 font-bold uppercase">
-                {v.items?.[0]?.description?.slice(0, 28)}
-              </p>
+              <p className="text-xs font-bold whitespace-nowrap">{v.invoiceNumber}</p>
+            </Td>
+            <Td className="text-xs font-bold whitespace-nowrap">
+              {v.memberId?.memberCode || "—"}
             </Td>
             <Td>
               {v.memberId ? (
-                <>
-                  <p className="font-bold">{v.memberId.name}</p>
-                  <p className="text-xs text-black/50">
-                    {v.memberId.memberCode}
-                  </p>
-                </>
+                <Thumb photo={v.memberId.photo} name={v.memberId.name} />
               ) : (
-                <span className="text-xs font-bold text-black/40 uppercase">
-                  Walk-in
-                </span>
+                <span className="text-xs text-black/40">Walk-in</span>
               )}
             </Td>
             <Td className="text-xs font-bold">{fmtDate(v.issuedAt)}</Td>

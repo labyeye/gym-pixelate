@@ -25,6 +25,8 @@ import {
   idOf,
 } from "./kit";
 import { MemberPicker, useClasses, usePlans, useTrainers } from "./pickers";
+import { ExportImport } from "./ExportImport";
+import { PhotoUpload } from "./PhotoUpload";
 import type { ListRes, OneRes } from "@/services/gymApi";
 
 export interface FieldDef {
@@ -43,7 +45,9 @@ export interface FieldDef {
     | "member"
     | "trainer"
     | "plan"
-    | "class";
+    | "class"
+    | "photo"
+    | "combo"; // free text with suggestions from `options`
   options?: (string | { value: string; label: string })[];
   required?: boolean;
   hint?: string;
@@ -88,6 +92,10 @@ interface Props<T = any> {
   canDelete?: boolean;
   wide?: boolean;
   after?: ReactNode;
+  /** hide the Export/Import buttons */
+  noExportImport?: boolean;
+  /** extra export-only columns */
+  exportExtra?: { header: string; value: (r: any) => any }[];
 }
 
 const getPath = (o: any, path: string) =>
@@ -109,6 +117,8 @@ const blank = (fields: FieldDef[]) =>
       f.default ?? (f.type === "checkbox" ? false : ""),
     ]),
   );
+
+const LINKED = ["member", "trainer", "plan", "class", "photo"];
 
 export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
   const notify = useNotify();
@@ -201,6 +211,23 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
     }
   };
 
+  /** one sheet row (keyed by field label) -> create payload */
+  const importRow = (r: Record<string, any>) => {
+    const body: Record<string, any> = {};
+    for (const f of p.fields) {
+      let v: any = r[f.label];
+      if (v === "" || v === undefined) continue;
+      if (LINKED.includes(f.type || "")) continue; // linked records can't come from text
+      if (f.type === "number") v = Number(v);
+      else if (f.type === "date" || f.type === "datetime")
+        v = new Date(v).toISOString();
+      else if (f.type === "checkbox")
+        v = /^(true|yes|1|y)$/i.test(String(v));
+      setPath(body, f.key, v);
+    }
+    return p.api.create(p.toPayload ? p.toPayload(body) : body);
+  };
+
   const set = (k: string) => (v: any) => setForm((f) => ({ ...f, [k]: v }));
   const head = [...p.columns.map((c) => c.label), "Actions"];
 
@@ -221,6 +248,35 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
             onChange={set(f.key)}
             placeholder={f.required ? undefined : "—"}
           />
+        );
+      case "photo":
+        return (
+          <Field key={f.key} label={f.label} className="sm:col-span-3">
+            <PhotoUpload
+              value={v || ""}
+              name={String(form.name || f.label)}
+              onChange={set(f.key)}
+            />
+          </Field>
+        );
+      case "combo":
+        return (
+          <Field key={f.key} label={f.label} required={f.required} hint={f.hint} className={span}>
+            <input
+              className={inputCls}
+              list={`dl-${f.key}`}
+              required={f.required}
+              value={v ?? ""}
+              onChange={(e) => set(f.key)(e.target.value)}
+              placeholder="Pick or type a new one"
+            />
+            <datalist id={`dl-${f.key}`}>
+              {(f.options || []).map((o) => {
+                const val = typeof o === "string" ? o : o.value;
+                return <option key={val} value={val} />;
+              })}
+            </datalist>
+          </Field>
         );
       case "trainer":
         return (
@@ -336,6 +392,40 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
         right={
           <>
             {p.toolbarRight}
+            {!p.noExportImport && (
+              <ExportImport
+                name={p.noun.replace(/\s+/g, "_")}
+                fetchRows={async () =>
+                  (await p.api.list({ ...params, page: 1, limit: 5000 })).data
+                }
+                cols={[
+                  ...p.fields
+                    .filter((f) => f.type !== "textarea")
+                    .map((f) => ({
+                      header: f.label,
+                      value: (r: any) => {
+                        const v = getPath(r, f.key);
+                        if (v && typeof v === "object")
+                          return v.name || v.label || "";
+                        return f.type === "date" ? toInputDate(v) : v;
+                      },
+                    })),
+                  ...(p.exportExtra || []),
+                ]}
+                importTemplate={{
+                  headers: p.fields
+                    .filter((f) => !LINKED.includes(f.type || ""))
+                    .map((f) => f.label),
+                  example: p.fields
+                    .filter((f) => !LINKED.includes(f.type || ""))
+                    .map((f) => f.placeholder || ""),
+                }}
+                onImportRow={
+                  can(p.permission, "create") ? importRow : undefined
+                }
+                onImported={refresh}
+              />
+            )}
             {can(p.permission, "create") && (
               <Btn onClick={openNew}>
                 <Plus className="w-4 h-4" /> Add {p.noun}

@@ -4,7 +4,6 @@ const Member = require("../models/Member");
 const User = require("../models/User");
 const Invoice = require("../models/Invoice");
 const Membership = require("../models/Membership");
-const Attendance = require("../models/Attendance");
 const ClassBooking = require("../models/ClassBooking");
 const WorkoutPlan = require("../models/WorkoutPlan");
 const DietPlan = require("../models/DietPlan");
@@ -17,7 +16,8 @@ const classes = require("./classController");
 const ops = require("./opsController");
 const logActivity = require("../utils/activityLogger");
 const pay = require("../utils/gymPay");
-const { fail, r2, evaluateAccess, recordPayment } = require("../utils/gym");
+const GymClass = require("../models/GymClass");
+const { fail, r2, recordPayment, createInvoice } = require("../utils/gym");
 
 /* ------------------------------------------------------------ staff side: grant access */
 
@@ -98,10 +98,8 @@ const mine = async (req) => {
 const overview = asyncHandler(async (req, res) => {
   const member = await mine(req);
   const [
-    access,
     memberships,
     invoices,
-    visits30,
     trainers,
     locker,
     pt,
@@ -109,15 +107,10 @@ const overview = asyncHandler(async (req, res) => {
     diet,
     setting,
   ] = await Promise.all([
-    evaluateAccess(member),
     Membership.find({ memberId: member._id }).sort("-startDate").limit(5),
     Invoice.find({
       memberId: member._id,
       status: { $in: ["pending", "partial"] },
-    }),
-    Attendance.countDocuments({
-      memberId: member._id,
-      checkinAt: { $gte: new Date(Date.now() - 30 * 86400000) },
     }),
     TrainerAssignment.find({ memberId: member._id, isActive: true }).populate(
       "trainerId",
@@ -135,15 +128,24 @@ const overview = asyncHandler(async (req, res) => {
       "companyName companyPhone companyAddress onlinePaymentsEnabled gymTiming",
     ),
   ]);
-  // hitting today's visit cap means they already trained today — not a problem to show a member
-  if (
-    !access.allowed &&
-    /maximum number of times today/.test(access.reason || "")
-  ) {
-    access.allowed = true;
-    access.warnings = [...(access.warnings || []), "Checked in today ✓"];
-    access.reason = undefined;
+  // Membership status shown on the member's home card (no gate/check-in any more, just "is my plan running").
+  const now = new Date();
+  const current = memberships.find(
+    (m) => ["active", "frozen"].includes(m.status) && m.endDate >= now,
+  );
+  const warnings = [];
+  if (current) {
+    const daysLeft = Math.ceil((current.endDate - now) / 86400000);
+    if (current.status === "frozen") warnings.push("Membership is frozen");
+    else if (daysLeft <= 7)
+      warnings.push(`Membership expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`);
   }
+  const access = {
+    allowed: !!current && current.status === "active" && member.status === "active",
+    reason: current ? undefined : "No active membership",
+    warnings,
+    membership: current || null,
+  };
   const due = r2(
     invoices.reduce((s, i) => s + i.totalAmount - i.paidAmount, 0),
   );
@@ -176,7 +178,6 @@ const overview = asyncHandler(async (req, res) => {
       },
       memberships,
       due,
-      visits30,
       trainers,
       locker,
       pt,
@@ -194,15 +195,6 @@ const invoices = asyncHandler(async (req, res) => {
   })
     .sort("-issuedAt")
     .limit(50);
-  res.json({ success: true, count: data.length, data });
-});
-
-const attendance = asyncHandler(async (req, res) => {
-  const member = await mine(req);
-  const data = await Attendance.find({ memberId: member._id })
-    .sort("-checkinAt")
-    .limit(60)
-    .select("checkinAt checkoutAt durationMin method");
   res.json({ success: true, count: data.length, data });
 });
 
@@ -267,9 +259,92 @@ const myBookings = asyncHandler(async (req, res) => {
   res.json({ success: true, count: data.length, data });
 });
 
-const sessions = asyncHandler(async (req, res, next) => {
-  await mine(req);
-  return classes.getSessions(req, res, next);
+// active memberships (with what the plan includes) that can cover a class on a given date
+const classCover = async (memberId) =>
+  Membership.find({ memberId, status: "active" }).populate("planId", "includes");
+const covers = (list, when) =>
+  list.filter((m) => m.startDate <= when && m.endDate >= when);
+
+// Sessions + what this member pays: price 0 = included in the plan, price > 0 = pay the drop-in fee online to book.
+const sessions = asyncHandler(async (req, res) => {
+  const member = await mine(req);
+  const [out, ms, s] = await Promise.all([
+    classes.buildSessions(req),
+    classCover(member._id),
+    Setting.findOne({ tenantId: member.tenantId }).select("onlinePaymentsEnabled").lean(),
+  ]);
+  for (const x of out) {
+    const live = covers(ms, new Date(x.sessionDate));
+    const included = live.some((m) => m.planId?.includes?.classes);
+    x.hasMembership = live.length > 0;
+    x.price = included ? 0 : x.dropInPrice;
+  }
+  res.json({ success: true, count: out.length, onlinePayments: !!s?.onlinePaymentsEnabled, data: out });
+});
+
+// Pay the drop-in fee for one session with the gym's own Razorpay, then book it (see classPayVerify).
+const classPayOrder = asyncHandler(async (req, res) => {
+  const member = await mine(req);
+  const when = new Date(req.body.sessionDate);
+  const cls = await GymClass.findOne({ _id: req.body.classId, isActive: true });
+  if (!cls) throw fail(404, "Class not found");
+  if (!(cls.dropInPrice > 0)) throw fail(400, "This class has no drop-in fee");
+  if (when < new Date()) throw fail(400, "That session has already started");
+  if (!classes.isScheduled(cls, when)) throw fail(400, `${cls.name} does not run at that time`);
+  const live = covers(await classCover(member._id), when);
+  if (!live.length) throw fail(403, "You need an active membership on that date");
+  if (live.some((m) => m.planId?.includes?.classes)) throw fail(409, "This class is already included in your plan, just book it");
+  const creds = await pay.getCreds(member.tenantId);
+  const order = await pay.api.createOrder(creds, {
+    amount: Math.round(cls.dropInPrice * 100),
+    currency: "INR",
+    receipt: `CLS${Date.now()}`.slice(0, 40),
+    notes: { kind: "class", classId: String(cls._id), memberId: String(member._id), sessionDate: when.toISOString() },
+  });
+  res.json({
+    success: true,
+    data: {
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency || "INR",
+      key: creds.keyId,
+      description: `${cls.name} — drop-in`,
+      name: member.name,
+      phone: member.phone,
+      email: member.email,
+    },
+  });
+});
+
+const classPayVerify = asyncHandler(async (req, res) => {
+  const member = await mine(req);
+  const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) throw fail(400, "Missing payment details");
+  const creds = await pay.getCreds(member.tenantId);
+  if (!pay.verifySignature(creds.keySecret, razorpayOrderId, razorpayPaymentId, razorpaySignature)) throw fail(400, "Payment signature is invalid");
+  const p = await pay.api.fetchPayment(creds, razorpayPaymentId);
+  if (!p || p.order_id !== razorpayOrderId || !["captured", "authorized"].includes(p.status)) throw fail(400, "Payment was not completed");
+  const n = p.notes || {};
+  if (n.kind !== "class" || String(n.memberId) !== String(member._id)) throw fail(400, "Payment does not belong to this booking");
+  const dup = await ClassBooking.findOne({ paymentId: razorpayPaymentId });
+  if (dup) return res.json({ success: true, data: dup, waitlisted: dup.status === "waitlisted" });
+  const cls = await GymClass.findById(n.classId);
+  if (!cls) throw fail(404, "Class not found");
+  if (Math.round(cls.dropInPrice * 100) !== Number(p.amount)) throw fail(400, "Paid amount does not match the class fee");
+  const when = new Date(n.sessionDate);
+  const invoice = await createInvoice({
+    tenantId: member.tenantId,
+    branchId: cls.branchId,
+    memberId: member._id,
+    items: [{ kind: "other", description: `${cls.name} drop-in (${when.toLocaleDateString("en-IN")})`, quantity: 1, unitPrice: cls.dropInPrice, gstPercent: 0 }],
+    payFull: true,
+    method: "online",
+    reference: razorpayPaymentId,
+    userId: member.userId,
+    idempotencyKey: `rzp-class:${razorpayPaymentId}`,
+  });
+  const booking = await classes.placeBooking(cls, member._id, when, { paymentId: razorpayPaymentId, invoiceId: invoice._id });
+  res.status(201).json({ success: true, data: booking, waitlisted: booking.status === "waitlisted" });
 });
 
 const book = asyncHandler(async (req, res, next) => {
@@ -388,12 +463,13 @@ module.exports = {
   revokeAccess,
   overview,
   invoices,
-  attendance,
   plans,
   addMeasurement,
   myBookings,
   sessions,
   book,
+  classPayOrder,
+  classPayVerify,
   cancelBooking,
   announcements,
   createPayOrder,

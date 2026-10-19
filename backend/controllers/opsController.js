@@ -1,6 +1,5 @@
 const asyncHandler = require("express-async-handler");
 const Product = require("../models/Product");
-const Enquiry = require("../models/Enquiry");
 const Member = require("../models/Member");
 const Locker = require("../models/Locker");
 const Equipment = require("../models/Equipment");
@@ -120,81 +119,6 @@ const adjustStock = asyncHandler(async (req, res) => {
   res.json({ success: true, data: p });
 });
 
-/* ------------------------------------------------------------------ enquiries */
-
-const addEnquiryNote = asyncHandler(async (req, res) => {
-  if (!req.body.text) throw fail(400, "Note text is required");
-  const e = await Enquiry.findByIdAndUpdate(
-    req.params.id,
-    {
-      $push: { notes: { text: req.body.text, by: req.user.name } },
-      ...(req.body.followUpAt
-        ? { $set: { followUpAt: req.body.followUpAt } }
-        : {}),
-    },
-    { new: true },
-  );
-  if (!e) throw fail(404, "Enquiry not found");
-  res.json({ success: true, data: e });
-});
-
-// One click from "interested" to a real member (carries name/phone/goal/source; links both ways).
-const convertEnquiry = asyncHandler(async (req, res) => {
-  const e = await Enquiry.findById(req.params.id);
-  if (!e) throw fail(404, "Enquiry not found");
-  if (e.convertedMemberId) throw fail(409, "Already converted");
-  await assertCapacity(req.user.tenantId, "members");
-  const claimed = await Enquiry.findOneAndUpdate(
-    { _id: e._id, convertedMemberId: null },
-    { $set: { status: "converted" } },
-  );
-  if (!claimed) throw fail(409, "Already converted");
-  try {
-    const member = new Member({
-      tenantId: req.user.tenantId,
-      branchId: e.branchId,
-      name: e.name,
-      phone: e.phone,
-      email: e.email,
-      gender: e.gender || undefined,
-      source: [
-        "walk_in",
-        "referral",
-        "instagram",
-        "facebook",
-        "google",
-        "website",
-        "whatsapp",
-        "poster",
-      ].includes(e.source)
-        ? e.source
-        : "other",
-      fitness: { goal: "" },
-      enquiryId: e._id,
-      ...req.body.member,
-    });
-    member.memberCode = await nextCode(req.user.tenantId, "member", "GYM");
-    await member.save();
-    await Enquiry.updateOne(
-      { _id: e._id },
-      { $set: { convertedMemberId: member._id } },
-    );
-    log(
-      req,
-      "CREATE",
-      "Enquiry",
-      e,
-      `Converted enquiry ${e.name} → ${member.memberCode}`,
-    );
-    res.status(201).json({ success: true, data: member });
-  } catch (err) {
-    await Enquiry.updateOne({ _id: e._id }, { $set: { status: e.status } });
-    throw err;
-  }
-});
-
-/* -------------------------------------------------------------------- lockers */
-
 const assignLocker = asyncHandler(async (req, res) => {
   const { memberId, validTill, months = 1 } = req.body;
   const member = await Member.findById(memberId);
@@ -283,8 +207,6 @@ const activeAnnouncements = asyncHandler(async (req, res) => {
 module.exports = {
   sell,
   adjustStock,
-  addEnquiryNote,
-  convertEnquiry,
   assignLocker,
   releaseLocker,
   logService,

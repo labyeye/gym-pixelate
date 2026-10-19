@@ -1,7 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const Member = require("../models/Member");
 const Membership = require("../models/Membership");
-const Attendance = require("../models/Attendance");
 const Invoice = require("../models/Invoice");
 const User = require("../models/User");
 
@@ -20,8 +19,6 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
 
   const [
     todayRevenueAgg,
-    membersInsideGym,
-    todayCheckins,
     activeMemberships,
     expiredMemberships,
     pendingRenewals,
@@ -39,11 +36,6 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
       },
       { $group: { _id: null, total: { $sum: "$totalAmount" } } },
     ]),
-    Attendance.countDocuments({ ...tf, checkoutAt: null }),
-    Attendance.countDocuments({
-      ...tf,
-      checkinAt: { $gte: todayStart, $lte: todayEnd },
-    }),
     Membership.countDocuments({ ...tf, status: "active" }),
     Membership.countDocuments({ ...tf, status: "expired" }),
     Membership.countDocuments({
@@ -68,8 +60,6 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     success: true,
     data: {
       todayRevenue: todayRevenueAgg[0]?.total || 0,
-      membersInsideGym,
-      todayCheckins,
       activeMemberships,
       expiredMemberships,
       pendingRenewals,
@@ -93,7 +83,7 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
     return { dayStart: d, dayEnd };
   });
 
-  const [revenueByDay, attendanceByDay] = await Promise.all([
+  const [revenueByDay] = await Promise.all([
     Promise.all(
       days30.map(({ dayStart, dayEnd }) =>
         Invoice.aggregate([
@@ -108,24 +98,11 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
         ]),
       ),
     ),
-    Promise.all(
-      days30.map(({ dayStart, dayEnd }) =>
-        Attendance.countDocuments({
-          ...tf,
-          checkinAt: { $gte: dayStart, $lte: dayEnd },
-        }),
-      ),
-    ),
   ]);
 
   const revenueByDayData = days30.map(({ dayStart }, i) => ({
     date: dayStart.toISOString().slice(0, 10),
     revenue: revenueByDay[i][0]?.total || 0,
-  }));
-
-  const attendanceByDayData = days30.map(({ dayStart }, i) => ({
-    date: dayStart.toISOString().slice(0, 10),
-    count: attendanceByDay[i],
   }));
 
   const months12 = Array.from({ length: 12 }, (_, i) => {
@@ -168,7 +145,6 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
     success: true,
     data: {
       revenueByDay: revenueByDayData,
-      attendanceByDay: attendanceByDayData,
       membershipGrowth: membershipGrowthData,
     },
   });

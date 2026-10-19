@@ -15,7 +15,6 @@ async function migrate({
     Member,
     Membership,
     MembershipPlan,
-    Attendance,
     Tenant,
     Counter,
     User,
@@ -24,7 +23,6 @@ async function migrate({
     "Member",
     "Membership",
     "MembershipPlan",
-    "Attendance",
     "Tenant",
     "Counter",
     "User",
@@ -41,37 +39,6 @@ async function migrate({
   if (idx.some((i) => i.name === "invoiceNumber_1" && i.unique)) {
     bump("legacyInvoiceIndexDropped");
     await write(() => Invoice.collection.dropIndex("invoiceNumber_1"));
-  }
-
-  // 2. Attendance: collapse duplicate open visits (keep the newest) so the one-open-visit index can build.
-  const dupOpen = await Attendance.aggregate([
-    { $match: { checkoutAt: null } },
-    {
-      $group: {
-        _id: "$memberId",
-        ids: { $push: { id: "$_id", at: "$checkinAt" } },
-        n: { $sum: 1 },
-      },
-    },
-    { $match: { n: { $gt: 1 } } },
-  ]);
-  for (const d of dupOpen) {
-    const sorted = d.ids.sort((a, b) => b.at - a.at).slice(1);
-    for (const o of sorted) {
-      bump("duplicateOpenVisitsClosed");
-      await write(() =>
-        Attendance.updateOne(
-          { _id: o.id },
-          {
-            $set: {
-              checkoutAt: new Date(o.at.getTime() + 2 * 3600 * 1000),
-              durationMin: 120,
-              autoCheckout: true,
-            },
-          },
-        ),
-      );
-    }
   }
 
   // 3. Member codes (GYM-00001...) in joining order, per tenant.
@@ -258,7 +225,7 @@ async function migrate({
 
   // 7. Indexes last (needs steps 1-3 done).
   if (APPLY)
-    for (const n of ["Invoice", "Member", "Membership", "Attendance"])
+    for (const n of ["Invoice", "Member", "Membership"])
       await M(n).syncIndexes();
 
   log(

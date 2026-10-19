@@ -125,15 +125,8 @@ const memberSchema = new mongoose.Schema(
       ref: "Member",
       default: null,
     },
-    enquiryId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Enquiry",
-      default: null,
-    },
     joinedOn: { type: Date, default: Date.now },
     tags: [{ type: String, trim: true }],
-    faceRegistered: { type: Boolean, default: false },
-    faceEmbedding: { type: [Number], select: false },
     status: {
       type: String,
       enum: ["active", "inactive", "blacklisted"],

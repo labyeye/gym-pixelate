@@ -67,11 +67,6 @@ export default function MemberPortal() {
     queryFn: () => get("/invoices"),
     enabled: tab === "pay",
   });
-  const att = useQuery({
-    queryKey: ["p-att"],
-    queryFn: () => get("/attendance"),
-    enabled: tab === "home",
-  });
   const ses = useQuery({
     queryKey: ["p-ses"],
     queryFn: () => get("/classes/sessions?days=7"),
@@ -146,6 +141,49 @@ export default function MemberPortal() {
       refresh();
     } catch (e: any) {
       notify.error("Could not book", e.message);
+    }
+  };
+  // paid drop-in: Razorpay (gym's own account) -> verify -> the server books the seat
+  const payClass = async (s: any) => {
+    try {
+      setPaying(s.classId + s.sessionDate);
+      if (!(await loadRazorpay()))
+        throw new Error("Could not load the payment window.");
+      const r = await post("/classes/pay-order", {
+        classId: s.classId,
+        sessionDate: s.sessionDate,
+      });
+      const d = r.data;
+      new (window as any).Razorpay({
+        key: d.key,
+        amount: d.amount,
+        currency: d.currency,
+        order_id: d.orderId,
+        name: o?.gym?.name || "Gym",
+        description: d.description,
+        prefill: { name: d.name, contact: d.phone, email: d.email },
+        theme: { color: "#024BAB" },
+        handler: async (res: any) => {
+          try {
+            const v = await post("/classes/pay-verify", {
+              razorpayOrderId: res.razorpay_order_id,
+              razorpayPaymentId: res.razorpay_payment_id,
+              razorpaySignature: res.razorpay_signature,
+            });
+            notify.success(v.waitlisted ? "Paid — added to waitlist" : "Paid & booked!", s.name);
+            refresh();
+          } catch (e: any) {
+            notify.error(
+              "We could not confirm the payment",
+              `${e.message}. If money was deducted, show this to the front desk.`,
+            );
+          }
+        },
+      }).open();
+    } catch (e: any) {
+      notify.error("Could not start payment", e.message);
+    } finally {
+      setPaying("");
     }
   };
   const cancel = async (id: string) => {
@@ -232,19 +270,13 @@ export default function MemberPortal() {
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3">
               <StatCard
                 label="To pay"
                 value={inr(o.due)}
                 icon={CreditCard}
                 color={o.due > 0 ? "#EF4444" : "#14B8A6"}
                 onClick={() => setTab("pay")}
-              />
-              <StatCard
-                label="Visits (30 days)"
-                value={o.visits30}
-                icon={Dumbbell}
-                color="#A855F7"
               />
             </div>
             {o.trainers.length > 0 && (
@@ -308,26 +340,6 @@ export default function MemberPortal() {
                         {a.title}
                       </p>
                       <p className="text-xs text-black/60">{a.body}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Panel>
-            <Panel title="Recent visits">
-              {(att.data?.data || []).length === 0 ? (
-                <p className="text-xs font-bold uppercase text-black/40">
-                  No visits yet
-                </p>
-              ) : (
-                <ul className="divide-y divide-black/10 text-sm">
-                  {att.data.data.slice(0, 6).map((a: any) => (
-                    <li key={a._id} className="py-1.5 flex justify-between">
-                      <span className="font-bold">
-                        {fmtDateTime(a.checkinAt)}
-                      </span>
-                      <span className="text-black/50">
-                        {a.durationMin ? `${a.durationMin} min` : "—"}
-                      </span>
                     </li>
                   ))}
                 </ul>
@@ -445,15 +457,30 @@ export default function MemberPortal() {
                   </p>
                   <p className="text-[10px] font-black uppercase text-black/40">
                     {s.seatsLeft} seats left
+                    {s.price > 0 ? ` · ₹${s.price} drop-in` : " · included in plan"}
                   </p>
                 </div>
-                <Btn
-                  className="!py-1.5 !px-3 text-xs"
-                  color={s.seatsLeft ? "#024BAB" : "#FA731C"}
-                  onClick={() => book(s)}
-                >
-                  {s.seatsLeft ? "Book" : "Waitlist"}
-                </Btn>
+                {s.price > 0 ? (
+                  <Btn
+                    className="!py-1.5 !px-3 text-xs"
+                    color="#00A070"
+                    busy={paying === s.classId + s.sessionDate}
+                    disabled={!ses.data?.onlinePayments || !s.hasMembership}
+                    onClick={() => payClass(s)}
+                  >
+                    {ses.data?.onlinePayments
+                      ? `Pay ₹${s.price} & ${s.seatsLeft ? "book" : "waitlist"}`
+                      : `₹${s.price} — pay at desk`}
+                  </Btn>
+                ) : (
+                  <Btn
+                    className="!py-1.5 !px-3 text-xs"
+                    color={s.seatsLeft ? "#024BAB" : "#FA731C"}
+                    onClick={() => book(s)}
+                  >
+                    {s.seatsLeft ? "Book" : "Waitlist"}
+                  </Btn>
+                )}
               </div>
             ))}
             {!ses.isLoading && (ses.data?.data || []).length === 0 && (

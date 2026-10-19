@@ -29,6 +29,9 @@ const classBookingSchema = new mongoose.Schema(
       default: "booked",
     },
     waitlistPosition: { type: Number, default: null },
+    // set when the seat was paid for online (drop-in price); unique so a payment can never book twice
+    paymentId: { type: String },
+    invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: "Invoice" },
     bookedAt: { type: Date, default: Date.now },
   },
   { timestamps: true },
@@ -46,5 +49,7 @@ classBookingSchema.index(
     },
   },
 );
+
+classBookingSchema.index({ paymentId: 1 }, { unique: true, partialFilterExpression: { paymentId: { $type: "string" } } });
 
 module.exports = mongoose.model("ClassBooking", classBookingSchema);

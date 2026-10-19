@@ -67,6 +67,9 @@ const settingSchema = new mongoose.Schema(
     // invoice layout from the Invoice Designer (validated by utils/invoiceTemplate.js); null = the classic layout
     invoiceTemplate: { type: mongoose.Schema.Types.Mixed, default: null },
 
+    // member receipt look (cheque-style or standard), sanitised in settingController
+    receiptDesign: { type: mongoose.Schema.Types.Mixed, default: null },
+
     // printed on the invoice: bank details, website, state, terms
     companyWebsite: { type: String, default: "" },
     companyState: { type: String, default: "" },

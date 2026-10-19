@@ -1,4 +1,5 @@
 import { gym } from "@/services/gymApi";
+import { chequeReceiptHtml, DEFAULT_RECEIPT_DESIGN } from "@/lib/chequeReceipt";
 import { gymInvoiceForPdf, invoiceCompany, openInvoicePDF, resolveLogo } from "@/lib/invoicePdf";
 
 const esc = (s: any) =>
@@ -76,6 +77,30 @@ export async function printInvoice(inv: any, member?: any) {
     const i = full?.data || inv;
     const co = full?.company || {};
     const m = (typeof i.memberId === "object" && i.memberId) || member || {};
+    if (co.receiptDesign?.style === "cheque" && tab) {
+      const items = (i.items || []).map((x: any) => x.description).filter(Boolean);
+      const lastPay = [...(i.payments || [])].reverse().find((p: any) => p.type !== "refund");
+      tab.document.write(
+        chequeReceiptHtml(
+          {
+            receiptNo: i.invoiceNumber,
+            date: i.issuedAt,
+            receivedFrom: m.name || "Walk-in customer",
+            memberCode: m.memberCode,
+            amount: i.paidAmount || 0,
+            towards: items.join(", ") || "Gym services",
+            method: lastPay?.method || i.paymentMethod,
+            reference: lastPay?.reference,
+            balance: Math.max(0, (i.totalAmount || 0) - (i.paidAmount || 0)),
+            company: { name: co.name, address: co.address, phone: co.phone, gst: co.gst, logoUrl: co.logoUrl },
+          },
+          { ...DEFAULT_RECEIPT_DESIGN, ...co.receiptDesign },
+          true,
+        ),
+      );
+      tab.document.close();
+      return;
+    }
     const { invoice, client } = gymInvoiceForPdf(i, m);
     await openInvoicePDF(
       {

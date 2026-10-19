@@ -35,7 +35,7 @@ const liveCount = (classId, sessionDate) =>
   });
 
 // Upcoming sessions for the next N days with seats left, built from the weekly schedule.
-const getSessions = asyncHandler(async (req, res) => {
+async function buildSessions(req) {
   const days = Math.min(14, Number(req.query.days) || 7);
   const q = {
     isActive: true,
@@ -63,6 +63,7 @@ const getSessions = asyncHandler(async (req, res) => {
           sessionDate: at,
           durationMin: c.durationMin,
           capacity: c.capacity,
+          dropInPrice: c.dropInPrice || 0,
         });
       }
     }
@@ -92,6 +93,10 @@ const getSessions = asyncHandler(async (req, res) => {
     s.seatsLeft = Math.max(0, s.capacity - s.booked);
   });
   out.sort((a, b) => a.sessionDate - b.sessionDate);
+  return out;
+}
+const getSessions = asyncHandler(async (req, res) => {
+  const out = await buildSessions(req);
   res.json({ success: true, count: out.length, data: out });
 });
 
@@ -108,6 +113,46 @@ const getRoster = asyncHandler(async (req, res) => {
     .sort("status bookedAt");
   res.json({ success: true, count: data.length, data });
 });
+
+// Creates the booking; if two people grab the last seat the later one lands on the waitlist.
+async function placeBooking(cls, memberId, when, extra = {}) {
+  const classId = cls._id;
+  let booking;
+  try {
+    booking = await ClassBooking.create({
+      tenantId: cls.tenantId,
+      branchId: cls.branchId,
+      classId,
+      memberId,
+      sessionDate: when,
+      status: "booked",
+      ...extra,
+    });
+  } catch (e) {
+    if (e.code === 11000) throw fail(409, "Already booked for this session");
+    throw e;
+  }
+  // count AFTER inserting: if two people grabbed the last seat, the later one lands on the waitlist
+  const taken = await ClassBooking.countDocuments({
+    classId,
+    sessionDate: when,
+    status: { $in: ["booked", "attended"] },
+    bookedAt: { $lte: booking.bookedAt },
+    _id: { $lte: booking._id },
+  });
+  if (taken > cls.capacity) {
+    const pos =
+      (await ClassBooking.countDocuments({
+        classId,
+        sessionDate: when,
+        status: "waitlisted",
+      })) + 1;
+    booking.status = "waitlisted";
+    booking.waitlistPosition = pos;
+    await booking.save();
+  }
+  return booking;
+}
 
 const bookClass = asyncHandler(async (req, res) => {
   const { classId, memberId, sessionDate } = req.body;
@@ -150,39 +195,7 @@ const bookClass = asyncHandler(async (req, res) => {
       throw fail(403, `Monthly class credits used up (${credits})`);
   }
 
-  let booking;
-  try {
-    booking = await ClassBooking.create({
-      tenantId: cls.tenantId,
-      branchId: cls.branchId,
-      classId,
-      memberId,
-      sessionDate: when,
-      status: "booked",
-    });
-  } catch (e) {
-    if (e.code === 11000) throw fail(409, "Already booked for this session");
-    throw e;
-  }
-  // count AFTER inserting: if two people grabbed the last seat, the later one lands on the waitlist
-  const taken = await ClassBooking.countDocuments({
-    classId,
-    sessionDate: when,
-    status: { $in: ["booked", "attended"] },
-    bookedAt: { $lte: booking.bookedAt },
-    _id: { $lte: booking._id },
-  });
-  if (taken > cls.capacity) {
-    const pos =
-      (await ClassBooking.countDocuments({
-        classId,
-        sessionDate: when,
-        status: "waitlisted",
-      })) + 1;
-    booking.status = "waitlisted";
-    booking.waitlistPosition = pos;
-    await booking.save();
-  }
+  const booking = await placeBooking(cls, memberId, when);
   log(
     req,
     "CREATE",
@@ -239,6 +252,9 @@ module.exports = {
   getSessions,
   getRoster,
   bookClass,
+  buildSessions,
+  placeBooking,
+  isScheduled,
   cancelBooking,
   markAttendance,
 };

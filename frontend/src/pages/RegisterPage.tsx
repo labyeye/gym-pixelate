@@ -46,13 +46,13 @@ export default function RegisterPage() {
       headline={
         <>
           Run your gym
-          <br />
+          
           in minutes.
         </>
       }
       points={[
         "Add members, plans and trainers",
-        "Face check-in at the front desk",
+        "Class bookings and personal training",
         "Invoices and online payments",
         "WhatsApp renewal reminders",
       ]}

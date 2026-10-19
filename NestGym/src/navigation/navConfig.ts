@@ -1,7 +1,7 @@
 // Mirrors frontend/src/config/navigation.ts (web sidebar) — same groups, same role access.
 import {
-  Apple, BarChart3, CalendarDays, ClipboardList, Crown, Dumbbell, DoorOpen, LayoutDashboard, Layers, LockKeyhole, Megaphone,
-  PhoneCall, Receipt, Ruler, Settings, ShoppingBag, Tag, UserCog, UserPlus, Users, Wallet, Wrench,
+  Apple, BarChart3, CalendarDays, ClipboardList, Crown, Dumbbell, LayoutDashboard, Layers, LockKeyhole, Megaphone,
+  Receipt, Ruler, Settings, ShoppingBag, Tag, UserCog, Users, Wallet, Wrench,
 } from 'lucide-react-native';
 import { UserRole } from '../contexts/AuthContext';
 import { ModuleFlags, routeEnabled } from '../config/modules';
@@ -17,14 +17,6 @@ const MONEY: UserRole[] = ['gym_owner', 'branch_manager', 'accountant'];
 
 const groups: NavGroup[] = [
   { label: 'Overview', items: [{ title: 'Dashboard', route: 'Dashboard', icon: LayoutDashboard, roles: ALL }] },
-  {
-    label: 'Front Desk',
-    items: [
-      { title: 'Check-in / Entry', route: 'FrontDesk', icon: DoorOpen, roles: DESK },
-      { title: 'Enquiries & Trials', route: 'Enquiries', icon: UserPlus, roles: DESK },
-      { title: 'Follow-ups', route: 'FollowUps', icon: PhoneCall, roles: DESK },
-    ],
-  },
   {
     label: 'Members',
     items: [

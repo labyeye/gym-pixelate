@@ -24,122 +24,6 @@ import { fmtDate, inr, titleCase, todayStr, waLink } from '../../utils/format';
 
 const I = (C: any) => <C size={14} color="#fff" />;
 
-/* ------------------------------------------------------------------ enquiries */
-const ENQ_STATUSES = ['new', 'contacted', 'trial_booked', 'trial_done', 'negotiating', 'converted', 'lost'];
-const SOURCES = ['walk_in', 'call', 'referral', 'instagram', 'facebook', 'google', 'website', 'whatsapp', 'poster', 'other'];
-const LOST = ['price', 'location', 'timing', 'joined_other_gym', 'not_interested', 'no_response', 'other'];
-
-export function EnquiriesScreen() {
-  const [note, setNote] = useState<any>(null);
-  const [text, setText] = useState('');
-  const [follow, setFollow] = useState('');
-  const [lost, setLost] = useState<any>(null);
-  const [reload, setReload] = useState<() => void>(() => () => {});
-  const act = async (fn: () => Promise<any>, ok: string, done?: () => void) => {
-    try {
-      await fn();
-      notify.success(ok);
-      done?.();
-      reload();
-    } catch (e: any) {
-      notify.error('Failed', e.message);
-    }
-  };
-  const open = (r: any) => !['converted', 'lost'].includes(r.status);
-  return (
-    <ResourceScreen
-      title="Enquiries & Trials"
-      noun="enquiry"
-      api={gym.enquiries}
-      filters={[{ key: 'status', label: 'statuses', options: ENQ_STATUSES }, { key: 'source', label: 'sources', options: SOURCES }]}
-      stats={(rows, total) => {
-        const due = rows.filter(r => r.followUpAt && new Date(r.followUpAt) <= new Date() && open(r)).length;
-        return (
-          <StatGrid>
-            <StatCard label="Total enquiries" value={total} icon={I(UserPlus)} color="#024BAB" />
-            <StatCard label="Follow-ups due" value={due} icon={I(CalendarClock)} color={due ? '#EF4444' : '#14B8A6'} />
-            <StatCard label="Trials booked" value={rows.filter(r => r.status === 'trial_booked').length} icon={I(UserCheck)} color="#A855F7" />
-            <StatCard label="Converted" value={rows.filter(r => r.status === 'converted').length} icon={I(UserCheck)} color="#00C48C" />
-          </StatGrid>
-        );
-      }}
-      card={r => ({
-        title: r.name,
-        subtitle: r.phone,
-        pill: r.status,
-        lines: [
-          ['Goal / plan', [r.goal, r.interestedPlanId?.name].filter(Boolean).join(' · ') || '—'],
-          ['Source', titleCase(r.source)],
-          ['Follow-up', fmtDate(r.followUpAt)],
-          ['Trial', r.trial?.date ? `${fmtDate(r.trial.date)}${r.trial.attended ? ' ✓' : ''}` : '—'],
-        ],
-      })}
-      fields={[
-        { key: 'name', label: 'Name', required: true },
-        { key: 'phone', label: 'Phone', type: 'tel', required: true },
-        { key: 'email', label: 'Email', type: 'email' },
-        { key: 'gender', label: 'Gender', type: 'select', options: ['male', 'female', 'other'] },
-        { key: 'goal', label: 'Goal', placeholder: 'Weight loss, muscle gain…' },
-        { key: 'interestedPlanId', label: 'Interested in', type: 'plan' },
-        { key: 'source', label: 'Source', type: 'select', options: SOURCES, default: 'walk_in', required: true },
-        { key: 'status', label: 'Status', type: 'select', options: ENQ_STATUSES, default: 'new', required: true },
-        { key: 'followUpAt', label: 'Next follow-up', type: 'date' },
-        { key: 'lostReason', label: 'Lost reason', type: 'select', options: LOST, hint: 'Only if lost' },
-      ]}
-      toForm={r => ({ ...r, interestedPlanId: r.interestedPlanId?._id || r.interestedPlanId })}
-      rowActions={(r, rl) => {
-        if (reload !== rl) setTimeout(() => setReload(() => rl), 0);
-        return [
-          {
-            label: 'WhatsApp',
-            onPress: () => {
-              const u = waLink(r.phone, `Hi ${r.name}, thanks for visiting us! Would you like to book a free trial session?`);
-              if (u) Linking.openURL(u);
-            },
-          },
-          { label: 'Note', onPress: () => { setNote(r); setText(''); setFollow(''); } },
-          { label: 'Convert', tone: 'primary', hidden: !open(r), onPress: () => act(() => gym.enquiries.convert(r._id), 'Converted — member created') },
-          { label: 'Mark lost', tone: 'danger', hidden: !open(r), onPress: () => setLost({ row: r, reason: 'price' }) },
-        ];
-      }}
-      after={
-        <>
-          <Sheet
-            visible={!!note}
-            title={`Notes — ${note?.name || ''}`}
-            onClose={() => setNote(null)}
-            footer={
-              <>
-                <Btn light label="Close" onPress={() => setNote(null)} />
-                <Btn label="Save note" disabled={!text.trim()} onPress={() => act(() => gym.enquiries.note(note._id, { text, followUpAt: follow || undefined }), 'Note saved', () => setNote(null))} />
-              </>
-            }
-          >
-            {(note?.notes || []).map((n: any, i: number) => (
-              <Input key={i} label={`${n.by || ''} · ${fmtDate(n.at)}`} value={n.text} editable={false} multiline />
-            ))}
-            <Input label="New note" value={text} onChangeText={setText} multiline />
-            <Input label="Next follow-up" value={follow} onChangeText={setFollow} placeholder="YYYY-MM-DD" />
-          </Sheet>
-          <Sheet
-            visible={!!lost}
-            title={`Why was ${lost?.row?.name || ''} lost?`}
-            onClose={() => setLost(null)}
-            footer={
-              <>
-                <Btn light label="Cancel" onPress={() => setLost(null)} />
-                <Btn danger label="Mark lost" onPress={() => act(() => gym.enquiries.update(lost.row._id, { status: 'lost', lostReason: lost.reason }), 'Marked lost', () => setLost(null))} />
-              </>
-            }
-          >
-            <Select label="Reason" options={LOST} value={lost?.reason} onChange={v => setLost((l: any) => ({ ...l, reason: v }))} />
-          </Sheet>
-        </>
-      }
-    />
-  );
-}
-
 /* ------------------------------------------------------------------ membership plans */
 const PLAN_TYPES = ['daily', 'weekly', 'monthly', 'quarterly', 'half_yearly', 'annual', 'corporate', 'custom'];
 export function PlansScreen() {
@@ -179,9 +63,6 @@ export function PlansScreen() {
         { key: 'freezeAllowedDays', label: 'Freeze days allowed', type: 'number', default: 0, hint: '0 = freezing not allowed' },
         { key: 'maxFreezes', label: 'Max freezes', type: 'number', default: 1 },
         { key: 'gracePeriodDays', label: 'Grace after expiry (days)', type: 'number', default: 0 },
-        { key: 'maxVisitsPerDay', label: 'Max visits per day', type: 'number', default: 1 },
-        { key: 'accessHours.from', label: 'Allowed from (HH:mm)', placeholder: '06:00', hint: 'Off-peak plans — blank = all day' },
-        { key: 'accessHours.to', label: 'Allowed until (HH:mm)', placeholder: '11:00' },
         { key: 'includes.classes', label: 'Group classes', type: 'checkbox', hint: 'Included' },
         { key: 'includes.classCreditsPerMonth', label: 'Class credits / month', type: 'number', default: 0, hint: '0 = unlimited (if classes included)' },
         { key: 'includes.ptSessions', label: 'PT sessions included', type: 'number', default: 0 },

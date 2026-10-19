@@ -1,5 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const MembershipPlan = require("../models/MembershipPlan");
+const Membership = require("../models/Membership");
 const logActivity = require("../utils/activityLogger");
 
 const getPlans = asyncHandler(async (req, res) => {
@@ -20,13 +21,41 @@ const getPlans = asyncHandler(async (req, res) => {
     MembershipPlan.countDocuments(query),
   ]);
 
+  // how many members hold each plan (active now / ever)
+  const counts = await Membership.aggregate([
+    {
+      $match: {
+        planId: { $in: plans.map((p) => p._id) },
+        status: { $ne: "cancelled" },
+        ...(req.user.tenantId ? { tenantId: req.user.tenantId } : {}),
+      },
+    },
+    {
+      $group: {
+        _id: "$planId",
+        total: { $sum: 1 },
+        active: {
+          $sum: { $cond: [{ $in: ["$status", ["active", "frozen"]] }, 1, 0] },
+        },
+      },
+    },
+  ]);
+  const byPlan = new Map(counts.map((c) => [String(c._id), c]));
+  const data = plans.map((p) => ({
+    ...p.toObject(),
+    subscribers: {
+      active: byPlan.get(String(p._id))?.active || 0,
+      total: byPlan.get(String(p._id))?.total || 0,
+    },
+  }));
+
   res.json({
     success: true,
     count: plans.length,
     total,
     page: parseInt(page),
     pages: Math.ceil(total / parseInt(limit)),
-    data: plans,
+    data,
   });
 });
 

@@ -196,6 +196,42 @@
   .nb-tag-pink {
     @apply bg-[#FF3366] text-white;
   }
+
+  /* badges: clean tinted style (matches HRMS employee status) */
+  .nb-badge {
+    @apply rounded-full border-black text-[10px] uppercase tracking-wide;
+    box-shadow: 2px 2px 0px #0a0a0a;
+  }
+  .nb-badge.nb-tag-blue {
+    @apply border-black bg-[#024BAB]/15 text-[#024BAB];
+  }
+  .nb-badge.nb-tag-orange {
+    @apply border-black bg-[#FA731C]/15 text-[#FA731C];
+  }
+  .nb-badge.nb-tag-green {
+    @apply border-black bg-[#00C48C]/15 text-[#00C48C];
+  }
+  .nb-badge.nb-tag-red {
+    @apply border-black bg-[#EF4444]/15 text-[#EF4444];
+  }
+  .nb-badge.nb-tag-yellow {
+    @apply border-black bg-[#CA9A00]/15 text-[#CA9A00];
+  }
+  .nb-badge.nb-tag-purple {
+    @apply border-black bg-[#A855F7]/15 text-[#A855F7];
+  }
+  .nb-badge.nb-tag-teal {
+    @apply border-black bg-[#0D9488]/15 text-[#0D9488];
+  }
+  .nb-badge.nb-tag-lime {
+    @apply border-black bg-[#65A30D]/15 text-[#65A30D];
+  }
+  .nb-badge.nb-tag-pink {
+    @apply border-black bg-[#FF3366]/15 text-[#FF3366];
+  }
+  .nb-badge.nb-tag-white {
+    @apply border-black bg-gray-100 text-gray-500;
+  }
 }
 
 /* ------------------------------------------------------------------
@@ -584,7 +620,7 @@
         [class*="border-dotted"]
       )
   ):disabled {
-    box-shadow: none;
+    box-shadow: 2px 2px 0px #0a0a0a;
   }
 }
 

@@ -28,12 +28,11 @@ export default function MemberPortalScreen() {
 
   const ov = useFetch(() => get('/overview'), []);
   const inv = useFetch(() => get('/invoices'), [], tab === 'pay');
-  const att = useFetch(() => get('/attendance'), [], tab === 'home');
   const ses = useFetch(() => get('/classes/sessions?days=7'), [], tab === 'classes');
   const mine = useFetch(() => get('/classes/mine'), [], tab === 'classes');
   const plans = useFetch(() => get('/plans'), [], tab === 'plans' || tab === 'progress');
   const ann = useFetch(() => get('/announcements'), [], tab === 'home');
-  const refresh = () => [ov, inv, att, ses, mine, plans, ann].forEach(f => f.reload());
+  const refresh = () => [ov, inv, ses, mine, plans, ann].forEach(f => f.reload());
 
   const o = ov.data?.data;
   const confirmLogout = () => Alert.alert('Sign out?', undefined, [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign out', style: 'destructive', onPress: logout }]);
@@ -96,7 +95,7 @@ export default function MemberPortalScreen() {
       </View>
 
       <View style={{ flex: 1 }}>
-        <PortalBody tab={tab} {...{ paying, payOnline, o, m, left, inv, att, ses, mine, plans, ann, meas, book, cancel, setLog, setTab, refresh, ov }} />
+        <PortalBody tab={tab} {...{ paying, payOnline, o, m, left, inv, ses, mine, plans, ann, meas, book, cancel, setLog, setTab, refresh, ov }} />
       </View>
 
       <View style={{ flexDirection: 'row', borderTopWidth: 2, borderTopColor: C.black, backgroundColor: C.white }}>
@@ -122,7 +121,7 @@ export default function MemberPortalScreen() {
 }
 
 // Body is a plain ScrollView so the header/tab bar stay fixed.
-function PortalBody({ tab, paying, payOnline, o, m, left, inv, att, ses, mine, plans, ann, meas, book, cancel, setLog, setTab, refresh, ov }: any) {
+function PortalBody({ tab, paying, payOnline, o, m, left, inv, ses, mine, plans, ann, meas, book, cancel, setLog, setTab, refresh, ov }: any) {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} refreshControl={<RefreshControl refreshing={ov.loading} onRefresh={refresh} tintColor={C.primary} />}>
       {tab === 'home' && (
@@ -136,7 +135,6 @@ function PortalBody({ tab, paying, payOnline, o, m, left, inv, att, ses, mine, p
           </RCard>
           <StatGrid>
             <StatCard label="To pay" value={inr(o.due)} color={o.due > 0 ? '#EF4444' : '#14B8A6'} onPress={() => setTab('pay')} />
-            <StatCard label="Visits (30 days)" value={o.visits30} color="#A855F7" />
           </StatGrid>
           {o.trainers.length > 0 && <Panel title="Your trainer">{o.trainers.map((t: any) => <Text key={t._id} style={S.body}>{t.trainerId?.name} <Text style={S.small}>{t.trainerId?.phone}</Text></Text>)}</Panel>}
           {o.pt.length > 0 && (
@@ -156,9 +154,6 @@ function PortalBody({ tab, paying, payOnline, o, m, left, inv, att, ses, mine, p
                 <Text style={S.small}>{a.body}</Text>
               </View>
             ))}
-          </Panel>
-          <Panel title="Recent visits">
-            {(att.data?.data || []).length === 0 ? <Text style={S.small}>No visits yet</Text> : att.data.data.slice(0, 6).map((a: any) => <Row key={a._id} k={fmtDateTime(a.checkinAt)} v={a.durationMin ? `${a.durationMin} min` : 'inside'} />)}
           </Panel>
           {!!o.gym.phone && <Text style={[S.small, { textAlign: 'center' }]}>Need help? Call {o.gym.phone}</Text>}
         </>

@@ -33,8 +33,11 @@ import {
   fmtDate,
   inputCls,
   titleCase,
+  Thumb,
+  SearchBox,
 } from "@/components/gym/kit";
 import { MemberPicker, useTrainers } from "@/components/gym/pickers";
+import { ExportImport } from "@/components/gym/ExportImport";
 
 const GOALS = [
   "weight_loss",
@@ -138,7 +141,39 @@ export default function WorkoutDietPage() {
             : {}),
       }),
   });
-  const rows: any[] = data?.data || [];
+  const [q, setQ] = useState("");
+  const [goalF, setGoalF] = useState("");
+  const [trainerF, setTrainerF] = useState("");
+  const rows: any[] = (data?.data || []).filter(
+    (r: any) =>
+      (!goalF || r.goal === goalF) &&
+      (!trainerF || (r.trainerId?._id || r.trainerId) === trainerF) &&
+      (!q ||
+        `${r.name} ${r.memberId?.name || ""} ${r.memberId?.memberCode || ""}`
+          .toLowerCase()
+          .includes(q.toLowerCase())),
+  );
+  // import: one row = one plan shell (name, goal, member by Member ID); exercises/meals are added by editing it
+  const importRow = async (r: Record<string, any>) => {
+    let memberId: string | undefined;
+    if (r["Member ID"]) {
+      const m = (await gym.members.list({ search: String(r["Member ID"]).trim(), limit: 5 })).data.find(
+        (x: any) => x.memberCode === String(r["Member ID"]).trim(),
+      );
+      if (!m) throw new Error(`Member ${r["Member ID"]} not found`);
+      memberId = m._id;
+    }
+    if (!r.Plan) throw new Error("Plan name is required");
+    return api.create({
+      name: r.Plan,
+      goal: r.Goal || undefined,
+      memberId,
+      isTemplate: !memberId,
+      ...(tab === "workout"
+        ? { weeks: Number(r.Weeks) || 4, days: [] }
+        : { targetCalories: Number(r.Calories) || undefined, targetProteinG: Number(r.Protein) || undefined, meals: [] }),
+    });
+  };
   const refresh = () => qc.invalidateQueries({ queryKey: ["plans-" + tab] });
 
   const openNew = (src?: any, asCopy = false) => {
@@ -329,20 +364,56 @@ export default function WorkoutDietPage() {
             ]}
           />
         </div>
-        {can("WorkoutPlans", "create") && (
-          <div className="mb-5">
+        <div className="mb-5 flex gap-2 flex-wrap">
+          <ExportImport
+            name={`${tab}_plans`}
+            rows={rows}
+            cols={[
+              { header: "Plan", value: (r: any) => r.name },
+              { header: "Member ID", value: (r: any) => r.memberId?.memberCode },
+              { header: "Member", value: (r: any) => r.memberId?.name },
+              { header: "Goal", value: (r: any) => titleCase(r.goal) },
+              { header: "Trainer", value: (r: any) => r.trainerId?.name },
+              { header: "Template", value: (r: any) => (r.isTemplate ? "Yes" : "No") },
+              { header: "Updated", value: (r: any) => (r.updatedAt || "").slice(0, 10) },
+            ]}
+            importTemplate={{
+              headers: tab === "workout" ? ["Plan", "Member ID", "Goal", "Weeks"] : ["Plan", "Member ID", "Goal", "Calories", "Protein"],
+              example: tab === "workout" ? ["Push Pull Legs", "GYM-00001", "muscle_gain", 8] : ["Cutting diet", "GYM-00001", "weight_loss", 1800, 130],
+            }}
+            onImportRow={can("WorkoutPlans", "create") ? importRow : undefined}
+            onImported={refresh}
+          />
+          {can("WorkoutPlans", "create") && (
             <Btn onClick={() => openNew()}>
               <Plus className="w-4 h-4" /> New {tab} plan
             </Btn>
-          </div>
-        )}
+          )}
+        </div>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2 mb-5">
+        <SearchBox value={q} onChange={setQ} placeholder="Plan, member name or ID…" />
+        <select className={inputCls + " sm:w-44 font-bold"} value={goalF} onChange={(e) => setGoalF(e.target.value)}>
+          <option value="">Goal: all</option>
+          {["weight_loss", "muscle_gain", "strength", "endurance", "flexibility", "general_fitness", "rehab", "sports"].map((g) => (
+            <option key={g} value={g}>{titleCase(g)}</option>
+          ))}
+        </select>
+        <select className={inputCls + " sm:w-44 font-bold"} value={trainerF} onChange={(e) => setTrainerF(e.target.value)}>
+          <option value="">Trainer: all</option>
+          {trainers.map((t: any) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
       </div>
 
       <DataTable
         head={[
           "Plan",
-          "For",
+          "Member ID",
+          "Member",
           "Goal",
+          "Trainer",
           tab === "workout" ? "Structure" : "Targets",
           "Updated",
           "Actions",
@@ -358,13 +429,20 @@ export default function WorkoutDietPage() {
                 <span className="nb-badge nb-tag-purple">Template</span>
               )}
             </Td>
-            <Td className="font-bold">
-              {r.memberId?.name || <span className="text-black/30">—</span>}
-              <p className="text-xs text-black/50">{r.trainerId?.name}</p>
+            <Td className="text-xs font-bold whitespace-nowrap">
+              {r.memberId?.memberCode || <span className="text-black/30">—</span>}
             </Td>
-            <Td className="capitalize text-xs font-bold">
+            <Td>
+              {r.memberId ? (
+                <Thumb photo={r.memberId.photo} name={r.memberId.name} />
+              ) : (
+                <span className="text-black/30">—</span>
+              )}
+            </Td>
+            <Td className="capitalize text-xs">
               {titleCase(r.goal) || "—"}
             </Td>
+            <Td className="text-xs">{r.trainerId?.name || "—"}</Td>
             <Td className="text-xs font-bold">
               {tab === "workout"
                 ? `${r.days?.length || 0} days · ${r.weeks} weeks · ${(r.days || []).reduce((s: number, x: any) => s + x.exercises.length, 0)} exercises`

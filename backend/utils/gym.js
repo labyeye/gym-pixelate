@@ -5,7 +5,6 @@ const Membership = require("../models/Membership");
 const MembershipPlan = require("../models/MembershipPlan");
 const Coupon = require("../models/Coupon");
 const Setting = require("../models/Setting");
-const Attendance = require("../models/Attendance");
 const Branch = require("../models/Branch");
 const User = require("../models/User");
 const Tenant = require("../models/Tenant");
@@ -558,101 +557,6 @@ async function endFreeze(m, now = new Date()) {
   return m;
 }
 
-/* -------------------------------------------------------------------- access */
-
-/**
- * Decides whether a member may enter right now. Pure reads, so the same answer is used by the desk,
- * QR kiosk and face check-in. `canOverride` = manager/owner may let a blocked-but-recoverable case in.
- */
-async function evaluateAccess(member, { now = new Date(), tenantId } = {}) {
-  const warnings = [];
-  const deny = (reason, extra = {}) => ({
-    allowed: false,
-    reason,
-    warnings,
-    overridable: !!extra.overridable,
-    membership: extra.membership || null,
-  });
-
-  if (member.status !== "active") return deny(`Member is ${member.status}`);
-
-  const memberships = await Membership.find({
-    tenantId: tenantId || member.tenantId,
-    memberId: member._id,
-    status: { $in: ["active", "frozen", "expired"] },
-  })
-    .populate("planId", "accessHours maxVisitsPerDay gracePeriodDays")
-    .sort("-endDate");
-  const covers = (m) =>
-    m.status !== "frozen" &&
-    m.startDate <= now &&
-    addDays(m.endDate, m.planId?.gracePeriodDays || 0) >= now;
-  const current = memberships.find(covers);
-
-  if (!current) {
-    const frozen = memberships.find((m) => m.status === "frozen");
-    if (frozen)
-      return deny(
-        `Membership is frozen until ${new Date(frozen.freezeHistory.at(-1)?.to || frozen.endDate).toDateString()}`,
-        { membership: frozen },
-      );
-    const last = memberships[0];
-    return deny(
-      last
-        ? `Membership expired on ${last.endDate.toDateString()}`
-        : "No membership found",
-      { membership: last, overridable: !!last },
-    );
-  }
-
-  const plan = current.planId;
-  const { from, to } = plan?.accessHours || {};
-  if (from && to) {
-    const t = istHHmm(now);
-    if (t < from || t > to)
-      return deny(`This plan allows entry only between ${from} and ${to}`, {
-        membership: current,
-        overridable: true,
-      });
-  }
-  const due = r2(current.totalAmount - current.paidAmount);
-  if (due > 0 && current.dueDate && current.dueDate < now) {
-    return deny(
-      `Payment of ₹${due} was due on ${current.dueDate.toDateString()}`,
-      { membership: current, overridable: true },
-    );
-  }
-  const todays = await Attendance.countDocuments({
-    tenantId: member.tenantId,
-    memberId: member._id,
-    checkinAt: { $gte: istDayStart(now) },
-  });
-  if (todays >= (plan?.maxVisitsPerDay || 1))
-    return deny("Already checked in the maximum number of times today", {
-      membership: current,
-      overridable: true,
-    });
-
-  const daysLeft = Math.ceil((current.endDate - now) / DAY);
-  if (daysLeft <= 7)
-    warnings.push(
-      daysLeft <= 0
-        ? "Membership expired — in grace period"
-        : `Membership expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`,
-    );
-  if (due > 0) warnings.push(`Balance due ₹${due}`);
-  if (member.dob) {
-    const d = new Date(member.dob),
-      n = new Date(new Date(now).getTime() + IST);
-    if (
-      d.getUTCDate() === n.getUTCDate() &&
-      d.getUTCMonth() === n.getUTCMonth()
-    )
-      warnings.push("🎂 Birthday today");
-  }
-  return { allowed: true, membership: current, warnings };
-}
-
 /* --------------------------------------------------------------------- sweep */
 
 /** Idempotent housekeeping; safe to run as often as you like (and per tenant for tests). */
@@ -686,26 +590,6 @@ async function runSweep(tenantId) {
     )
   ).modifiedCount;
 
-  // forgot to tap out: close after 6h, booked as a standard 2h session rather than inflating averages
-  const stale = await Attendance.find({
-    ...t,
-    checkoutAt: null,
-    checkinAt: { $lt: new Date(now - 6 * 60 * 60 * 1000) },
-  });
-  for (const a of stale) {
-    await Attendance.updateOne(
-      { _id: a._id, checkoutAt: null },
-      {
-        $set: {
-          checkoutAt: new Date(a.checkinAt.getTime() + 2 * 60 * 60 * 1000),
-          durationMin: 120,
-          autoCheckout: true,
-        },
-      },
-    );
-  }
-  out.autoCheckout = stale.length;
-
   out.ptExpired = (
     await PTPackage.updateMany(
       { ...t, status: "active", validTill: { $lt: now } },
@@ -734,6 +618,5 @@ module.exports = {
   refundPayment,
   sellMembership,
   endFreeze,
-  evaluateAccess,
   runSweep,
 };

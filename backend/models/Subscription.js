@@ -44,6 +44,7 @@ const subscriptionSchema = new mongoose.Schema(
     pendingOrder: { type: mongoose.Schema.Types.Mixed },
     invoices: [
       {
+        invoiceNumber: String, // KHT/GYM/001, assigned when the payment is recorded
         hdfcPaymentId: String,
         hdfcTrackingId: String,
         razorpayPaymentId: String,

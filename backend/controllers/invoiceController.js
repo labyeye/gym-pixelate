@@ -21,7 +21,7 @@ const log = (req, action, inv, description) =>
     targetId: inv._id,
     ip: req.ip,
   });
-const MEMBER_FIELDS = "name email phone memberCode";
+const MEMBER_FIELDS = "name email phone memberCode photo";
 
 const getInvoices = asyncHandler(async (req, res) => {
   const {
@@ -103,6 +103,7 @@ const getInvoice = asyncHandler(async (req, res) => {
       bank: { name: company.bankName, accountName: company.bankAccountName, accountNo: company.bankAccountNumber, ifsc: company.bankIFSC, branch: company.bankBranch, type: company.bankAccountType },
       terms: company.invoiceTerms,
       template: company.invoiceTemplate,
+      receiptDesign: company.receiptDesign,
     },
   });
 });

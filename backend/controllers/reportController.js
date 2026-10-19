@@ -3,8 +3,6 @@ const mongoose = require("mongoose");
 const Invoice = require("../models/Invoice");
 const Member = require("../models/Member");
 const Membership = require("../models/Membership");
-const Attendance = require("../models/Attendance");
-const Enquiry = require("../models/Enquiry");
 const Expense = require("../models/Expense");
 const Product = require("../models/Product");
 const Equipment = require("../models/Equipment");
@@ -66,22 +64,17 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     todayC,
     monthC,
     dues,
-    inside,
-    todayCheckins,
     active,
     expired,
     exp7,
     trainers,
     newToday,
-    enquiriesOpen,
     lowStock,
     serviceDue,
   ] = await Promise.all([
     collections(m, today, now, null),
     collections(m, monthStart, now, null),
     dueRows(m),
-    Attendance.countDocuments({ ...m, checkoutAt: null }),
-    Attendance.countDocuments({ ...m, checkinAt: { $gte: today } }),
     Membership.countDocuments({ ...m, status: "active" }),
     Membership.countDocuments({ ...m, status: "expired" }),
     Membership.countDocuments({
@@ -91,12 +84,6 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     }),
     User.countDocuments({ ...m, role: "trainer", status: "active" }),
     Member.countDocuments({ ...m, createdAt: { $gte: today } }),
-    Enquiry.countDocuments({
-      ...m,
-      status: {
-        $in: ["new", "contacted", "trial_booked", "trial_done", "negotiating"],
-      },
-    }),
     Product.countDocuments({
       ...m,
       isActive: true,
@@ -115,14 +102,11 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
       monthlyRevenue: r2(monthC[0]?.total),
       pendingPayments: r2(dues.reduce((s, d) => s + d.due, 0)),
       membersWithDues: dues.length,
-      membersInsideGym: inside,
-      todayCheckins,
       activeMemberships: active,
       expiredMemberships: expired,
       pendingRenewals: exp7,
       activeTrainers: trainers,
       newMembersToday: newToday,
-      openEnquiries: enquiriesOpen,
       lowStockProducts: lowStock,
       equipmentServiceDue: serviceDue,
     },
@@ -133,7 +117,7 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
   const m = scope(req);
   const now = new Date();
   const from = istDayStart(addDays(now, -29));
-  const [rev, att, growth] = await Promise.all([
+  const [rev, growth] = await Promise.all([
     collections(m, from, now, {
       $dateToString: {
         format: "%Y-%m-%d",
@@ -141,21 +125,6 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
         timezone: TZ,
       },
     }),
-    Attendance.aggregate([
-      { $match: { ...m, checkinAt: { $gte: from } } },
-      {
-        $group: {
-          _id: {
-            $dateToString: {
-              format: "%Y-%m-%d",
-              date: "$checkinAt",
-              timezone: TZ,
-            },
-          },
-          n: { $sum: 1 },
-        },
-      },
-    ]),
     Membership.aggregate([
       {
         $match: {
@@ -182,7 +151,6 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
       .slice(0, 10),
   );
   const revMap = new Map(rev.map((r) => [r._id, r.total]));
-  const attMap = new Map(att.map((r) => [r._id, r.n]));
   const months = Array.from(
     { length: 12 },
     (_, i) => new Date(now.getFullYear(), now.getMonth() - (11 - i), 1),
@@ -191,10 +159,6 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
     success: true,
     data: {
       revenueByDay: days.map((d) => ({ date: d, revenue: r2(revMap.get(d)) })),
-      attendanceByDay: days.map((d) => ({
-        date: d,
-        count: attMap.get(d) || 0,
-      })),
       membershipGrowth: months.map((d) => ({
         month: d.toLocaleString("en-IN", { month: "short", year: "2-digit" }),
         newMemberships:
@@ -216,7 +180,6 @@ const overview = asyncHandler(async (req, res) => {
     expenses,
     planSales,
     newMembers,
-    enquiries,
     sources,
   ] = await Promise.all([
     collections(m, from, to),
@@ -260,10 +223,6 @@ const overview = asyncHandler(async (req, res) => {
       { $sort: { billed: -1 } },
     ]),
     Member.countDocuments({ ...m, createdAt: { $gte: from, $lte: to } }),
-    Enquiry.aggregate([
-      { $match: { ...m, createdAt: { $gte: from, $lte: to } } },
-      { $group: { _id: "$status", n: { $sum: 1 } } },
-    ]),
     Member.aggregate([
       { $match: { ...m, createdAt: { $gte: from, $lte: to } } },
       { $group: { _id: { $ifNull: ["$source", ""] }, n: { $sum: 1 } } },
@@ -293,8 +252,6 @@ const overview = asyncHandler(async (req, res) => {
 
   const income = r2(byMethod.reduce((s, r) => s + r.total, 0));
   const spend = r2(expenses.reduce((s, r) => s + r.total, 0));
-  const enq = Object.fromEntries(enquiries.map((e) => [e._id, e.n]));
-  const enqTotal = enquiries.reduce((s, e) => s + e.n, 0);
   res.json({
     success: true,
     data: {
@@ -324,15 +281,6 @@ const overview = asyncHandler(async (req, res) => {
       newMembers,
       retentionPercent: retention,
       membersUpForRenewal: endedIds.length,
-      enquiries: {
-        total: enqTotal,
-        converted: enq.converted || 0,
-        lost: enq.lost || 0,
-        conversionPercent: enqTotal
-          ? Math.round(((enq.converted || 0) / enqTotal) * 100)
-          : 0,
-        byStatus: enq,
-      },
       sources: sources.map((s) => ({ source: s._id || "unknown", count: s.n })),
     },
   });
@@ -414,47 +362,6 @@ const renewals = asyncHandler(async (req, res) => {
   res.json({ success: true, count: data.length, data });
 });
 
-// Paying members who stopped coming: the cheapest churn to prevent.
-const atRisk = asyncHandler(async (req, res) => {
-  const days = Math.min(60, Number(req.query.days) || 14);
-  const m = scope(req);
-  const since = addDays(new Date(), -days);
-  const active = await Membership.find({
-    ...m,
-    status: "active",
-    startDate: { $lte: addDays(new Date(), -days) },
-  })
-    .populate("memberId", "name phone memberCode")
-    .lean();
-  const ids = active.map((a) => a.memberId?._id).filter(Boolean);
-  const recent = new Set(
-    (
-      await Attendance.distinct("memberId", {
-        memberId: { $in: ids },
-        checkinAt: { $gte: since },
-      })
-    ).map(String),
-  );
-  const last = await Attendance.aggregate([
-    { $match: { memberId: { $in: ids } } },
-    { $group: { _id: "$memberId", at: { $max: "$checkinAt" } } },
-  ]);
-  const lastMap = new Map(last.map((l) => [String(l._id), l.at]));
-  const data = active
-    .filter((a) => a.memberId && !recent.has(String(a.memberId._id)))
-    .map((a) => ({
-      member: a.memberId,
-      plan: a.planName,
-      endDate: a.endDate,
-      lastVisit: lastMap.get(String(a.memberId._id)) || null,
-      daysAbsent: lastMap.has(String(a.memberId._id))
-        ? Math.floor((Date.now() - lastMap.get(String(a.memberId._id))) / DAY)
-        : null,
-    }))
-    .sort((x, y) => (y.daysAbsent ?? 9999) - (x.daysAbsent ?? 9999));
-  res.json({ success: true, count: data.length, data: data.slice(0, 200) });
-});
-
 const birthdays = asyncHandler(async (req, res) => {
   const m = scope(req);
   const mon = Number(req.query.month) || new Date().getMonth() + 1;
@@ -466,32 +373,6 @@ const birthdays = asyncHandler(async (req, res) => {
     { $project: { name: 1, phone: 1, memberCode: 1, dob: 1, day: 1 } },
   ]);
   res.json({ success: true, count: data.length, data });
-});
-
-// Footfall by hour and weekday → staffing and class timing decisions.
-const heatmap = asyncHandler(async (req, res) => {
-  const m = scope(req);
-  const { from, to } = range(req, 30);
-  const rows = await Attendance.aggregate([
-    { $match: { ...m, checkinAt: { $gte: from, $lte: to } } },
-    {
-      $group: {
-        _id: {
-          dow: { $dayOfWeek: { date: "$checkinAt", timezone: TZ } },
-          hour: { $hour: { date: "$checkinAt", timezone: TZ } },
-        },
-        n: { $sum: 1 },
-      },
-    },
-  ]);
-  res.json({
-    success: true,
-    data: rows.map((r) => ({
-      day: r._id.dow - 1,
-      hour: r._id.hour,
-      count: r.n,
-    })),
-  });
 });
 
 const GST_FIELDS = {
@@ -538,8 +419,6 @@ module.exports = {
   overview,
   dues,
   renewals,
-  atRisk,
   birthdays,
-  heatmap,
   gstRegister,
 };

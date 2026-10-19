@@ -81,7 +81,6 @@ const ok = async (fn, user, req) => {
     Plan,
     Membership,
     Invoice,
-    Attendance,
     Coupon,
     Product,
     Counter,
@@ -93,7 +92,6 @@ const ok = async (fn, user, req) => {
     "MembershipPlan",
     "Membership",
     "Invoice",
-    "Attendance",
     "Coupon",
     "Product",
     "Counter",
@@ -101,7 +99,6 @@ const ok = async (fn, user, req) => {
   const G = require("../utils/gym");
   const MS = require("../controllers/membershipController");
   const INV = require("../controllers/invoiceController");
-  const ATT = require("../controllers/attendanceController");
   const CLS = require("../controllers/classController");
   const PT = require("../controllers/ptController");
   const OPS = require("../controllers/opsController");
@@ -540,154 +537,7 @@ const ok = async (fn, user, req) => {
     );
   });
 
-  console.log("\nAccess & attendance");
-  await test("valid member checks in; second scan while inside is refused; checkout records minutes", async () => {
-    const m = await mkMember(A, "Gym Rat", "9600000001");
-    await ok(MS.createMembership, A.owner, {
-      body: { memberId: m._id, planId: A.monthly._id, payNow: 1770 },
-    });
-    const c = await ok(ATT.checkin, A.owner, {
-      body: { memberCode: m.memberCode, branchId: A.branch._id },
-    });
-    assert.ok(c.data._id);
-    await rejects(
-      ok(ATT.checkin, A.owner, {
-        body: { memberId: m._id, branchId: A.branch._id },
-      }),
-      409,
-      /already inside/,
-    );
-    await Attendance.updateOne(
-      { _id: c.data._id },
-      { $set: { checkinAt: new Date(Date.now() - 45 * 60000) } },
-    );
-    const o = await ok(ATT.checkout, A.owner, { body: { memberId: m._id } });
-    assert.ok(o.data.durationMin >= 44 && o.data.durationMin <= 46);
-    await rejects(
-      ok(ATT.checkout, A.owner, { body: { memberId: m._id } }),
-      404,
-    );
-    // maxVisitsPerDay=1 -> second visit same day blocked, manager can override with reason
-    const again = await call(ATT.checkin, A.owner, {
-      body: { memberId: m._id, branchId: A.branch._id },
-    });
-    assert.strictEqual(again.err.status, 403);
-    assert.ok(again.err.overridable);
-    await ok(ATT.checkin, A.owner, {
-      body: {
-        memberId: m._id,
-        branchId: A.branch._id,
-        override: true,
-        overrideReason: "came back after injury check",
-      },
-    });
-  });
-  await test("expired, frozen, unpaid-overdue and no-plan members are refused with a reason", async () => {
-    const ex = await mkMember(A, "Lapsed", "9600000002");
-    const s = await ok(MS.createMembership, A.owner, {
-      body: { memberId: ex._id, planId: A.monthly._id, payNow: 1770 },
-    });
-    await Membership.updateOne(
-      { _id: s.data._id },
-      {
-        $set: {
-          startDate: new Date(Date.now() - 60 * 86400000),
-          endDate: new Date(Date.now() - 20 * 86400000),
-          status: "expired",
-        },
-      },
-    );
-    await rejects(
-      ok(ATT.checkin, A.owner, {
-        body: { memberId: ex._id, branchId: A.branch._id },
-      }),
-      403,
-      /expired on/,
-    );
-
-    const none = await mkMember(A, "Never Paid", "9600000003");
-    await rejects(
-      ok(ATT.checkin, A.owner, {
-        body: { memberId: none._id, branchId: A.branch._id },
-      }),
-      403,
-      /No membership/,
-    );
-
-    const due = await mkMember(A, "Owes Money", "9600000004");
-    await ok(MS.createMembership, A.owner, {
-      body: {
-        memberId: due._id,
-        planId: A.monthly._id,
-        payNow: 100,
-        dueDate: new Date(Date.now() - 86400000),
-      },
-    });
-    const e = await rejects(
-      ok(ATT.checkin, A.owner, {
-        body: { memberId: due._id, branchId: A.branch._id },
-      }),
-      403,
-      /Payment of ₹1670/,
-    );
-    assert.ok(e.overridable);
-    const desk = await User.create({
-      name: "Desk",
-      email: "desk@alpha.test",
-      password: "Passw0rdA",
-      role: "receptionist",
-      tenantId: A.tid,
-    });
-    const d = await call(ATT.checkin, desk, {
-      body: {
-        memberId: due._id,
-        branchId: A.branch._id,
-        override: true,
-        overrideReason: "promised tomorrow",
-      },
-    });
-    assert.strictEqual(d.err?.status, 403, "receptionist can't override");
-    await ok(ATT.checkin, A.owner, {
-      body: {
-        memberId: due._id,
-        branchId: A.branch._id,
-        override: true,
-        overrideReason: "promised tomorrow",
-      },
-    });
-  });
-  await test("sweep expires memberships, auto-closes forgotten check-ins, activates upcoming", async () => {
-    const m = await mkMember(A, "Sweepy", "9600000005");
-    const s = await ok(MS.createMembership, A.owner, {
-      body: { memberId: m._id, planId: A.monthly._id, payNow: 1770 },
-    });
-    await Membership.updateOne(
-      { _id: s.data._id },
-      { $set: { endDate: new Date(Date.now() - 1000) } },
-    );
-    await Attendance.create({
-      tenantId: A.tid,
-      branchId: A.branch._id,
-      memberId: m._id,
-      checkinAt: new Date(Date.now() - 9 * 3600000),
-    });
-    const r = await G.runSweep(A.tid);
-    assert.ok(r.expired >= 1 && r.autoCheckout >= 1);
-    assert.strictEqual(
-      (await Membership.findById(s.data._id)).status,
-      "expired",
-    );
-    const rec = await Attendance.findOne({ memberId: m._id });
-    assert.ok(rec.autoCheckout && rec.checkoutAt);
-    const again = await G.runSweep(A.tid);
-    assert.strictEqual(
-      again.expired + again.autoCheckout,
-      0,
-      "second run is a no-op",
-    );
-  });
-
-  console.log("\nClasses, PT, POS, enquiries");
+  console.log("\nClasses, PT, POS");
   await test("class booking: capacity, waitlist, auto-promotion on cancel, unscheduled slot refused", async () => {
     const GymClass = M("GymClass");
     const when = new Date(Date.now() + 3 * 86400000);
@@ -837,26 +687,6 @@ const ok = async (fn, user, req) => {
       1,
       "first line was put back",
     );
-  });
-  await test("enquiry converts to a member exactly once", async () => {
-    const Enquiry = M("Enquiry");
-    const e = await Enquiry.create({
-      tenantId: A.tid,
-      branchId: A.branch._id,
-      name: "Walk In",
-      phone: "9810000001",
-      source: "instagram",
-    });
-    const r = await ok(OPS.convertEnquiry, A.owner, {
-      params: { id: String(e._id) },
-    });
-    assert.ok(r.data.memberCode);
-    assert.strictEqual(r.data.source, "instagram");
-    await rejects(
-      ok(OPS.convertEnquiry, A.owner, { params: { id: String(e._id) } }),
-      409,
-    );
-    assert.strictEqual((await Enquiry.findById(e._id)).status, "converted");
   });
   await test("staff can't create accounts above their own level", async () => {
     const UC = require("../controllers/userController");
@@ -1377,23 +1207,11 @@ const ok = async (fn, user, req) => {
   });
 
   console.log("\nDates");
-  await test("date-picker days are IST calendar days (front desk showed an empty log before)", async () => {
+  await test("date-picker days are IST calendar days", async () => {
     const s = G.istDay("2026-10-17"),
       e = G.istDay("2026-10-17", true);
     assert.strictEqual(s.toISOString(), "2026-10-16T18:30:00.000Z");
     assert.strictEqual(e.toISOString(), "2026-10-17T18:29:59.999Z");
-    const m = await mkMember(A, "Late Night", "9555000001");
-    await ok(MS.createMembership, A.owner, {
-      body: { memberId: m._id, planId: A.monthly._id, payNow: 1770 },
-    });
-    await ok(ATT.checkin, A.owner, {
-      body: { memberId: m._id, branchId: A.branch._id },
-    });
-    const day = new Date(Date.now() + 5.5 * 3600000).toISOString().slice(0, 10); // today in IST
-    const r = await ok(ATT.getAttendance, A.owner, {
-      query: { startDate: day, endDate: day, memberId: String(m._id) },
-    });
-    assert.strictEqual(r.count, 1);
   });
 
   console.log("\nSaaS plans");
@@ -1495,243 +1313,6 @@ const ok = async (fn, user, req) => {
 
     const again = await migrate({ apply: true, log: quiet });
     assert.deepStrictEqual(again, {}, "idempotent: nothing left to change");
-  });
-
-  console.log("\nRevenue & retention worklist");
-  const RET = require("../controllers/retentionController");
-  const Enquiry = M("Enquiry");
-  const FollowUp = M("FollowUp");
-  const DAYMS = 86400000;
-  const R = {};
-  await test("worklist finds expiring, lapsed, unpaid and absent members, with money kept in separate buckets", async () => {
-    const sell = async (name, phone, payNow) => {
-      const m = await mkMember(A, name, phone);
-      const r = await ok(MS.createMembership, A.owner, {
-        body: { memberId: m._id, planId: A.monthly._id, payNow },
-      });
-      return { m, ms: r.data, inv: r.invoice };
-    };
-    R.exp = await sell("Expiring Ed", "9600000001", 1770);
-    R.lap = await sell("Lapsed Lee", "9600000002", 1770);
-    R.due = await sell("Dues Dan", "9600000003", 500);
-    R.away = await sell("Absent Abe", "9600000004", 1770);
-    R.ok = await sell("Fine Fay", "9600000005", 1770);
-    await Membership.updateOne(
-      { _id: R.exp.ms._id },
-      { $set: { endDate: new Date(Date.now() + 3 * DAYMS) } },
-    );
-    await Membership.updateOne(
-      { _id: R.lap.ms._id },
-      {
-        $set: { status: "expired", endDate: new Date(Date.now() - 10 * DAYMS) },
-      },
-    );
-    await Invoice.updateOne(
-      { _id: R.due.inv._id },
-      { $set: { issuedAt: new Date(Date.now() - 20 * DAYMS) } },
-    );
-    await Membership.updateOne(
-      { _id: R.away.ms._id },
-      { $set: { startDate: new Date(Date.now() - 40 * DAYMS) } },
-    );
-    await Attendance.create({
-      tenantId: A.tid,
-      branchId: A.branch._id,
-      memberId: R.away.m._id,
-      checkinAt: new Date(Date.now() - 25 * DAYMS),
-      checkoutAt: new Date(Date.now() - 25 * DAYMS + 3600000),
-    });
-    await Membership.updateOne(
-      { _id: R.ok.ms._id },
-      { $set: { startDate: new Date(Date.now() - 40 * DAYMS) } },
-    );
-    await Attendance.create({
-      tenantId: A.tid,
-      branchId: A.branch._id,
-      memberId: R.ok.m._id,
-      checkinAt: new Date(Date.now() - 2 * DAYMS),
-      checkoutAt: new Date(Date.now() - 2 * DAYMS + 3600000),
-    });
-
-    const body = await ok(RET.opportunities, A.owner);
-    const has = (type, id) =>
-      body.data.some(
-        (i) => i.type === type && String(i.member?._id) === String(id),
-      );
-    assert.ok(has("renewal", R.exp.m._id), "expiring in 3 days");
-    assert.ok(has("lapsed", R.lap.m._id), "expired 10 days ago");
-    assert.ok(has("dues", R.due.m._id), "unpaid invoice");
-    assert.ok(has("at_risk", R.away.m._id), "paying but absent 25 days");
-    assert.ok(!has("at_risk", R.ok.m._id), "visited 2 days ago");
-    const dues = body.data.find(
-      (i) => i.type === "dues" && String(i.member._id) === String(R.due.m._id),
-    );
-    assert.strictEqual(dues.pending, 1270);
-    assert.strictEqual(dues.overdue, true);
-    const ren = body.data.find(
-      (i) =>
-        i.type === "renewal" && String(i.member._id) === String(R.exp.m._id),
-    );
-    assert.strictEqual(ren.projected, 1000);
-    assert.strictEqual(
-      ren.pending,
-      undefined,
-      "projected renewal value is not pending money",
-    );
-    assert.ok(
-      body.summary.pendingAmount >= 1270 &&
-        body.summary.projectedAmount >= 1000,
-    );
-  });
-  await test("a renewed member drops off the renewal list", async () => {
-    await ok(MS.createMembership, A.owner, {
-      body: { memberId: R.exp.m._id, planId: A.monthly._id, payNow: 1180 },
-    });
-    const body = await ok(RET.opportunities, A.owner);
-    assert.ok(
-      !body.data.some(
-        (i) =>
-          i.type === "renewal" && String(i.member._id) === String(R.exp.m._id),
-      ),
-    );
-  });
-  await test("logging a follow-up snoozes the item; not_interested closes it; both are recoverable via includeSnoozed", async () => {
-    const f = await ok(RET.addFollowUp, A.owner, {
-      body: {
-        memberId: R.lap.m._id,
-        kind: "lapsed",
-        outcome: "contacted",
-        note: "will call back",
-      },
-    });
-    assert.ok(f.data.nextFollowUpAt > new Date(), "defaults to resting 2 days");
-    let body = await ok(RET.opportunities, A.owner);
-    assert.ok(
-      !body.data.some(
-        (i) =>
-          i.type === "lapsed" && String(i.member._id) === String(R.lap.m._id),
-      ),
-    );
-    await ok(RET.addFollowUp, A.owner, {
-      body: {
-        memberId: R.away.m._id,
-        kind: "at_risk",
-        outcome: "not_interested",
-      },
-    });
-    body = await ok(RET.opportunities, A.owner, {
-      query: { includeSnoozed: "true" },
-    });
-    const lap = body.data.find(
-      (i) =>
-        i.type === "lapsed" && String(i.member._id) === String(R.lap.m._id),
-    );
-    assert.strictEqual(lap.lastFollowUp.outcome, "contacted");
-    assert.strictEqual(lap.snoozed, true);
-    assert.ok(body.data.some((i) => i.type === "at_risk" && i.snoozed));
-  });
-  await test("follow-up input is validated and tenant-isolated", async () => {
-    const bad = await call(RET.addFollowUp, A.owner, {
-      body: { memberId: R.lap.m._id, outcome: "banana" },
-    });
-    assert.strictEqual(bad.code, 400);
-    assert.strictEqual(
-      (await call(RET.addFollowUp, A.owner, { body: { outcome: "contacted" } }))
-        .code,
-      400,
-    );
-    assert.strictEqual(
-      (
-        await call(RET.addFollowUp, A.owner, {
-          body: {
-            memberId: R.lap.m._id,
-            enquiryId: R.lap.m._id,
-            outcome: "contacted",
-          },
-        })
-      ).code,
-      400,
-    );
-    assert.strictEqual(
-      (
-        await call(RET.addFollowUp, B.owner, {
-          body: { memberId: R.lap.m._id, outcome: "contacted" },
-        })
-      ).code,
-      404,
-      "gym B can't log against gym A's member",
-    );
-    const other = await ok(RET.opportunities, B.owner);
-    assert.strictEqual(
-      other.data.length,
-      0,
-      "gym B sees none of gym A's worklist",
-    );
-    assert.strictEqual((await ok(RET.listFollowUps, B.owner)).data.length, 0);
-    assert.ok(
-      (
-        await ok(RET.listFollowUps, A.owner, {
-          query: { memberId: String(R.lap.m._id) },
-        })
-      ).data.length >= 1,
-    );
-  });
-  await test("branch-bound staff only see their own branch", async () => {
-    const br2 = await Branch.create({ tenantId: A.tid, name: "Second" });
-    const rec = {
-      ...A.owner.toObject(),
-      _id: A.owner._id,
-      role: "receptionist",
-      branchId: br2._id,
-    };
-    const body = await ok(RET.opportunities, rec);
-    assert.strictEqual(
-      body.data.length,
-      0,
-      "receptionist of an empty branch sees nothing",
-    );
-  });
-  await test("lead conversion by source / staff, with lost reasons", async () => {
-    const mk = (o) =>
-      Enquiry.create({
-        tenantId: A.tid,
-        branchId: A.branch._id,
-        phone: "9700000000",
-        name: "L",
-        ...o,
-      });
-    await mk({
-      source: "google",
-      status: "converted",
-      assignedTo: A.trainer._id,
-    });
-    await mk({
-      source: "google",
-      status: "lost",
-      lostReason: "price",
-      assignedTo: A.trainer._id,
-    });
-    await mk({
-      source: "walk_in",
-      status: "new",
-      followUpAt: new Date(Date.now() - DAYMS),
-    });
-    const b = (await ok(RET.conversion, A.owner)).data;
-    const insta = b.bySource.find((s) => s.source === "google");
-    assert.deepStrictEqual(
-      [insta.total, insta.converted, insta.lost, insta.rate],
-      [2, 1, 1, 50],
-    );
-    assert.ok(b.lostReasons.some((l) => l.reason === "price"));
-    assert.ok(b.followUpsOverdue >= 1);
-    assert.strictEqual(
-      b.byStaff.find((s) => s.staff === "Alpha Trainer").converted,
-      1,
-    );
-    assert.strictEqual(
-      (await ok(RET.conversion, B.owner)).data.bySource.length,
-      0,
-    );
   });
 
   const failed = results.filter((r) => !r[0]);

@@ -8,7 +8,7 @@ import {
   MessageCircle,
   Pencil,
   Plus,
-  ScanFace,
+  Trash2,
   ShoppingBag,
   UserCheck,
   Users,
@@ -44,7 +44,8 @@ import {
   toInputDate,
 } from "@/components/gym/kit";
 import { PhotoUpload } from "@/components/gym/PhotoUpload";
-import { useTrainers } from "@/components/gym/pickers";
+import { useTrainers, usePlans } from "@/components/gym/pickers";
+import { ExportImport } from "@/components/gym/ExportImport";
 import { SellMembershipModal } from "@/components/gym/SellMembershipModal";
 
 const GOALS = [
@@ -142,6 +143,8 @@ export default function MembersPage() {
   const { can } = usePermission();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [fl, setFl] = useState<Record<string, string>>({});
+  const plans = usePlans(false);
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<any>(null); // "new" | member
   const [form, setForm] = useState<any>(EMPTY);
@@ -151,8 +154,8 @@ export default function MembersPage() {
   const trainers = useTrainers();
 
   const params = useMemo(
-    () => ({ page, limit: 25, search, status }),
-    [page, search, status],
+    () => ({ page, limit: 25, search, status, ...fl }),
+    [page, search, status, fl],
   );
   const { data, isLoading } = useQuery({
     queryKey: ["members", params],
@@ -228,6 +231,17 @@ export default function MembersPage() {
     }
   };
 
+  const removeMember = async (m: any) => {
+    if (!window.confirm(`Delete ${m.name}? Members with invoices or plans are marked inactive instead.`)) return;
+    try {
+      const r: any = await gym.members.remove(m._id);
+      notify.success(r.deactivated ? "Marked inactive (has history)" : "Member deleted", m.name);
+      qc.invalidateQueries({ queryKey: ["members"] });
+    } catch (e: any) {
+      notify.error("Delete failed", e.message);
+    }
+  };
+
   const toggleCondition = (c: string) =>
     setForm((f: any) => {
       const cur: string[] = f.health.conditions || [];
@@ -273,11 +287,61 @@ export default function MembersPage() {
 
       <Toolbar
         right={
-          can("Members", "create") && (
-            <Btn onClick={openNew}>
-              <Plus className="w-4 h-4" /> Add member
-            </Btn>
-          )
+          <>
+            <ExportImport
+              name="members"
+              fetchRows={async () =>
+                (await gym.members.list({ ...params, page: 1, limit: 5000 }))
+                  .data
+              }
+              cols={[
+                { header: "Member ID", value: (m: any) => m.memberCode },
+                { header: "Name", value: (m: any) => m.name },
+                { header: "Phone", value: (m: any) => m.phone },
+                { header: "Email", value: (m: any) => m.email },
+                { header: "Gender", value: (m: any) => m.gender },
+                { header: "DOB", value: (m: any) => toInputDate(m.dob) },
+                { header: "Goal", value: (m: any) => m.fitness?.goal },
+                { header: "Source", value: (m: any) => m.source },
+                { header: "Plan", value: (m: any) => m.currentMembership?.planName },
+                {
+                  header: "Plan status",
+                  value: (m: any) => m.currentMembership?.status,
+                },
+                {
+                  header: "Valid till",
+                  value: (m: any) => toInputDate(m.currentMembership?.endDate),
+                },
+                { header: "Dues", value: (m: any) => m.currentMembership?.due || 0 },
+                { header: "Status", value: (m: any) => m.status },
+              ]}
+              importTemplate={{
+                headers: ["Name", "Phone", "Email", "Gender", "DOB", "City", "Goal", "Source"],
+                example: ["Rahul Sharma", "9876543210", "rahul@example.com", "male", "1995-04-21", "Patna", "weight_loss", "walk_in"],
+              }}
+              onImportRow={(r) => {
+                const name = String(r.Name || "").trim();
+                const phone = String(r.Phone || "").trim();
+                if (!name || !phone) throw new Error("Name and Phone are required");
+                return gym.members.create({
+                  name,
+                  phone,
+                  email: r.Email || undefined,
+                  gender: String(r.Gender || "male").toLowerCase(),
+                  dob: r.DOB ? new Date(r.DOB).toISOString() : undefined,
+                  city: r.City || undefined,
+                  fitness: { goal: r.Goal || undefined },
+                  source: r.Source || "walk_in",
+                });
+              }}
+              onImported={() => qc.invalidateQueries({ queryKey: ["members"] })}
+            />
+            {can("Members", "create") && (
+              <Btn onClick={openNew}>
+                <Plus className="w-4 h-4" /> Add member
+              </Btn>
+            )}
+          </>
         }
       >
         <SearchBox
@@ -286,20 +350,47 @@ export default function MembersPage() {
             setSearch(v);
             setPage(1);
           }}
-          placeholder="Name, phone or member code…"
+          placeholder="Name, phone or member ID…"
         />
+        {(
+          [
+            ["status", "Status", ["active", "inactive", "blacklisted"]],
+            ["planStatus", "Plan status", ["active", "expiring", "expired", "dues", "none"]],
+            ["gender", "Gender", ["male", "female", "other"]],
+            ["goal", "Goal", GOALS],
+            ["source", "Source", SOURCES],
+          ] as [string, string, string[]][]
+        ).map(([k, label, opts]) => (
+          <select
+            key={k}
+            className={inputCls + " sm:w-40 font-bold"}
+            value={k === "status" ? status : fl[k] || ""}
+            onChange={(e) => {
+              if (k === "status") setStatus(e.target.value);
+              else setFl((f) => ({ ...f, [k]: e.target.value }));
+              setPage(1);
+            }}
+          >
+            <option value="">{label}: all</option>
+            {opts.map((o) => (
+              <option key={o} value={o}>
+                {o.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+        ))}
         <select
-          className={inputCls + " sm:w-44 font-bold"}
-          value={status}
+          className={inputCls + " sm:w-40 font-bold"}
+          value={fl.plan || ""}
           onChange={(e) => {
-            setStatus(e.target.value);
+            setFl((f) => ({ ...f, plan: e.target.value }));
             setPage(1);
           }}
         >
-          <option value="">All statuses</option>
-          {["active", "inactive", "blacklisted"].map((s) => (
-            <option key={s} value={s}>
-              {s}
+          <option value="">Plan: all</option>
+          {plans.map((pl: any) => (
+            <option key={pl._id} value={pl.name}>
+              {pl.name}
             </option>
           ))}
         </select>
@@ -307,9 +398,11 @@ export default function MembersPage() {
 
       <DataTable
         head={[
+          "Member ID",
           "Member",
           "Contact",
           "Plan",
+          "Plan status",
           "Valid till",
           "Dues",
           "Status",
@@ -323,9 +416,12 @@ export default function MembersPage() {
           const left = c ? daysFromNow(c.endDate) : null;
           return (
             <Tr key={m._id} i={i} onClick={() => navigate(`/members/${m._id}`)}>
+              <Td className="text-xs font-bold whitespace-nowrap">
+                {m.memberCode}
+              </Td>
               <Td>
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 border-2 border-black bg-[#024BAB] text-white flex items-center justify-center font-black shrink-0 overflow-hidden">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 border border-black bg-[#024BAB] text-white flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden rounded-full">
                     {m.photo ? (
                       <img
                         src={m.photo}
@@ -336,44 +432,28 @@ export default function MembersPage() {
                       m.name[0]?.toUpperCase()
                     )}
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-black truncate">{m.name}</p>
-                    <p className="text-xs text-black/50 font-bold">
-                      {m.memberCode}
-                      {m.faceRegistered && (
-                        <ScanFace className="inline w-3 h-3 ml-1" />
-                      )}
-                    </p>
-                  </div>
+                  <p className="font-bold truncate">{m.name}</p>
                 </div>
               </Td>
               <Td>
-                <p className="font-bold">{m.phone}</p>
+                <p className="font-medium">{m.phone}</p>
                 <p className="text-xs text-black/50">{m.email}</p>
               </Td>
-              <Td>
-                {c ? (
-                  <div>
-                    <p className="font-bold">{c.planName}</p>
-                    <Pill value={c.status} />
-                  </div>
-                ) : (
-                  <span className="text-xs font-black uppercase text-black/30">
-                    No plan
-                  </span>
-                )}
+              <Td className="font-medium">
+                {c ? c.planName : <span className="text-black/30">No plan</span>}
               </Td>
-              <Td>
+              <Td>{c ? <Pill value={c.status} /> : "—"}</Td>
+              <Td className="text-xs">
                 {c ? (
                   <div>
-                    <p className="font-bold">{fmtDate(c.endDate)}</p>
+                    <p className="font-medium">{fmtDate(c.endDate)}</p>
                     <p
                       className={
                         left! < 0
-                          ? "text-xs font-black text-red-600"
+                          ? "font-bold text-red-600"
                           : left! <= 7
-                            ? "text-xs font-black text-[#FA731C]"
-                            : "text-xs text-black/50"
+                            ? "font-bold text-[#FA731C]"
+                            : "text-black/50"
                       }
                     >
                       {left! < 0 ? `${-left!}d ago` : `${left}d left`}
@@ -383,9 +463,9 @@ export default function MembersPage() {
                   "—"
                 )}
               </Td>
-              <Td>
+              <Td className="text-xs">
                 {c?.due > 0 ? (
-                  <span className="font-black text-red-600">{inr(c.due)}</span>
+                  <span className="font-bold text-red-600">{inr(c.due)}</span>
                 ) : (
                   <span className="text-black/30">—</span>
                 )}
@@ -404,7 +484,6 @@ export default function MembersPage() {
                     <ActionButton
                       label={c ? "Renew / sell plan" : "Sell membership"}
                       icon={ShoppingBag}
-                      tone="primary"
                       onClick={() => setSell(m)}
                     />
                   )}
@@ -420,6 +499,14 @@ export default function MembersPage() {
                       label="Edit"
                       icon={Pencil}
                       onClick={() => openEdit(m)}
+                    />
+                  )}
+                  {can("Members", "delete") && (
+                    <ActionButton
+                      label="Delete"
+                      icon={Trash2}
+                      tone="danger"
+                      onClick={() => removeMember(m)}
                     />
                   )}
                 </RowActions>

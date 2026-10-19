@@ -30,14 +30,6 @@ const DEFAULT_PERMISSIONS = {
     trainer: readOnly,
     accountant: readOnly,
   },
-  Attendance: {
-    super_admin: full,
-    gym_owner: full,
-    branch_manager: { create: true, read: true, update: true, delete: true },
-    receptionist: { create: true, read: true, update: true, delete: false },
-    trainer: readOnly,
-    accountant: none,
-  },
   Invoices: {
     super_admin: full,
     gym_owner: full,
@@ -69,14 +61,6 @@ const DEFAULT_PERMISSIONS = {
     receptionist: none,
     trainer: none,
     accountant: readOnly,
-  },
-  Enquiries: {
-    super_admin: full,
-    gym_owner: full,
-    branch_manager: { create: true, read: true, update: true, delete: true },
-    receptionist: { create: true, read: true, update: true, delete: false },
-    trainer: none,
-    accountant: none,
   },
   Classes: {
     super_admin: full,

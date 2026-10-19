@@ -69,9 +69,9 @@ export default function LoginPage() {
       headline={
         <>
           Every member.
-          <br />
-          Every check-in.
-          <br />
+          
+          Every renewal.
+          
           One place.
         </>
       }
@@ -168,7 +168,7 @@ export default function LoginPage() {
                   Forgot password?
                 </button>
               </div>
-              <div className="flex border-2 border-black focus-within:border-[#024BAB] transition-colors">
+              <div className="flex border-2 border-black transition-colors">
                 <input
                   type={showPw ? "text" : "password"}
                   value={password}

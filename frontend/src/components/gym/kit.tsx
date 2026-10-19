@@ -178,6 +178,41 @@ export const PILL: Record<string, string> = {
   maintenance: "nb-tag-orange",
 };
 
+const TAGS = ["green", "orange", "blue", "teal", "purple", "red"];
+/** stable colour class for any free-text label (expense categories etc.) */
+export const tagFor = (v: string) => {
+  let h = 0;
+  for (const c of v || "") h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return "nb-tag-" + TAGS[h % TAGS.length];
+};
+
+/** round photo (or initial) + name, the way NestHR shows people */
+export function Thumb({
+  photo,
+  name,
+  sub,
+}: {
+  photo?: string;
+  name: string;
+  sub?: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 min-w-0">
+      <div className="w-8 h-8 border border-black bg-[#024BAB] text-white flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden rounded-full">
+        {photo ? (
+          <img src={photo} alt="" className="w-full h-full object-cover" />
+        ) : (
+          (name || "?")[0]?.toUpperCase()
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="font-bold truncate">{name}</p>
+        {sub && <p className="text-xs text-black/50 truncate">{sub}</p>}
+      </div>
+    </div>
+  );
+}
+
 export function Pill({
   value,
   className,
@@ -433,7 +468,7 @@ export const StatGrid = ({
 export function RowActions({ children }: { children: ReactNode }) {
   return (
     <div
-      className="flex justify-end gap-1.5"
+      className="flex items-center gap-1"
       onClick={(e) => e.stopPropagation()}
     >
       {children}
@@ -457,14 +492,13 @@ export function ActionButton({
   tone?: "danger" | "primary";
 }) {
   const cls = cn(
-    "w-8 h-8 border-2 border-black bg-white flex items-center justify-center transition-all hover:-translate-x-px hover:-translate-y-px hover:shadow-[2px_2px_0_#0a0a0a] disabled:opacity-30 disabled:pointer-events-none",
-    tone === "danger" && "hover:bg-[#EF4444] hover:text-white",
-    tone === "primary" && "hover:bg-[#024BAB] hover:text-white",
+    "p-1.5 border-2 border-transparent hover:border-black hover:bg-[#024BAB]/10 transition-colors disabled:opacity-30 disabled:pointer-events-none",
+    tone === "danger" && "text-red-600 hover:bg-red-50",
   );
   if (to && !disabled)
     return (
       <Link to={to} aria-label={label} title={label} className={cls}>
-        <Icon className="w-4 h-4" />
+        <Icon className="w-3.5 h-3.5" />
       </Link>
     );
   return (
@@ -476,7 +510,7 @@ export function ActionButton({
       disabled={disabled}
       className={cls}
     >
-      <Icon className="w-4 h-4" />
+      <Icon className="w-3.5 h-3.5" />
     </button>
   );
 }
@@ -646,16 +680,16 @@ export function DataTable({
 }) {
   const span = colSpan || head.length;
   return (
-    <div className="border-2 border-black overflow-x-auto bg-white">
+    <div className="border-2 border-black overflow-x-auto bg-white nb-clean">
       <table className="w-full text-sm border-collapse min-w-[640px]">
         <thead>
-          <tr className="border-b-2 border-black bg-[#024BAB]">
+          <tr className="border-b-2 border-black bg-[#024BAB]/5">
             {head.map((h, i) => (
               <th
                 key={h + i}
                 className={cn(
-                  "px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest text-left whitespace-nowrap",
-                  h === "Actions" && "text-right",
+                  "px-4 py-3 text-xs font-bold text-black uppercase tracking-wider text-left whitespace-nowrap",
+
                 )}
               >
                 {h}
@@ -700,9 +734,9 @@ export const Tr = ({
   <tr
     onClick={onClick}
     className={cn(
-      "border-b-2 border-black last:border-b-0",
-      i % 2 === 1 && "bg-[#024BAB]/5",
-      onClick && "cursor-pointer hover:bg-[#FA731C]/10",
+      "border-b border-black/10 hover:bg-[#024BAB]/5 transition-colors",
+      i % 2 === 1 && "bg-[#F8FAFF]",
+      onClick && "cursor-pointer",
     )}
   >
     {children}

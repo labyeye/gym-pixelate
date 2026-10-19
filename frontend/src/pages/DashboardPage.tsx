@@ -18,13 +18,10 @@ import {
   Cake,
   CalendarClock,
   Clock3,
-  DoorOpen,
   IndianRupee,
   Loader2,
   Megaphone,
   Receipt,
-  ScanFace,
-  UserPlus,
   Users,
   Wallet,
   Wrench,
@@ -83,11 +80,6 @@ export default function DashboardPage() {
     queryFn: () => gym.reports.dues(),
     enabled: money,
   });
-  const enq = useQuery({
-    queryKey: ["dash-enq"],
-    queryFn: () => gym.enquiries.list({ limit: 50 }),
-    enabled: desk,
-  });
   const bday = useQuery({
     queryKey: ["dash-bday"],
     queryFn: () => gym.reports.birthdays(),
@@ -117,12 +109,6 @@ export default function DashboardPage() {
   const today = new Date().getDate();
   const todaysBirthdays = (bday.data?.data || []).filter(
     (m: any) => m.day === today,
-  );
-  const followUps = (enq.data?.data || []).filter(
-    (e: any) =>
-      e.followUpAt &&
-      new Date(e.followUpAt) <= new Date() &&
-      !["converted", "lost"].includes(e.status),
   );
   const daysLeftTrial =
     tenant && (tenant as any).planExpiresAt
@@ -175,18 +161,6 @@ export default function DashboardPage() {
           />
         )}
         <StatCard
-          label="Inside gym now"
-          value={st.membersInsideGym ?? 0}
-          icon={DoorOpen}
-          color="#024BAB"
-        />
-        <StatCard
-          label="Check-ins today"
-          value={st.todayCheckins ?? 0}
-          icon={ScanFace}
-          color="#A855F7"
-        />
-        <StatCard
           label="New members today"
           value={st.newMembersToday ?? 0}
           icon={Users}
@@ -209,12 +183,6 @@ export default function DashboardPage() {
           value={st.pendingRenewals ?? 0}
           icon={Clock3}
           color="#FA731C"
-        />
-        <StatCard
-          label="Open enquiries"
-          value={st.openEnquiries ?? 0}
-          icon={UserPlus}
-          color="#8B5CF6"
         />
         {money && (
           <StatCard
@@ -283,39 +251,6 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </Panel>
         )}
-        <Panel title="Footfall — last 30 days">
-          <ResponsiveContainer width="100%" height={210}>
-            <BarChart data={ch.attendanceByDay || []}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="#E5E7EB"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="date"
-                tickFormatter={(d) => d.slice(8)}
-                tick={{ fontSize: 10, fontWeight: 700 }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fontWeight: 700 }}
-                tickLine={false}
-                axisLine={false}
-                width={28}
-                allowDecimals={false}
-              />
-              <Tooltip content={<NbTooltip />} cursor={{ fill: "#024BAB22" }} />
-              <Bar
-                dataKey="count"
-                name="Check-ins"
-                fill="#A855F7"
-                stroke="#0A0A0A"
-                strokeWidth={2}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </Panel>
         <Panel title="New memberships — 12 months">
           <ResponsiveContainer width="100%" height={210}>
             <BarChart data={ch.membershipGrowth || []}>
@@ -458,37 +393,6 @@ export default function DashboardPage() {
                       </span>
                     </li>
                   ))}
-              </ul>
-            )}
-          </Panel>
-        )}
-        {desk && (
-          <Panel
-            title="Follow-ups due"
-            right={
-              <Link
-                to="/enquiries"
-                className="text-[11px] font-black uppercase underline"
-              >
-                All
-              </Link>
-            }
-          >
-            {followUps.length === 0 ? (
-              <Empty>No follow-ups pending</Empty>
-            ) : (
-              <ul className="nb-list divide-y divide-black/10">
-                {followUps.slice(0, 6).map((e: any) => (
-                  <li
-                    key={e._id}
-                    className="py-2 flex items-center justify-between gap-2 text-sm"
-                  >
-                    <span className="font-black truncate">{e.name}</span>
-                    <span className="text-xs font-bold text-black/50">
-                      {e.phone}
-                    </span>
-                  </li>
-                ))}
               </ul>
             )}
           </Panel>

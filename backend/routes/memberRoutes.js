@@ -7,7 +7,6 @@ const {
   createMember,
   updateMember,
   deleteMember,
-  updateFaceStatus,
 } = require("../controllers/memberController");
 const { protect } = require("../middleware/auth");
 const { checkPermission } = require("../middleware/checkPermission");
@@ -26,11 +25,5 @@ router
   .get(checkPermission("Members", "read"), getMember)
   .put(checkPermission("Members", "update"), updateMember)
   .delete(checkPermission("Members", "delete"), deleteMember);
-
-router.patch(
-  "/:id/face-status",
-  checkPermission("Members", "update"),
-  updateFaceStatus,
-);
 
 module.exports = router;

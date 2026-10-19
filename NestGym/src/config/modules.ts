@@ -1,7 +1,7 @@
 // Optional parts of NestGym the owner can switch off in Settings > Modules (same keys as the web app).
 // A module missing from Settings.modules counts as ON. Core screens are always available.
 import {
-  Apple, CalendarDays, Dumbbell, LockKeyhole, Megaphone, Ruler, ShoppingBag, Tag, UserCog, UserPlus, Wallet, Wrench,
+  Apple, CalendarDays, Dumbbell, LockKeyhole, Megaphone, Ruler, ShoppingBag, Tag, UserCog, Wallet, Wrench,
 } from 'lucide-react-native';
 
 export interface GymModule {
@@ -19,7 +19,6 @@ export const MODULES: GymModule[] = [
   { key: 'classes', label: 'Group classes', desc: 'Class schedule, bookings and waitlist.', icon: CalendarDays, routes: ['Classes'] },
   { key: 'workoutDiet', label: 'Workout & diet plans', desc: 'Workout and diet templates for members.', icon: Apple, routes: ['WorkoutDiet'] },
   { key: 'bodyProgress', label: 'Body progress', desc: 'Weight, measurements and progress tracking.', icon: Ruler, routes: ['Measurements'] },
-  { key: 'enquiries', label: 'Enquiries & follow-ups', desc: 'Lead enquiries, trials and follow-up reminders.', icon: UserPlus, routes: ['Enquiries', 'FollowUps'] },
   { key: 'lockers', label: 'Lockers', desc: 'Locker allotment and rent.', icon: LockKeyhole, routes: ['Lockers'] },
   { key: 'coupons', label: 'Coupons & offers', desc: 'Discount codes and offers.', icon: Tag, routes: ['Coupons'] },
   { key: 'expenses', label: 'Expenses', desc: 'Track gym expenses.', icon: Wallet, routes: ['Expenses'] },

@@ -8,11 +8,7 @@ import {
   Settings,
   LucideIcon,
   ClipboardList,
-  ScanFace,
   CreditCard,
-  DoorOpen,
-  UserPlus,
-  PhoneCall,
   Layers,
   CalendarDays,
   HeartPulse,
@@ -70,35 +66,6 @@ const allGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Front Desk",
-    items: [
-      {
-        title: "Check-in / Entry",
-        href: "/attendance",
-        icon: DoorOpen,
-        roles: DESK,
-      },
-      {
-        title: "Face Kiosk",
-        href: "/attendance/smart-entry",
-        icon: ScanFace,
-        roles: DESK,
-      },
-      {
-        title: "Enquiries & Trials",
-        href: "/enquiries",
-        icon: UserPlus,
-        roles: DESK,
-      },
-      {
-        title: "Follow-ups",
-        href: "/follow-ups",
-        icon: PhoneCall,
-        roles: DESK,
-      },
-    ],
-  },
-  {
     label: "Members",
     items: [
       {
@@ -143,12 +110,6 @@ const allGroups: NavGroup[] = [
         roles: COACHES,
       },
       {
-        title: "Body Progress",
-        href: "/progress",
-        icon: Ruler,
-        roles: [...DESK, "trainer"],
-      },
-      {
         title: "Trainers",
         href: "/trainers",
         icon: ClipboardList,
@@ -189,12 +150,6 @@ const allGroups: NavGroup[] = [
         roles: MONEY,
       },
       { title: "Expenses", href: "/expenses", icon: Wallet, roles: MONEY },
-      {
-        title: "Staff & Payroll",
-        href: "/staff",
-        icon: UserCog,
-        roles: [...MANAGERS, "accountant"],
-      },
       {
         title: "Equipment",
         href: "/equipment",

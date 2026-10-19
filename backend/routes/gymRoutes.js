@@ -10,7 +10,6 @@ const { getMemberOverview } = require("../controllers/memberController");
 const staff = require("../controllers/staffController");
 
 const GymClass = require("../models/GymClass");
-const Enquiry = require("../models/Enquiry");
 const WorkoutPlan = require("../models/WorkoutPlan");
 const DietPlan = require("../models/DietPlan");
 const BodyMeasurement = require("../models/BodyMeasurement");
@@ -20,6 +19,7 @@ const Expense = require("../models/Expense");
 const Coupon = require("../models/Coupon");
 const Announcement = require("../models/Announcement");
 const Equipment = require("../models/Equipment");
+const { nextCode } = require("../utils/gym");
 
 /** Mounts list/get/create/update/delete for one resource under `path`, each guarded by `resource` permissions. */
 function mount(path, resource, h, extra) {
@@ -39,25 +39,6 @@ function mount(path, resource, h, extra) {
 const stamp = (field) => (req, body) => {
   body[field] = req.user._id;
 };
-
-mount(
-  "/enquiries",
-  "Enquiries",
-  crud(Enquiry, {
-    module: "Enquiry",
-    search: ["name", "phone", "email"],
-    filters: ["status", "source", "assignedTo"],
-    populate: [
-      ["assignedTo", "name"],
-      ["interestedPlanId", "name"],
-    ],
-    sort: "followUpAt -createdAt",
-  }),
-  (r) => {
-    r.post("/:id/notes", can("Enquiries", "update"), ops.addEnquiryNote);
-    r.post("/:id/convert", can("Enquiries", "create"), ops.convertEnquiry);
-  },
-);
 
 // classes: specific routes first, then generic CRUD
 router.get(
@@ -137,7 +118,7 @@ mount(
     search: ["name"],
     filters: ["memberId", "isTemplate", "status", "goal"],
     populate: [
-      ["memberId", "name memberCode"],
+      ["memberId", "name memberCode photo"],
       ["trainerId", "name"],
     ],
   }),
@@ -157,7 +138,7 @@ mount(
     search: ["name"],
     filters: ["memberId", "isTemplate", "status", "goal"],
     populate: [
-      ["memberId", "name memberCode"],
+      ["memberId", "name memberCode photo"],
       ["trainerId", "name"],
     ],
   }),
@@ -168,7 +149,7 @@ mount(
   crud(BodyMeasurement, {
     module: "Measurement",
     filters: ["memberId"],
-    populate: [["memberId", "name memberCode"]],
+    populate: [["memberId", "name memberCode photo"]],
     sort: "-measuredAt",
     beforeCreate: stamp("recordedBy"),
   }),
@@ -198,6 +179,13 @@ mount(
   }),
 );
 
+const purchases = require("../controllers/purchaseController");
+router.get("/products/sales", protect, can("Products", "read"), purchases.sales);
+router.get("/purchases", protect, can("Products", "read"), purchases.list);
+router.post("/purchases", protect, can("Products", "create"), purchases.create);
+router.post("/purchases/:id/receive", protect, can("Products", "update"), purchases.receive);
+router.post("/purchases/:id/cancel", protect, can("Products", "update"), purchases.cancel);
+router.put("/purchases/:id/bill", protect, can("Products", "update"), purchases.setBill);
 router.post("/products/sell", protect, can("Products", "create"), ops.sell);
 router.post(
   "/products/:id/stock",
@@ -210,9 +198,12 @@ mount(
   "Products",
   crud(Product, {
     module: "Product",
-    search: ["name", "sku"],
+    search: ["name", "sku", "vendor"],
     filters: ["category", "isActive"],
     sort: "name",
+    beforeCreate: async (req, body) => {
+      if (!body.sku) body.sku = await nextCode(req.user.tenantId, "product", "PRD", 4);
+    },
   }),
 );
 
@@ -265,9 +256,12 @@ mount(
   "Equipment",
   crud(Equipment, {
     module: "Equipment",
-    search: ["name", "brand", "serialNo"],
+    search: ["name", "brand", "serialNo", "code", "vendor"],
     filters: ["status", "category"],
     sort: "nextServiceOn name",
+    beforeCreate: async (req, body) => {
+      if (!body.code) body.code = await nextCode(req.user.tenantId, "equipment", "EQ", 4);
+    },
   }),
 );
 

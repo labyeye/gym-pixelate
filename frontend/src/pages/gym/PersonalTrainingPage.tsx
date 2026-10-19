@@ -26,12 +26,14 @@ import {
   StatGrid,
   Tabs,
   Td,
+  Thumb,
   TextInput,
   Tr,
   fmtDate,
   fmtDateTime,
   inr,
 } from "@/components/gym/kit";
+import { ExportImport } from "@/components/gym/ExportImport";
 import { MemberPicker, useTrainers } from "@/components/gym/pickers";
 
 export default function PersonalTrainingPage() {
@@ -100,6 +102,26 @@ export default function PersonalTrainingPage() {
     } finally {
       setBusy(false);
     }
+  };
+  // one sheet row = one package sold (member by Member ID, trainer by name); invoice is raised as for a manual sale
+  const importRow = async (r: Record<string, any>) => {
+    const m = (await gym.members.list({ search: String(r["Member ID"] || "").trim(), limit: 5 })).data.find(
+      (x: any) => x.memberCode === String(r["Member ID"]).trim(),
+    );
+    if (!m) throw new Error(`Member ${r["Member ID"]} not found`);
+    const t = trainers.find((x: any) => x.label.toLowerCase() === String(r.Trainer || "").trim().toLowerCase());
+    if (!t) throw new Error(`Trainer ${r.Trainer} not found`);
+    const sessions = Number(r.Sessions), price = Number(r["Price per session"]);
+    return gym.pt.create({
+      memberId: m._id,
+      trainerId: t.value,
+      name: r.Package || "Personal Training",
+      totalSessions: sessions,
+      pricePerSession: price,
+      commissionPercent: Number(r["Commission %"]) || 0,
+      payNow: Math.round(sessions * price * 1.18 * 100) / 100,
+      method: "cash",
+    });
   };
   const schedule = async () => {
     try {
@@ -174,6 +196,28 @@ export default function PersonalTrainingPage() {
                 </option>
               ))}
             </select>
+            <ExportImport
+              name="personal_training"
+              rows={pkgs}
+              cols={[
+                { header: "Member ID", value: (p: any) => p.memberId?.memberCode },
+                { header: "Member", value: (p: any) => p.memberId?.name },
+                { header: "Trainer", value: (p: any) => p.trainerId?.name },
+                { header: "Package", value: (p: any) => p.name },
+                { header: "Total sessions", value: (p: any) => p.totalSessions },
+                { header: "Sessions left", value: (p: any) => p.remainingSessions },
+                { header: "Valid till", value: (p: any) => (p.validTill || "").slice(0, 10) },
+                { header: "Paid", value: (p: any) => p.paidAmount },
+                { header: "Total", value: (p: any) => p.totalAmount },
+                { header: "Status", value: (p: any) => p.status },
+              ]}
+              importTemplate={{
+                headers: ["Member ID", "Trainer", "Package", "Sessions", "Price per session", "Commission %"],
+                example: ["GYM-00001", "Trainer name", "Personal Training", 12, 500, 30],
+              }}
+              onImportRow={can("PersonalTraining", "create") ? importRow : undefined}
+              onImported={refresh}
+            />
             {can("PersonalTraining", "create") && (
               <Btn onClick={() => setSell(true)}>
                 <Plus className="w-4 h-4" /> Sell package
@@ -186,6 +230,7 @@ export default function PersonalTrainingPage() {
       {tab === "packages" && (
         <DataTable
           head={[
+            "Member ID",
             "Member",
             "Trainer",
             "Package",
@@ -200,14 +245,14 @@ export default function PersonalTrainingPage() {
         >
           {pkgs.map((p, i) => (
             <Tr key={p._id} i={i} onClick={() => setOpen(p)}>
-              <Td>
-                <p className="font-black">{p.memberId?.name}</p>
-                <p className="text-xs text-black/50">
-                  {p.memberId?.memberCode}
-                </p>
+              <Td className="text-xs font-bold whitespace-nowrap">
+                {p.memberId?.memberCode}
               </Td>
-              <Td className="font-bold">{p.trainerId?.name}</Td>
-              <Td className="font-bold">{p.name}</Td>
+              <Td>
+                <Thumb photo={p.memberId?.photo} name={p.memberId?.name || "—"} />
+              </Td>
+              <Td className="font-medium">{p.trainerId?.name}</Td>
+              <Td className="font-medium">{p.name}</Td>
               <Td>
                 <span className="font-black">{p.remainingSessions}</span>
                 <span className="text-black/50"> / {p.totalSessions} left</span>

@@ -15,7 +15,7 @@ const log = (req, action, doc, text) =>
     ip: req.ip,
   });
 const POP = [
-  ["memberId", "name phone memberCode"],
+  ["memberId", "name phone memberCode photo"],
   ["trainerId", "name phone"],
 ];
 

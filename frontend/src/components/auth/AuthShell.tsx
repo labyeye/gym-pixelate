@@ -2,7 +2,6 @@ import loginDash from "@/assets/images/login-dash.png";
 import {
   Dumbbell,
   Users,
-  ScanFace,
   CreditCard,
   BarChart2,
   Check,
@@ -10,7 +9,7 @@ import {
 
 const FEATURES = [
   { icon: Users, label: "Members & Plans" },
-  { icon: ScanFace, label: "Face Check-in" },
+  { icon: Dumbbell, label: "Trainers & Classes" },
   { icon: CreditCard, label: "Billing & Invoices" },
   { icon: BarChart2, label: "Reports" },
 ];
@@ -57,7 +56,7 @@ export function AuthShell({
         />
 
         <div className="relative z-10">
-          <h1 className="text-4xl xl:text-5xl font-display font-bold text-white leading-tight mb-5">
+          <h1 className="text-3xl xl:text-4xl font-display font-bold text-white leading-tight mb-5">
             {headline}
           </h1>
           {points ? (
@@ -73,7 +72,7 @@ export function AuthShell({
             </div>
           ) : (
             <p className="text-white/70 text-base font-medium max-w-sm">
-              Memberships, check-ins, billing and trainers, all in one place.
+              Memberships, billing and trainers, all in one place.
             </p>
           )}
         </div>
@@ -133,7 +132,7 @@ function LegalFooter() {
 export const labelCls =
   "block text-xs font-bold text-black uppercase tracking-wider mb-1.5";
 export const inputCls =
-  "w-full px-4 py-3 border-2 border-black text-sm font-medium bg-white focus:outline-none focus:border-[#024BAB] transition-colors";
+  "w-full px-4 py-3 border-2 border-black text-sm font-medium bg-white focus:outline-none transition-colors";
 export const primaryBtnCls =
   "w-full bg-[#024BAB] text-white py-3.5 text-sm font-bold border-2 border-black hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_#0a0a0a] transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50";
 
