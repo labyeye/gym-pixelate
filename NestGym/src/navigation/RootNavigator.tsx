@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { API_BASE_URL as TRACK_BASE } from '../config/env';
+import { initUsageTracker, setUsageIdentity, trackNavState } from '../utils/usageTracker';
 import { Image, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -31,6 +33,8 @@ import { StaffScreen, TrainersScreen } from '../screens/gym/TeamScreens';
 import { ClassesScreen, PersonalTrainingScreen } from '../screens/gym/TrainingScreens';
 import WorkoutDietScreen from '../screens/gym/WorkoutDietScreen';
 import PosScreen from '../screens/gym/PosScreen';
+
+initUsageTracker(TRACK_BASE);
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -98,6 +102,7 @@ function Tabs() {
 
 export default function RootNavigator() {
   const { user, tenant, modules, isAuthenticated, isLoading } = useAuth();
+  setUsageIdentity(user);
   // new owners finish the onboarding wizard (gym details -> plan -> pay or trial) before anything else,
   // then see the welcome page once
   const needsOnboarding = isAuthenticated && user?.role === 'gym_owner' && !!tenant && tenant.onboarded === false;
@@ -123,7 +128,7 @@ export default function RootNavigator() {
     );
   }
   return (
-    <NavigationContainer>
+    <NavigationContainer onStateChange={trackNavState}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <>

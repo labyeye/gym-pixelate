@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useUsageTracker } from "@/hooks/useUsageTracker";
 import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { pathEnabled } from "@/config/modules";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -75,6 +76,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  useUsageTracker();
   const { pathname } = useLocation();
 
   // public WhatsApp payment link: works signed out, signed in, even while the session is still loading

@@ -86,6 +86,12 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
+// Usage/health metrics for the CRM dashboard (page views, active users, crashes, API success).
+const tele = require("./utils/telemetry")("NESTGYM_SECRET");
+app.use(tele.middleware);
+app.use("/api/telemetry", tele.ingest);
+app.use("/api/crm/metrics", tele.metrics);
+
 app.use("/api/auth", authLimiter, require("./routes/authRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/branches", require("./routes/branchRoutes"));
