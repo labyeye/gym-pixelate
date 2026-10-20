@@ -155,6 +155,9 @@ const tenantSchema = new mongoose.Schema(
         ],
       },
     ],
+    // Set from the CRM dashboard for custom deals; shown on the customer's billing page instead of the defaults.
+    customPlanName: { type: String, trim: true },
+    customFeatures: { type: [String], default: undefined },
   },
   { timestamps: true },
 );

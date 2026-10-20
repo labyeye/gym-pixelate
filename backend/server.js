@@ -91,6 +91,7 @@ const tele = require("./utils/telemetry")("NESTGYM_SECRET");
 app.use(tele.middleware);
 app.use("/api/telemetry", tele.ingest);
 app.use("/api/crm/metrics", tele.metrics);
+app.use("/api/crm/accounts", require("./utils/crmAccounts")("NESTGYM_SECRET", require("./utils/crmAdapter")));
 
 app.use("/api/auth", authLimiter, require("./routes/authRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
