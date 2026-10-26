@@ -45,7 +45,10 @@ export default function WelcomePage() {
   const [countdown, setCountdown] = useState(10);
 
   useEffect(() => {
-    if (countdown === 0) return navigate("/", { replace: true });
+    if (countdown === 0) {
+      void navigate("/", { replace: true });
+      return;
+    }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [countdown, navigate]);

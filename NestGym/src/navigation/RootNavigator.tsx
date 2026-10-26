@@ -5,25 +5,29 @@ import { Image, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LayoutDashboard, Menu, Receipt, Users } from 'lucide-react-native';
+import CustomTabBar from '../components/common/CustomTabBar';
 import { useAuth } from '../contexts/AuthContext';
 import { C, FONT } from '../theme';
-import TabBounce from '../components/motion/TabBounce';
 import Pop from '../components/motion/Pop';
 import FadeInUp from '../components/motion/FadeInUp';
 import { canOpen } from './navConfig';
-import LoginScreen from '../screens/LoginScreen';
-import RegisterScreen from '../screens/RegisterScreen';
+import SecurityScreen from '../screens/SecurityScreen';
+import LoginScreen from '../screens/auth/LoginScreen';
+import RegisterScreen from '../screens/auth/RegisterScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import IntroOnboardingScreen from '../screens/auth/IntroOnboardingScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import MembersScreen from '../screens/MembersScreen';
 import MemberProfileScreen from '../screens/MemberProfileScreen';
 import InvoicesScreen from '../screens/InvoicesScreen';
+import MembershipsScreen from '../screens/MembershipsScreen';
+import InvoiceDetailScreen from '../screens/InvoiceDetailScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
+import CreditsScreen from '../screens/CreditsScreen';
 import MemberPortalScreen from '../screens/MemberPortalScreen';
 import MoreScreen from '../screens/MoreScreen';
 import {
@@ -42,7 +46,6 @@ const Tab = createBottomTabNavigator();
 // Screens reachable from the "More" menu, keyed by the route name in navConfig.
 // (Members / Invoices are bottom tabs, so they are not repeated here.)
 const MORE_SCREENS: Record<string, React.ComponentType<any>> = {
-  Plans: PlansScreen,
   Lockers: LockersScreen,
   Classes: ClassesScreen,
   PersonalTraining: PersonalTrainingScreen,
@@ -55,46 +58,29 @@ const MORE_SCREENS: Record<string, React.ComponentType<any>> = {
   Expenses: ExpensesScreen,
   Staff: StaffScreen,
   Equipment: EquipmentScreen,
+  Plans: PlansScreen,
   Announcements: AnnouncementsScreen,
   Subscription: SubscriptionScreen,
+  Credits: CreditsScreen,
   Settings: SettingsScreen,
+  Security: SecurityScreen,
 };
 
 function Tabs() {
   const { user, modules } = useAuth();
   const role = user!.role;
-  const insets = useSafeAreaInsets();
-  const tabs: [string, string, any, React.ComponentType<any>][] = [
-    ['Dashboard', 'Home', LayoutDashboard, DashboardScreen],
-    ...(canOpen(role, 'Members', modules) ? [['Members', 'Members', Users, MembersScreen] as any] : []),
-    ...(canOpen(role, 'Invoices', modules) ? [['Invoices', 'Billing', Receipt, InvoicesScreen] as any] : []),
-    ['More', 'More', Menu, MoreScreen],
+  const tabs: [string, string, React.ComponentType<any>][] = [
+    ['Dashboard', 'Home', DashboardScreen],
+    ...(canOpen(role, 'Members', modules) ? [['Members', 'Members', MembersScreen] as any] : []),
+    ...(canOpen(role, 'Invoices', modules) ? [['Invoices', 'Billing', InvoicesScreen] as any] : []),
+    ['More', 'More', MoreScreen],
   ];
+  // Membership status sits in the raised centre button (needs 5 tabs for the notch); Plans live in More
+  if (canOpen(role, 'Memberships', modules)) tabs.splice(Math.min(2, tabs.length - 1), 0, ['Memberships', 'Status', MembershipsScreen]);
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#fff',
-        tabBarInactiveTintColor: C.black,
-        tabBarActiveBackgroundColor: C.secondary,
-        tabBarStyle: {
-          borderTopWidth: 2,
-          borderTopColor: C.black,
-          backgroundColor: C.white,
-          height: 58 + insets.bottom,
-          paddingBottom: insets.bottom,
-        },
-        tabBarLabelStyle: { fontFamily: FONT.bold, fontSize: 10, textTransform: 'uppercase' },
-        tabBarItemStyle: { paddingVertical: 4 },
-      }}
-    >
-      {tabs.map(([name, label, Icon, comp]) => (
-        <Tab.Screen
-          key={name}
-          name={name}
-          component={comp}
-          options={{ tabBarLabel: label, tabBarIcon: ({ color, focused }) => <TabBounce focused={focused}><Icon size={20} color={color} /></TabBounce> }}
-        />
+    <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
+      {tabs.map(([name, label, comp]) => (
+        <Tab.Screen key={name} name={name} component={comp} options={{ tabBarLabel: label }} />
       ))}
     </Tab.Navigator>
   );
@@ -132,8 +118,10 @@ export default function RootNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <>
+            <Stack.Screen name="IntroOnboarding" component={IntroOnboardingScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           </>
         ) : needsOnboarding ? (
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
@@ -145,11 +133,12 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="Main" component={Tabs} />
             {Object.entries(MORE_SCREENS)
-              .filter(([route]) => route === 'Settings' || canOpen(user!.role, route, modules))
+              .filter(([route]) => route === 'Settings' || route === 'Security' || canOpen(user!.role, route, modules))
               .map(([route, comp]) => (
                 <Stack.Screen key={route} name={route} component={comp} />
               ))}
             <Stack.Screen name="MemberProfile" component={MemberProfileScreen} />
+            <Stack.Screen name="InvoiceDetail" component={InvoiceDetailScreen} />
           </>
         )}
       </Stack.Navigator>

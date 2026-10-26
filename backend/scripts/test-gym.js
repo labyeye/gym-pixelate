@@ -110,7 +110,7 @@ const ok = async (fn, user, req) => {
     const owner = await User.create({
       name: `${label} Owner`,
       email: `${label}@gym.test`,
-      password: "Passw0rdA",
+      password: "Kx7#mQv29!",
       role: "gym_owner",
     });
     const t = await Tenant.create({
@@ -125,7 +125,7 @@ const ok = async (fn, user, req) => {
     const trainer = await User.create({
       name: `${label} Trainer`,
       email: `${label}.t@gym.test`,
-      password: "Passw0rdA",
+      password: "Kx7#mQv29!",
       role: "trainer",
       tenantId: t._id,
       branchId: branch._id,
@@ -202,7 +202,7 @@ const ok = async (fn, user, req) => {
     const fresh = await User.create({
       name: "No Branch Gym",
       email: "nb@gym.test",
-      password: "Passw0rdA",
+      password: "Kx7#mQv29!",
       role: "gym_owner",
     });
     const t2 = await Tenant.create({
@@ -487,12 +487,13 @@ const ok = async (fn, user, req) => {
       params: { id: String(data._id) },
       body: { planId: A.annual._id },
     });
-    assert.ok(up.credit > 900 && up.credit <= 1000, `credit ${up.credit}`);
+    // inside 24 h of buying, what was paid for the plan (GST included, joining fee excluded) is credited in full
+    assert.strictEqual(up.credit, 1180, `credit ${up.credit}`);
     assert.strictEqual(
       (await Membership.findById(data._id)).status,
       "upgraded",
     );
-    assert.strictEqual(up.invoice.discount, up.credit);
+    assert.ok(Math.abs(up.invoice.discount - 1000) < 0.02, `discount ${up.invoice.discount}`);
     const cx = await ok(MS.cancelMembership, A.owner, {
       params: { id: String(up.data._id) },
       body: { reason: "moving city", refundAmount: 0 },
@@ -505,6 +506,21 @@ const ok = async (fn, user, req) => {
       }),
       409,
     );
+    // after 24 h: staff below manager are refused, the owner gets the unused-days credit
+    const m3 = await mkMember(A, "Late Changer", "9500000009");
+    const late = await ok(MS.createMembership, A.owner, {
+      body: { memberId: m3._id, planId: A.monthly._id, payNow: 1770 },
+    });
+    await Membership.collection.updateOne({ _id: late.data._id }, { $set: { createdAt: new Date(Date.now() - 30 * 3600 * 1000) } });
+    const desk = await User.findOne({ tenantId: A.owner.tenantId, role: "receptionist" });
+    if (desk) {
+      await rejects(
+        ok(MS.upgradeMembership, desk, { params: { id: String(late.data._id) }, body: { planId: A.annual._id } }),
+        403,
+      );
+    }
+    const lateUp = await ok(MS.upgradeMembership, A.owner, { params: { id: String(late.data._id) }, body: { planId: A.annual._id } });
+    assert.ok(lateUp.credit < 1180, `prorated credit ${lateUp.credit}`);
     // refund path
     const m2 = await mkMember(A, "Refundee", "9500000007");
     const s = await ok(MS.createMembership, A.owner, {
@@ -693,7 +709,7 @@ const ok = async (fn, user, req) => {
     const mgr = await User.create({
       name: "Mgr",
       email: "mgr@alpha.test",
-      password: "Passw0rdA",
+      password: "Kx7#mQv29!",
       role: "branch_manager",
       tenantId: A.tid,
     });
@@ -702,7 +718,7 @@ const ok = async (fn, user, req) => {
         body: {
           name: "Evil",
           email: "evil@alpha.test",
-          password: "Passw0rdA",
+          password: "Kx7#mQv29!",
           role: "gym_owner",
         },
       }),
@@ -713,7 +729,7 @@ const ok = async (fn, user, req) => {
         body: {
           name: "Evil",
           email: "evil2@alpha.test",
-          password: "Passw0rdA",
+          password: "Kx7#mQv29!",
           role: "super_admin",
         },
       }),
@@ -723,7 +739,7 @@ const ok = async (fn, user, req) => {
       body: {
         name: "Desk 2",
         email: "desk2@alpha.test",
-        password: "Passw0rdA",
+        password: "Kx7#mQv29!",
         role: "receptionist",
       },
     });
@@ -797,7 +813,7 @@ const ok = async (fn, user, req) => {
     const desk = await User.create({
       name: "Payroll Desk",
       email: "pr.desk@alpha.test",
-      password: "Passw0rdA",
+      password: "Kx7#mQv29!",
       role: "receptionist",
       tenantId: A.tid,
       monthlySalary: 30000,

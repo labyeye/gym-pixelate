@@ -25,3 +25,7 @@ dist-ssr
 
 .env
 .env.local
+# one-off patch scripts and local scratch work never ship
+scratch/
+_tmp_import/
+backups/

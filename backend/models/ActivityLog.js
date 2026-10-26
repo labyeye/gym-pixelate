@@ -24,6 +24,9 @@ const activityLogSchema = new mongoose.Schema(
         "NOTE_ADDED",
         "LEAD_CONVERTED",
         "PASSWORD_CHANGED",
+        "TWO_FACTOR_ENABLED",
+        "TWO_FACTOR_DISABLED",
+        "SESSION_REVOKED",
         "PROFILE_UPDATED",
         "CHECKIN",
         "CHECKOUT",
@@ -32,6 +35,7 @@ const activityLogSchema = new mongoose.Schema(
         "REFUND",
         "FREEZE",
         "CANCEL",
+        "EXPORT",
       ],
     },
 
@@ -62,6 +66,7 @@ const activityLogSchema = new mongoose.Schema(
         "Measurement",
         "Report",
         "Staff",
+        "Privacy",
       ],
     },
 

@@ -7,7 +7,7 @@ import { settingsAPI, usersAPI } from "@/services/api";
 import { branchService } from "@/services/branchService";
 import { useNotify } from "@/components/ui/Notification";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Plus, Building2, GitBranch, Users, LayoutGrid, FileText, Receipt } from "lucide-react";
+import { Loader2, Plus, Building2, GitBranch, Users, LayoutGrid, FileText, Receipt, ShieldCheck, MessageCircle, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MODULES, moduleOn } from "@/config/modules";
 import { chequeReceiptHtml, DEFAULT_RECEIPT_DESIGN, SAMPLE_CHEQUE, type ReceiptDesign } from "@/lib/chequeReceipt";
 import InvoiceDesigner from "@/components/settings/invoice-designer/InvoiceDesigner";
+import RemindersSettings from "@/components/settings/RemindersSettings";
+import TrashSettings from "@/components/settings/TrashSettings";
+import SecuritySettings from "@/components/settings/SecuritySettings";
 
 const STAFF_ROLES = ["branch_manager", "receptionist", "trainer", "accountant"];
 const PROFILE0 = {
@@ -54,6 +57,8 @@ const PROFILE0 = {
   razorpayKeyId: "",
   razorpayKeySecret: "",
   razorpaySecretSaved: false,
+  razorpayWebhookSecret: "",
+  razorpayWebhookSecretSaved: false,
 };
 
 export default function SettingsPage() {
@@ -63,7 +68,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const { user, setModules } = useAuth();
   const isOwner = user?.role === "gym_owner";
-  const [tab, setTab] = useState("general");
+  const [tab, setTab] = useState(new URLSearchParams(window.location.search).get("tab") || "general");
   const [designerOpened, setDesignerOpened] = useState(false);
   const [mods, setMods] = useState<Record<string, boolean>>({});
   const [savingMods, setSavingMods] = useState(false);
@@ -163,10 +168,14 @@ export default function SettingsPage() {
         receiptDesign,
         razorpaySecretSaved,
         razorpayKeySecret,
+        razorpayWebhookSecretSaved,
+        razorpayWebhookSecret,
         ...body
       } = profile;
       if (razorpayKeySecret)
         (body as any).razorpayKeySecret = razorpayKeySecret; // write-only; blank keeps the saved secret
+      if (razorpayWebhookSecret)
+        (body as any).razorpayWebhookSecret = razorpayWebhookSecret; // write-only
       await settingsAPI.update({
         ...body,
         companyGST: (body.companyGST || "").trim().toUpperCase(),
@@ -238,11 +247,16 @@ export default function SettingsPage() {
                   { id: "branches", label: "Branches", icon: GitBranch },
                   { id: "staff", label: "Users / Staff", icon: Users },
                 ] },
+                { group: "Account", items: [
+                  { id: "security", label: "Security", icon: ShieldCheck },
+                ] },
                 ...(isOwner
                   ? [{ group: "Customise", items: [
                       { id: "modules", label: "Modules", icon: LayoutGrid },
                       { id: "invoice", label: "Invoice design", icon: FileText },
                       { id: "receipt", label: "Receipt design", icon: Receipt },
+                      { id: "reminders", label: "Reminders", icon: MessageCircle },
+                      { id: "bin", label: "Recycle bin", icon: Trash2 },
                     ] }]
                   : []),
               ] as { group: string; items: { id: string; label: string; icon: any }[] }[]
@@ -450,6 +464,34 @@ export default function SettingsPage() {
                       ...profile,
                       razorpayKeySecret: e.target.value,
                     })
+                  }
+                />
+              </div>
+              <div className="space-y-2 pt-1">
+                <p className="text-xs text-muted-foreground">
+                  Optional but recommended: in Razorpay Dashboard &gt; Webhooks add this URL
+                  with events <b>payment.captured</b> and <b>order.paid</b>, then paste the
+                  webhook secret here. Payments are then recorded even if the member closes
+                  the page.
+                </p>
+                <input
+                  readOnly
+                  className="border-2 w-full px-3 py-2.5 text-xs bg-muted/40"
+                  value={`${import.meta.env.VITE_API_URL}/webhooks/razorpay/${profile.tenantId ?? ""}`}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  className="border-2 w-full px-3 py-2.5 text-sm"
+                  placeholder={
+                    profile.razorpayWebhookSecretSaved
+                      ? "Webhook secret saved — type to replace"
+                      : "Webhook secret"
+                  }
+                  value={profile.razorpayWebhookSecret ?? ""}
+                  onChange={(e) =>
+                    setProfile({ ...profile, razorpayWebhookSecret: e.target.value })
                   }
                 />
               </div>
@@ -693,6 +735,22 @@ export default function SettingsPage() {
             </div>
           </TabsContent>
         )}
+
+        {isOwner && (
+          <TabsContent value="reminders" className="mt-3 max-w-3xl">
+            <RemindersSettings />
+          </TabsContent>
+        )}
+
+        {isOwner && (
+          <TabsContent value="bin" className="mt-3 max-w-3xl">
+            <TrashSettings />
+          </TabsContent>
+        )}
+
+        <TabsContent value="security" className="mt-3">
+          <SecuritySettings />
+        </TabsContent>
 
         <TabsContent value="branches" className="mt-3">
           <div className="flex justify-end mb-3">

@@ -10,6 +10,7 @@ import { useFetch } from '../hooks/useFetch';
 import { C, FONT, S } from '../theme';
 import { daysFromNow, fmtDate, fmtDateTime, inr, titleCase } from '../utils/format';
 import { Btn, Empty, Input, Loader, Panel, Pill, Row, Screen, Sheet, StatCard, StatGrid, brut, notify, RCard } from '../components/ui';
+import { CreditCard as StatCreditCard } from 'lucide-react-native';
 
 const TABS = [
   { id: 'home', label: 'Home', icon: Home },
@@ -32,7 +33,9 @@ export default function MemberPortalScreen() {
   const mine = useFetch(() => get('/classes/mine'), [], tab === 'classes');
   const plans = useFetch(() => get('/plans'), [], tab === 'plans' || tab === 'progress');
   const ann = useFetch(() => get('/announcements'), [], tab === 'home');
-  const refresh = () => [ov, inv, ses, mine, plans, ann].forEach(f => f.reload());
+  const chg = useFetch(() => get('/membership/change-options'), [], tab === 'home');
+  const ren = useFetch(() => get('/membership/renew-options'), [], tab === 'home');
+  const refresh = () => [ov, inv, ses, mine, plans, ann, chg, ren].forEach(f => f.reload());
 
   const o = ov.data?.data;
   const confirmLogout = () => Alert.alert('Sign out?', undefined, [{ text: 'Cancel', style: 'cancel' }, { text: 'Sign out', style: 'destructive', onPress: logout }]);
@@ -66,6 +69,47 @@ export default function MemberPortalScreen() {
       setPaying('');
     }
   };
+  const [changing, setChanging] = useState('');
+  const renewPlan = (opt: any) =>
+    Alert.alert(`Renew with ${opt.name}?`, `You will be billed ${inr(opt.total)} and the plan starts today.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Renew',
+        onPress: async () => {
+          try {
+            setChanging(opt._id);
+            await post('/membership/renew', { planId: opt._id });
+            notify.success('Membership renewed', `Pay ${inr(opt.total)} from the Bills tab to finish.`);
+            refresh();
+            setTab('pay');
+          } catch (e: any) {
+            notify.error('Could not renew', e.message);
+          } finally {
+            setChanging('');
+          }
+        },
+      },
+    ]);
+  const changePlan = (opt: any) =>
+    Alert.alert(`Switch to ${opt.name}?`, `You pay ${inr(opt.payable)} more. What you already paid is credited.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Switch',
+        onPress: async () => {
+          try {
+            setChanging(opt._id);
+            await post('/membership/change', { planId: opt._id });
+            notify.success('Plan changed', `Pay the ${inr(opt.payable)} balance from the Bills tab.`);
+            refresh();
+            setTab('pay');
+          } catch (e: any) {
+            notify.error('Could not change plan', e.message);
+          } finally {
+            setChanging('');
+          }
+        },
+      },
+    ]);
   const cancel = async (id: string) => {
     try { await post(`/classes/bookings/${id}/cancel`); notify.success('Booking cancelled'); refresh(); } catch (e: any) { notify.error('Failed', e.message); }
   };
@@ -95,7 +139,7 @@ export default function MemberPortalScreen() {
       </View>
 
       <View style={{ flex: 1 }}>
-        <PortalBody tab={tab} {...{ paying, payOnline, o, m, left, inv, ses, mine, plans, ann, meas, book, cancel, setLog, setTab, refresh, ov }} />
+        <PortalBody tab={tab} {...{ paying, payOnline, o, m, left, inv, ses, mine, plans, ann, meas, book, cancel, setLog, setTab, refresh, ov, chg, ren, changing, changePlan, renewPlan }} />
       </View>
 
       <View style={{ flexDirection: 'row', borderTopWidth: 2, borderTopColor: C.black, backgroundColor: C.white }}>
@@ -121,7 +165,7 @@ export default function MemberPortalScreen() {
 }
 
 // Body is a plain ScrollView so the header/tab bar stay fixed.
-function PortalBody({ tab, paying, payOnline, o, m, left, inv, ses, mine, plans, ann, meas, book, cancel, setLog, setTab, refresh, ov }: any) {
+function PortalBody({ tab, paying, payOnline, o, m, left, inv, ses, mine, plans, ann, meas, book, cancel, setLog, setTab, refresh, ov, chg, ren, changing, changePlan, renewPlan }: any) {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} refreshControl={<RefreshControl refreshing={ov.loading} onRefresh={refresh} tintColor={C.primary} />}>
       {tab === 'home' && (
@@ -133,8 +177,33 @@ function PortalBody({ tab, paying, payOnline, o, m, left, inv, ses, mine, plans,
             {!o.access.allowed && <Text style={[S.body, { color: '#B91C1C', marginTop: 4 }]}>{o.access.reason}</Text>}
             {(o.access.warnings || []).map((w: string) => <Text key={w} style={[S.small, { color: '#C2410C' }]}>⚠ {w}</Text>)}
           </RCard>
+          {ren.data?.data?.canRenew && (
+            <Panel title="Renew your membership">
+              <Text style={[S.small, { marginBottom: 8 }]}>{ren.data.data.lastPlan ? `Your ${ren.data.data.lastPlan} plan ended on ${fmtDate(ren.data.data.expiredOn)}. ` : ''}Pick a plan to start again today.</Text>
+              {ren.data.data.options.map((opt: any) => (
+                <View key={opt._id} style={{ borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingVertical: 8 }}>
+                  <Text style={S.h3}>{opt.name}{opt.last ? ' · your last plan' : ''}</Text>
+                  <Text style={S.small}>{opt.durationDays} days</Text>
+                  <View style={{ marginTop: 6 }}><Btn label={`Renew · ${inr(opt.total)}`} busy={changing === opt._id} onPress={() => renewPlan(opt)} /></View>
+                </View>
+              ))}
+            </Panel>
+          )}
+          {chg.data?.data?.canChange && (chg.data.data.options || []).length > 0 && (
+            <Panel title="Change your plan">
+              <Text style={[S.small, { marginBottom: 8 }]}>Within 24 hours of buying you can switch to a higher plan and pay only the difference (until {fmtDateTime(chg.data.data.windowEndsAt)}).</Text>
+              {chg.data.data.options.map((opt: any) => (
+                <View key={opt._id} style={{ borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingVertical: 8 }}>
+                  <Text style={S.h3}>{opt.name}</Text>
+                  <Text style={S.small}>{opt.durationDays} days · {inr(opt.newTotal)} − {inr(opt.credit)} already paid</Text>
+                  <View style={{ marginTop: 6 }}><Btn label={`Pay ${inr(opt.payable)} more`} busy={changing === opt._id} onPress={() => changePlan(opt)} /></View>
+                </View>
+              ))}
+            </Panel>
+          )}
+          {!!chg.data?.data && !chg.data.data.canChange && !!chg.data.data.reason && o.access.allowed && <Text style={[S.small, { marginBottom: 10 }]}>{chg.data.data.reason}</Text>}
           <StatGrid>
-            <StatCard label="To pay" value={inr(o.due)} color={o.due > 0 ? '#EF4444' : '#14B8A6'} onPress={() => setTab('pay')} />
+            <StatCard label="To pay" value={inr(o.due)} icon={<StatCreditCard />} color={o.due > 0 ? '#EF4444' : '#14B8A6'} onPress={() => setTab('pay')} />
           </StatGrid>
           {o.trainers.length > 0 && <Panel title="Your trainer">{o.trainers.map((t: any) => <Text key={t._id} style={S.body}>{t.trainerId?.name} <Text style={S.small}>{t.trainerId?.phone}</Text></Text>)}</Panel>}
           {o.pt.length > 0 && (

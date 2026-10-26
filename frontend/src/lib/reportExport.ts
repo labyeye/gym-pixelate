@@ -1,6 +1,6 @@
-import * as XLSX from "xlsx";
+import { downloadSheet } from "@/lib/spreadsheet";
 
-// Same Print / CSV / Excel trio as NestHR, NestLeads and NestPlay reports.
+// Same Print / CSV / Excel trio as NestHR, NestLeads and NestAcademy reports.
 // Print windows are same-origin and the login token lives in localStorage, so every
 // interpolated value is escaped and the document gets a CSP that forbids scripts.
 const CSP =
@@ -24,21 +24,11 @@ export interface ReportSpec {
 }
 
 export function exportCSV({ headers, rows, filename }: ReportSpec) {
-  const body = [headers, ...rows]
-    .map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-  const a = Object.assign(document.createElement("a"), {
-    href: URL.createObjectURL(new Blob([body], { type: "text/csv" })),
-    download: `${filename}.csv`,
-  });
-  a.click();
-  URL.revokeObjectURL(a.href);
+  void downloadSheet(filename, [headers, ...rows], "csv");
 }
 
 export function exportXLSX({ headers, rows, filename }: ReportSpec) {
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headers, ...rows]), "Report");
-  XLSX.writeFile(wb, `${filename}.xlsx`);
+  void downloadSheet(filename, [headers, ...rows], "xlsx", "Report");
 }
 
 export function printReport({ title, period = "", headers, rows, company }: ReportSpec) {

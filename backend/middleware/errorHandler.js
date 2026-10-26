@@ -25,6 +25,11 @@ const errorHandler = (err, req, res, next) => {
     message = "Not authorized";
   }
 
+  // never leak internal error text for server faults in production
+  if (statusCode >= 500 && process.env.NODE_ENV === "production") {
+    message = "Something went wrong. Please try again.";
+  }
+
   res.status(statusCode).json({
     success: false,
     message,

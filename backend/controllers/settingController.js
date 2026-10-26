@@ -1,6 +1,7 @@
 const asyncHandler = require("express-async-handler");
 const Setting = require("../models/Setting");
 const { invalidatePermissionsCache } = require("../middleware/checkPermission");
+const { clearPolicyCache } = require("../utils/twoFaPolicy");
 const { encrypt } = require("../utils/encryption");
 const { sanitizeInvoiceTemplate } = require("../utils/invoiceTemplate");
 
@@ -11,14 +12,17 @@ const sanitizeModules = (m) =>
 
 // razorpayKeySecret (plain, write-only) -> razorpayKeySecretEnc; a client can never set the encrypted field directly
 const prepare = (body) => {
-  const { razorpayKeySecret, razorpayKeySecretEnc, ...rest } = body || {};
+  const { razorpayKeySecret, razorpayKeySecretEnc, razorpayWebhookSecret, razorpayWebhookSecretEnc, ...rest } = body || {};
   if (razorpayKeySecret)
     rest.razorpayKeySecretEnc = encrypt(String(razorpayKeySecret).trim());
+  if (razorpayWebhookSecret)
+    rest.razorpayWebhookSecretEnc = encrypt(String(razorpayWebhookSecret).trim());
   return rest;
 };
 const safe = (doc) => {
   const o = doc.toObject ? doc.toObject() : { ...doc };
   delete o.razorpayKeySecretEnc;
+  delete o.razorpayWebhookSecretEnc;
   return o;
 };
 
@@ -44,12 +48,14 @@ const getSettings = asyncHandler(async (req, res) => {
     setting = await Setting.create(tenantFilter);
   }
 
-  const hasSecret = !!(
-    await Setting.findOne(tenantFilter).select("+razorpayKeySecretEnc")
-  )?.razorpayKeySecretEnc;
+  const saved = await Setting.findOne(tenantFilter).select("+razorpayKeySecretEnc +razorpayWebhookSecretEnc");
   res.json({
     success: true,
-    data: { ...safe(setting), razorpaySecretSaved: hasSecret },
+    data: {
+      ...safe(setting),
+      razorpaySecretSaved: !!saved?.razorpayKeySecretEnc,
+      razorpayWebhookSecretSaved: !!saved?.razorpayWebhookSecretEnc,
+    },
   });
 });
 
@@ -78,13 +84,16 @@ const updateSettings = asyncHandler(async (req, res) => {
   }
 
   invalidatePermissionsCache(req.user.tenantId);
+  clearPolicyCache(req.user.tenantId);
 
-  const hasSecret = !!(
-    await Setting.findOne(tenantFilter).select("+razorpayKeySecretEnc")
-  )?.razorpayKeySecretEnc;
+  const saved = await Setting.findOne(tenantFilter).select("+razorpayKeySecretEnc +razorpayWebhookSecretEnc");
   res.json({
     success: true,
-    data: { ...safe(setting), razorpaySecretSaved: hasSecret },
+    data: {
+      ...safe(setting),
+      razorpaySecretSaved: !!saved?.razorpayKeySecretEnc,
+      razorpayWebhookSecretSaved: !!saved?.razorpayWebhookSecretEnc,
+    },
   });
 });
 

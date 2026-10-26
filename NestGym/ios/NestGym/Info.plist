@@ -79,10 +79,10 @@
 	<string>NestGym needs your photo library to choose member and trainer photos</string>
 	<key>UIAppFonts</key>
 	<array>
-		<string>DMSans-Bold.ttf</string>
-		<string>DMSans-Medium.ttf</string>
-		<string>DMSans-Regular.ttf</string>
-		<string>DMSans-SemiBold.ttf</string>
+		<string>Inter-Bold.ttf</string>
+		<string>Inter-Medium.ttf</string>
+		<string>Inter-Regular.ttf</string>
+		<string>Inter-SemiBold.ttf</string>
 	</array>
 </dict>
 </plist>

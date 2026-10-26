@@ -1,0 +1,17 @@
+const assert = require("assert");
+process.env.JWT_SECRET = "x".repeat(40);
+const su = require("../utils/signedUploads");
+const signed = su.signText('{"photo":"http://h/uploads/a1.jpg"}');
+assert(/a1\.jpg\?e=\d+&s=[0-9a-f]{32}/.test(signed));
+assert.strictEqual(su.stripText(signed), '{"photo":"http://h/uploads/a1.jpg"}');
+const url = JSON.parse(signed).photo;
+const q = new URL(url).searchParams;
+let status = 0;
+const res = { status: (c) => ((status = c), { json: () => {} }) };
+su.verifyUpload({ path: "/a1.jpg", query: { e: q.get("e"), s: q.get("s") } }, res, () => (status = 200));
+assert.strictEqual(status, 200);
+su.verifyUpload({ path: "/other.jpg", query: { e: q.get("e"), s: q.get("s") } }, res, () => (status = 200));
+assert.strictEqual(status, 403);
+su.verifyUpload({ path: "/a1.jpg", query: {} }, res, () => (status = 200));
+assert.strictEqual(status, 403);
+console.log("SIGNED UPLOADS OK");

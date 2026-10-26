@@ -49,12 +49,34 @@ async function sendWhatsAppOtp(phone, code) {
 }
 
 // Sends any approved text-only template from the platform number (e.g. fee payment links).
-async function sendPlatformTemplate(phone, templateName, params, languageCode = "en") {
+// `charge` = { tenantId, kind }: the message is paid for with the gym's WhatsApp credits (utils/credits.js), taken before
+// sending and given back if Meta rejects it. Without `charge` it is a platform message and free.
+async function sendPlatformTemplate(phone, templateName, params, languageCode = "en", charge = null) {
   const accessToken = process.env.WHATSAPP_PLATFORM_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PLATFORM_PHONE_NUMBER_ID;
   if (!accessToken || !phoneNumberId) {
     throw new Error("WhatsApp platform number is not configured");
   }
+  const credits = charge ? require("./credits") : null;
+  const hold = charge ? await credits.reserve(charge.tenantId, { kind: charge.kind, phone }) : null;
+  if (hold && !hold.ok) {
+    throw Object.assign(
+      new Error(`WhatsApp not sent: ${hold.reason === "daily_cap" ? "daily message limit reached" : "not enough credits"}`),
+      { code: "NO_CREDITS" },
+    );
+  }
+  let data;
+  try {
+    data = await postTemplate(phone, templateName, params, languageCode, accessToken, phoneNumberId);
+  } catch (err) {
+    if (hold) await credits.refund(hold);
+    throw err;
+  }
+  if (hold) await credits.commit(hold, data?.messages?.[0]?.id);
+  return data;
+}
+
+async function postTemplate(phone, templateName, params, languageCode, accessToken, phoneNumberId) {
   const res = await fetch(`${WA_API}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },

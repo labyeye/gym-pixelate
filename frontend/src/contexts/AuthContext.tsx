@@ -34,7 +34,14 @@ interface AuthContextType {
   login: (
     email: string,
     password: string,
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    requires2FA?: boolean;
+    pendingToken?: string;
+  }>;
+  /** Finish a sign-in that returned { token, tenant, ...user } (2FA, backup code, email code). */
+  completeLogin: (data: any) => void;
   loginWithOtp: (
     phone: string,
     otp: string,
@@ -129,6 +136,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     try {
       const response = await authAPI.login(email, password);
+      if (response.data?.requires2FA) {
+        return { success: false, requires2FA: true, pendingToken: response.data.pendingToken };
+      }
       const { token, tenant: tenantData, ...userData } = response.data;
       setToken(token);
       setUser(mapUser(userData));
@@ -140,6 +150,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         error: error.message || "Login failed. Please try again.",
       };
     }
+  }, []);
+
+  const completeLogin = useCallback((data: any) => {
+    const { token, tenant: tenantData, ...userData } = data;
+    setToken(token);
+    setUser(mapUser(userData));
+    setTenant(mapTenant(tenantData));
   }, []);
 
   const loginWithOtp = useCallback(async (phone: string, otp: string) => {
@@ -233,6 +250,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         loginWithOtp,
+        completeLogin,
         register,
         logout,
         updateUser,

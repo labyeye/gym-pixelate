@@ -41,6 +41,8 @@ const getMemberships = asyncHandler(async (req, res) => {
     planId,
     expiringInDays,
     dues,
+    search,
+    sort,
     page = 1,
     limit = 50,
   } = req.query;
@@ -59,24 +61,62 @@ const getMemberships = asyncHandler(async (req, res) => {
   }
   if (dues === "true")
     query.$expr = { $gt: ["$totalAmount", { $add: ["$paidAmount", 0.005] }] };
+  if (search) {
+    const rx = { $regex: String(search).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
+    const ids = await Member.find({
+      ...(req.user.tenantId ? { tenantId: req.user.tenantId } : {}),
+      $or: [{ name: rx }, { phone: rx }, { memberCode: rx }],
+    }).distinct("_id");
+    query.memberId = { $in: ids };
+  }
+
+  // headline numbers for the status page, independent of the filters above
+  const base = req.user.tenantId ? { tenantId: req.user.tenantId } : {};
+  const counts = Promise.all([
+    Membership.countDocuments({ ...base, status: "active" }),
+    Membership.countDocuments({
+      ...base,
+      status: "active",
+      endDate: { $gte: new Date(), $lte: addDays(new Date(), 7) },
+    }),
+    Membership.countDocuments({ ...base, status: "expired" }),
+    Membership.countDocuments({
+      ...base,
+      status: { $nin: ["cancelled", "upgraded"] },
+      $expr: { $gt: ["$totalAmount", { $add: ["$paidAmount", 0.005] }] },
+    }),
+  ]);
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const [memberships, total] = await Promise.all([
     Membership.find(query)
       .populate(...POPULATE_MEMBER)
       .populate(...POPULATE_PLAN)
-      .sort("-createdAt")
+      .sort(["endDate", "-endDate", "-createdAt"].includes(sort) ? sort : "-createdAt")
       .skip(skip)
       .limit(parseInt(limit)),
     Membership.countDocuments(query),
   ]);
+  const [active, expiring, expired, withDues] = await counts;
+  // the invoice each membership was billed on, so the app can collect fees / open the receipt directly
+  const invs = await Invoice.find({ membershipId: { $in: memberships.map((m) => m._id) } })
+    .select("_id invoiceNumber membershipId")
+    .sort("issuedAt")
+    .lean();
+  const invOf = new Map();
+  for (const i of invs) if (!invOf.has(String(i.membershipId))) invOf.set(String(i.membershipId), i);
+  const rows = memberships.map((m) => {
+    const i = invOf.get(String(m._id));
+    return { ...m.toObject(), invoiceId: i?._id, invoiceNumber: i?.invoiceNumber };
+  });
   res.json({
     success: true,
     count: memberships.length,
+    counts: { active, expiring, expired, dues: withDues },
     total,
     page: parseInt(page),
     pages: Math.ceil(total / parseInt(limit)),
-    data: memberships,
+    data: rows,
   });
 });
 
@@ -258,10 +298,96 @@ const renewMembership = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: membership, invoice });
 });
 
-// Upgrade: unused days of the current plan are credited against the new plan.
+// ── Changing plan ─────────────────────────────────────────────────────────
+// Within 24 h of buying, what was already paid is credited in full (2k paid -> 4k plan = pay 2k more),
+// and the member can do it themselves. After that only the owner / a manager can change it, and the
+// credit is the unused part of the old plan.
+const CHANGE_WINDOW_MS = 24 * 60 * 60 * 1000;
+// same rounding as the invoice line, so the quote equals the bill
+const unitOf = (plan) =>
+  r2(plan.priceIncludesGst ? plan.price / (1 + (plan.gstPercent || 0) / 100) : plan.price);
+
+async function quoteUpgrade(old, plan, now = new Date()) {
+  const withinWindow = now - old.createdAt <= CHANGE_WINDOW_MS;
+  const g = plan.gstPercent || 0;
+  const unit = unitOf(plan);
+  const newTotal = r2(unit * (1 + g / 100));
+  let credit;
+  let discount; // taken off the taxable amount, GST is then charged on what is left
+  if (withinWindow) {
+    const oldPlan = await MembershipPlan.findById(old.planId);
+    const og = oldPlan?.gstPercent || 0;
+    const admission = old.admissionFee
+      ? oldPlan?.priceIncludesGst
+        ? old.admissionFee
+        : old.admissionFee * (1 + og / 100)
+      : 0;
+    credit = Math.min(
+      newTotal,
+      r2(Math.max(0, Math.min(old.paidAmount, old.totalAmount) - admission)),
+    );
+    // pick the paisa that lands the payable exactly on (new price - what was paid)
+    const target = r2(newTotal - credit);
+    const raw = unit - target / (1 + g / 100);
+    discount = [Math.floor(raw * 100) / 100, Math.ceil(raw * 100) / 100].sort(
+      (a, b) => Math.abs((unit - a) * (1 + g / 100) - target) - Math.abs((unit - b) * (1 + g / 100) - target),
+    )[0];
+  } else {
+    const totalDays = Math.max(1, Math.round((old.endDate - old.startDate) / DAY));
+    const left = Math.max(0, Math.ceil((old.endDate - now) / DAY));
+    credit = r2(Math.min(old.paidAmount, (old.price * left) / totalDays));
+    discount = credit;
+  }
+  return {
+    withinWindow,
+    windowEndsAt: new Date(old.createdAt.getTime() + CHANGE_WINDOW_MS),
+    newTotal,
+    credit,
+    discount,
+    payable: r2(Math.max(0, (unit - discount) * (1 + g / 100))),
+  };
+}
+
+async function performUpgrade({ old, plan, body = {}, userId, tenantId }) {
+  const q = await quoteUpgrade(old, plan);
+  const { membership, invoice } = await sellMembership({
+    tenantId,
+    branchId: old.branchId,
+    memberId: old.memberId,
+    planId: plan._id,
+    startDate: new Date(),
+    discount: (Number(body.discount) || 0) + q.discount,
+    couponCode: body.couponCode,
+    payNow: body.payNow ?? 0,
+    method: body.method,
+    reference: body.reference,
+    includeAdmission: false,
+    userId,
+    isRenewal: false,
+    previousMembershipId: old._id,
+  });
+  return { membership, invoice, credit: q.credit, withinWindow: q.withinWindow, payable: q.payable };
+}
+
+const upgradeQuote = asyncHandler(async (req, res) => {
+  const old = await Membership.findOne({ _id: req.params.id, status: "active" });
+  if (!old) throw fail(409, "Only an active membership can be changed");
+  const plan = await MembershipPlan.findById(req.query.planId);
+  if (!plan) throw fail(404, "Plan not found");
+  const q = await quoteUpgrade(old, plan);
+  res.json({ success: true, data: { ...q, allowed: q.withinWindow || isManager(req.user) } });
+});
+
 const upgradeMembership = asyncHandler(async (req, res) => {
   const { planId } = req.body;
   if (!planId) throw fail(400, "planId is required to upgrade a membership");
+  const plan = await MembershipPlan.findById(planId);
+  if (!plan) throw fail(404, "Plan not found");
+  const cur = await Membership.findOne({ _id: req.params.id, status: "active" });
+  if (!cur) throw fail(409, "Only an active membership can be upgraded");
+  if (String(cur.planId) === String(plan._id)) throw fail(400, "Pick a different plan");
+  if (Date.now() - cur.createdAt > CHANGE_WINDOW_MS && !isManager(req.user))
+    throw fail(403, "Plans can only be changed after 24 hours by the gym owner or a manager.");
   const old = await Membership.findOneAndUpdate(
     { _id: req.params.id, status: "active" },
     { $set: { status: "upgraded" } },
@@ -269,42 +395,16 @@ const upgradeMembership = asyncHandler(async (req, res) => {
   );
   if (!old) throw fail(409, "Only an active membership can be upgraded");
   try {
-    const now = new Date();
-    const totalDays = Math.max(
-      1,
-      Math.round((old.endDate - old.startDate) / DAY),
-    );
-    const left = Math.max(0, Math.ceil((old.endDate - now) / DAY));
-    const credit = r2(Math.min(old.paidAmount, (old.price * left) / totalDays));
-    const b = req.body;
-    const { membership, invoice } = await sellMembership({
-      tenantId: req.user.tenantId,
-      branchId: old.branchId,
-      memberId: old.memberId,
-      planId,
-      startDate: now,
-      discount: (Number(b.discount) || 0) + credit,
-      couponCode: b.couponCode,
-      payNow: b.payNow ?? 0,
-      method: b.method,
-      reference: b.reference,
-      includeAdmission: false,
-      userId: req.user._id,
-      isRenewal: false,
-      previousMembershipId: old._id,
-    });
+    const r = await performUpgrade({ old, plan, body: req.body, userId: req.user._id, tenantId: req.user.tenantId });
     log(
       req,
       "CREATE",
-      membership,
-      `Upgraded membership ${old._id} (credit ₹${credit}, ${invoice.invoiceNumber})`,
+      r.membership,
+      `Upgraded membership ${old._id} (credit ₹${r.credit}${r.withinWindow ? ", within 24h" : ""}, ${r.invoice.invoiceNumber})`,
     );
-    res.status(201).json({ success: true, data: membership, invoice, credit });
+    res.status(201).json({ success: true, data: r.membership, invoice: r.invoice, credit: r.credit });
   } catch (e) {
-    await Membership.updateOne(
-      { _id: old._id },
-      { $set: { status: "active" } },
-    ); // roll back
+    await Membership.updateOne({ _id: old._id }, { $set: { status: "active" } }); // roll back
     throw e;
   }
 });
@@ -429,6 +529,10 @@ module.exports = {
   unfreezeMembership,
   renewMembership,
   upgradeMembership,
+  upgradeQuote,
+  quoteUpgrade,
+  performUpgrade,
+  CHANGE_WINDOW_MS,
   cancelMembership,
   transferMembership,
   runSweepNow,

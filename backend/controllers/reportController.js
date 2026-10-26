@@ -7,6 +7,9 @@ const Expense = require("../models/Expense");
 const Product = require("../models/Product");
 const Equipment = require("../models/Equipment");
 const User = require("../models/User");
+const TrainerAssignment = require("../models/TrainerAssignment");
+const Feedback = require("../models/Feedback");
+const { churn, cohorts, ltv } = require("../utils/insights");
 const { r2, addDays, istDayStart, istDay, DAY } = require("../utils/gym");
 
 const oid = (v) => (v ? new mongoose.Types.ObjectId(String(v)) : null);
@@ -413,7 +416,48 @@ const gstRegister = asyncHandler(async (req, res) => {
   });
 });
 
+// Churn, cohort retention, LTV and trainer load (maths in utils/insights.js).
+const insights = asyncHandler(async (req, res) => {
+  const m = scope(req);
+  const since = new Date();
+  since.setMonth(since.getMonth() - 18);
+  const [memberships, paid, trainers, loads, ratings] = await Promise.all([
+    Membership.find(m).select("memberId startDate endDate status").lean(),
+    Invoice.aggregate([
+      { $match: { ...m, status: { $ne: "cancelled" } } },
+      { $unwind: "$payments" },
+      { $group: { _id: null, total: { $sum: "$payments.amount" }, members: { $addToSet: "$memberId" } } },
+    ]),
+    User.find({ ...(m.tenantId && { tenantId: m.tenantId }), role: "trainer", status: "active" }).select("name trainerProfile.maxClients").lean(),
+    TrainerAssignment.aggregate([{ $match: { ...m, isActive: true } }, { $group: { _id: "$trainerId", clients: { $sum: 1 } } }]),
+    Feedback.find({ ...m, createdAt: { $gte: new Date(Date.now() - 90 * DAY) } }).sort("-createdAt").limit(200).populate("memberId", "name").lean(),
+  ]);
+  const promoters = ratings.filter((r) => r.score >= 9).length;
+  const detractors = ratings.filter((r) => r.score <= 6).length;
+  const load = Object.fromEntries(loads.map((l) => [String(l._id), l.clients]));
+  const now = new Date();
+  res.json({
+    success: true,
+    data: {
+      nps: {
+        responses: ratings.length,
+        score: ratings.length ? Math.round(((promoters - detractors) / ratings.length) * 100) : null,
+        recent: ratings.filter((r) => r.comment).slice(0, 10).map((r) => ({ name: r.memberId?.name, score: r.score, comment: r.comment, at: r.createdAt })),
+      },
+      churn: churn(memberships, now),
+      cohorts: cohorts(memberships, now),
+      ltv: ltv(memberships, paid[0]?.total || 0, (paid[0]?.members || []).filter(Boolean).length),
+      trainers: trainers.map((t) => {
+        const max = t.trainerProfile?.maxClients || 0;
+        const clients = load[String(t._id)] || 0;
+        return { _id: t._id, name: t.name, clients, maxClients: max, utilisationPct: max ? Math.round((clients / max) * 100) : null };
+      }),
+    },
+  });
+});
+
 module.exports = {
+  insights,
   getDashboardSummary,
   getDashboardCharts,
   overview,

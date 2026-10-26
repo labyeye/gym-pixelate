@@ -12,5 +12,6 @@ router.get("/dues", read, c.dues);
 router.get("/renewals", read, c.renewals);
 router.get("/birthdays", read, c.birthdays);
 router.get("/gst", read, c.gstRegister);
+router.get("/insights", read, c.insights);
 
 module.exports = router;

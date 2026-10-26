@@ -25,7 +25,19 @@ const PROTECTED = [
   "memberCode",
   "createdAt",
   "updatedAt",
+  "walletBalance",
+  "erasedAt",
+  "deletedAt",
+  "referredBy", // set only through `referrerCode`, below
 ];
+// "GYM-00042" typed in the form -> the referring member of THIS gym (tenant scope comes from the request)
+const referrerFrom = async (code, selfId) => {
+  const c = String(code || "").trim();
+  if (!c) return undefined;
+  const r = await Member.findOne({ memberCode: c }).select("_id");
+  if (!r) throw fail(404, `No member with code ${c}`);
+  return String(r._id) === String(selfId) ? undefined : r._id;
+};
 const clean = (body) =>
   Object.fromEntries(
     Object.entries(body).filter(([k]) => !PROTECTED.includes(k)),
@@ -43,6 +55,7 @@ const getMembers = asyncHandler(async (req, res) => {
     source,
     plan,
     planStatus,
+    sort,
   } = req.query;
 
   const query = {};
@@ -90,7 +103,7 @@ const getMembers = asyncHandler(async (req, res) => {
 
   const [rows, total] = await Promise.all([
     Member.find(query)
-      .sort("-createdAt")
+      .sort(["name", "-name", "createdAt", "-createdAt"].includes(sort) ? sort : "-createdAt")
       .skip(skip)
       .limit(parseInt(limit))
       .lean(),
@@ -200,7 +213,8 @@ const createMember = asyncHandler(async (req, res) => {
     }
   }
 
-  const member = new Member({ ...body, tenantId });
+  const referredBy = await referrerFrom(req.body.referrerCode);
+  const member = new Member({ ...body, tenantId, ...(referredBy && { referredBy }) });
   await member.validate(); // before the code is issued, so a rejected form never burns a number
   member.memberCode = await nextCode(tenantId, "member", "GYM");
   if (
@@ -228,6 +242,7 @@ const updateMember = asyncHandler(async (req, res) => {
   const member = await Member.findById(req.params.id);
   if (!member) throw fail(404, "Member not found");
   member.set(clean(req.body));
+  if (req.body.referrerCode !== undefined && !member.referredBy) member.referredBy = await referrerFrom(req.body.referrerCode, member._id);
   await member.save();
   logActivity({
     user: req.user,
@@ -272,7 +287,7 @@ const deleteMember = asyncHandler(async (req, res) => {
       deactivated: true,
     });
   }
-  await Member.deleteOne({ _id: member._id });
+  await Member.updateOne({ _id: member._id }, { deletedAt: new Date() }); // restorable from /api/trash
   logActivity({
     user: req.user,
     action: "DELETE",

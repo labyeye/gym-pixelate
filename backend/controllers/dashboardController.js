@@ -136,16 +136,66 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
     ),
   );
 
+  const revenueByMonth = await Promise.all(
+    months12.map(({ monthStart, monthEnd }) =>
+      Invoice.aggregate([
+        {
+          $match: {
+            ...tf,
+            status: "paid",
+            issuedAt: { $gte: monthStart, $lte: monthEnd },
+          },
+        },
+        { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+      ]),
+    ),
+  );
+  const revenueByMonthData = months12.map(({ monthName }, i) => ({
+    month: monthName,
+    revenue: revenueByMonth[i][0]?.total || 0,
+  }));
+
   const membershipGrowthData = months12.map(({ monthName }, i) => ({
     month: monthName,
     newMemberships: membershipGrowth[i],
+  }));
+
+  // Shop / POS revenue (product lines incl. GST) and new memberships, one query each instead of one per bar
+  const TZ = "Asia/Kolkata";
+  const dayKey = (d) => d.toLocaleDateString("en-CA", { timeZone: TZ });
+  const posMatch = (from) => [
+    { $match: { ...tf, status: { $nin: ["cancelled", "refunded"] }, issuedAt: { $gte: from } } },
+    { $unwind: "$items" },
+    { $match: { "items.kind": "product" } },
+  ];
+  const posSum = { $sum: { $multiply: ["$items.amount", { $add: [1, { $divide: [{ $ifNull: ["$items.gstPercent", 0] }, 100] }] }] } };
+  const [posDayAgg, posMonthAgg, memDayAgg] = await Promise.all([
+    Invoice.aggregate([...posMatch(days30[0].dayStart), { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$issuedAt", timezone: TZ } }, total: posSum } }]),
+    Invoice.aggregate([...posMatch(months12[0].monthStart), { $group: { _id: { $dateToString: { format: "%Y-%m", date: "$issuedAt", timezone: TZ } }, total: posSum } }]),
+    Membership.aggregate([
+      { $match: { ...tf, createdAt: { $gte: days30[0].dayStart } } },
+      { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: TZ } }, n: { $sum: 1 } } },
+    ]),
+  ]);
+  const posDay = new Map(posDayAgg.map((x) => [x._id, x.total]));
+  const posMonth = new Map(posMonthAgg.map((x) => [x._id, x.total]));
+  const memDay = new Map(memDayAgg.map((x) => [x._id, x.n]));
+  const posByDay = days30.map(({ dayStart }) => ({ date: dayKey(dayStart), revenue: Math.round(posDay.get(dayKey(dayStart)) || 0) }));
+  const membersByDay = days30.map(({ dayStart }) => ({ date: dayKey(dayStart), count: memDay.get(dayKey(dayStart)) || 0 }));
+  const posByMonth = months12.map(({ monthStart, monthName }) => ({
+    month: monthName,
+    revenue: Math.round(posMonth.get(`${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, "0")}`) || 0),
   }));
 
   res.json({
     success: true,
     data: {
       revenueByDay: revenueByDayData,
+      revenueByMonth: revenueByMonthData,
       membershipGrowth: membershipGrowthData,
+      posByDay,
+      posByMonth,
+      membersByDay,
     },
   });
 });

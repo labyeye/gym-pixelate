@@ -7,6 +7,7 @@ const assert = require("assert");
   const mongod = await MongoMemoryServer.create();
   process.env.MONGO_URI = mongod.getUri("gymsmoke");
   process.env.JWT_SECRET = "smoke-secret";
+  process.env.ENCRYPTION_SECRET = "smoke-enc-secret";
   process.env.PORT = "5099";
   process.env.NODE_ENV = "test";
   process.env.CLIENT_URL = "http://localhost:8081";
@@ -46,17 +47,22 @@ const assert = require("assert");
     a = await call("POST", "/auth/register", {
       name: "Alpha Owner",
       email: "alpha@fit.gym",
-      password: "Passw0rdA!",
+      password: "Kx7#mQv29!",
       companyName: "Alpha Fitness",
     });
     assert.strictEqual(a.status, 201, JSON.stringify(a));
     b = await call("POST", "/auth/register", {
       name: "Bravo Owner",
       email: "bravo@fit.gym",
-      password: "Passw0rdA!",
+      password: "Kx7#mQv29!",
       companyName: "Bravo Fitness",
     });
     assert.strictEqual(b.status, 201, JSON.stringify(b));
+    // every login must accept the Terms once before the API works (utils/terms.js)
+    for (const who of [a, b]) {
+      token = who.data.token;
+      assert.strictEqual((await call("POST", "/legal/accept", {})).status, 200);
+    }
   });
 
   let plan, member, sale;
@@ -193,6 +199,212 @@ const assert = require("assert");
       "INV-00001",
       "B's numbering starts at 1 independent of A",
     );
+  });
+
+  await step("CORS: only the gym web app origin is allowed", async () => {
+    const hit = (origin) =>
+      fetch(base + "/health", { headers: { Origin: origin } }).then((r) =>
+        r.headers.get("access-control-allow-origin"),
+      );
+    assert.strictEqual(await hit("http://localhost:8081"), "http://localhost:8081");
+    assert.strictEqual(await hit("https://evil.example"), null);
+  });
+
+  await step("upload: a fake photo is rejected by its real bytes", async () => {
+    const fd = new FormData();
+    fd.append("file", new Blob(["<script>alert(1)</script>"], { type: "image/jpeg" }), "x.jpg");
+    const res = await fetch(base + "/upload", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: fd,
+    });
+    assert.strictEqual(res.status, 400);
+  });
+
+  await step("changing the password signs out older sessions", async () => {
+    const old = token;
+    await new Promise((r) => setTimeout(r, 2500)); // iat is whole seconds; the check allows 2s slack
+    const res = await call("PUT", "/auth/change-password", {
+      currentPassword: "Kx7#mQv29!",
+      newPassword: "Zq4#Lm82Rt!v",
+    });
+    assert.strictEqual(res.status, 200, JSON.stringify(res));
+    const fresh = res.data.token;
+    token = old;
+    assert.strictEqual((await call("GET", "/auth/me")).status, 401, "old token must stop working");
+    token = fresh;
+    assert.strictEqual((await call("GET", "/auth/me")).status, 200, "new token works");
+  });
+
+  await step("Razorpay webhook: signed event books the invoice once", async () => {
+    const crypto = require("crypto");
+    const settings = await call("PUT", "/settings", { razorpayWebhookSecret: "whsec_test" });
+    assert.strictEqual(settings.status, 200, JSON.stringify(settings));
+    assert.strictEqual(settings.data.razorpayWebhookSecretSaved, true);
+    assert.strictEqual(settings.data.razorpayWebhookSecretEnc, undefined, "secret never returned");
+    const tenantId = settings.data.tenantId;
+    const inv = await call("POST", "/invoices", {
+      items: [{ description: "Month", unitPrice: 1000, gstPercent: 0 }],
+      payNow: 0, // without this the legacy default marks it paid in full
+    });
+    assert.strictEqual(inv.status, 201, JSON.stringify(inv));
+    assert.strictEqual(inv.data.status, "pending", "starts unpaid");
+    const body = JSON.stringify({
+      event: "payment.captured",
+      created_at: Math.floor(Date.now() / 1000),
+      payload: {
+        payment: {
+          entity: { id: "pay_TEST1", status: "captured", amount: 100000, notes: { invoiceId: inv.data._id } },
+        },
+      },
+    });
+    const send = (raw, sig) =>
+      fetch(`${base}/webhooks/razorpay/${tenantId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Razorpay-Signature": sig },
+        body: raw,
+      });
+    const good = crypto.createHmac("sha256", "whsec_test").update(body).digest("hex");
+    assert.strictEqual((await send(body, "deadbeef")).status, 400, "bad signature rejected");
+    assert.strictEqual((await send(body, good)).status, 200);
+    assert.strictEqual((await send(body, good)).status, 200, "replay is acknowledged");
+    const after = await call("GET", `/invoices/${inv.data._id}`);
+    assert.strictEqual(after.data.status, "paid");
+    assert.strictEqual(after.data.payments.length, 1, "a replay must not double-book");
+  });
+
+  // ── account security: verification, reset methods, 2FA, sessions ──────────
+  const speakeasy = require("speakeasy");
+  const User = require("../models/User");
+  const { hashOtp } = require("../utils/otpTools");
+  const crypto = require("crypto");
+  const EMAIL = "bravo@fit.gym";
+  const PHONE = "+919876501234";
+  let pw = "Zq4#Lm82Rt!v";
+  const plant = (set) => User.updateOne({ email: EMAIL }, set);
+  const sha = (t) => crypto.createHash("sha256").update(t).digest("hex");
+  const in10 = () => new Date(Date.now() + 600000);
+  const signIn = async (password = pw) => {
+    token = "";
+    const r = await call("POST", "/auth/login", { email: EMAIL, password });
+    assert.strictEqual(r.status, 200, JSON.stringify(r));
+    return r;
+  };
+
+  await step("verify phone with a WhatsApp code", async () => {
+    token = (await signIn()).data.token;
+    assert.strictEqual((await call("PUT", "/auth/me", { phone: PHONE })).status, 200);
+    assert.strictEqual((await call("GET", "/auth/me")).data.phoneVerified, false, "new number starts unverified");
+    await plant({ phoneVerifyOtp: hashOtp("111222"), phoneVerifyOtpExpire: in10(), phoneVerifyOtpTries: 0 });
+    assert.strictEqual((await call("POST", "/auth/phone/verify-otp", { otp: "000000" })).status, 400);
+    assert.strictEqual((await call("POST", "/auth/phone/verify-otp", { otp: "111222" })).status, 200);
+    assert.strictEqual((await call("GET", "/auth/me")).data.phoneVerified, true);
+    // changing the number resets the proof
+    assert.strictEqual((await call("PUT", "/auth/me", { phone: "+919876509999" })).status, 200);
+    assert.strictEqual((await call("GET", "/auth/me")).data.phoneVerified, false);
+    await call("PUT", "/auth/me", { phone: PHONE });
+    await plant({ phoneVerified: true });
+  });
+
+  await step("verify email with a code", async () => {
+    await plant({ pendingEmail: EMAIL, contactOtp: hashOtp("333444"), contactOtpExpire: in10(), contactOtpTries: 0 });
+    assert.strictEqual((await call("POST", "/auth/contact/email/verify-otp", { otp: "999999" })).status, 400);
+    assert.strictEqual((await call("POST", "/auth/contact/email/verify-otp", { otp: "333444" })).status, 200);
+    assert.strictEqual((await call("GET", "/auth/me")).data.emailVerified, true);
+  });
+
+  await step("forgot password: methods + WhatsApp code reset (single use, strong password)", async () => {
+    token = "";
+    const m = await call("GET", `/auth/forgot-password/methods?email=${EMAIL}`);
+    assert.deepStrictEqual(m.data.methods, ["email", "whatsapp", "totp", "backup", "passkey"], "same list for every address");
+    await plant({ resetOtp: hashOtp("555666"), resetOtpExpire: in10(), resetOtpTries: 0 });
+    const body = (password, otp = "555666") => ({ email: EMAIL, otp, password });
+    assert.strictEqual((await call("POST", "/auth/reset-password/otp", body("weakpass"))).status, 400, "weak password");
+    assert.strictEqual((await call("POST", "/auth/reset-password/otp", body("Fresh#Pass1", "000000"))).status, 400, "wrong code");
+    const okReset = await call("POST", "/auth/reset-password/otp", body("Fresh#Pass1"));
+    assert.strictEqual(okReset.status, 200, JSON.stringify(okReset));
+    assert.strictEqual((await call("POST", "/auth/reset-password/otp", body("Other#Pass1"))).status, 400, "code is single use");
+    pw = "Fresh#Pass1";
+    await signIn();
+  });
+
+  await step("forgot password: emailed link works once", async () => {
+    await plant({ resetPasswordToken: sha("linktoken"), resetPasswordExpire: in10() });
+    assert.strictEqual((await call("POST", "/auth/reset-password/linktoken", { password: "nope" })).status, 400);
+    assert.strictEqual((await call("POST", "/auth/reset-password/linktoken", { password: "Linked#Pass1" })).status, 200);
+    assert.strictEqual((await call("POST", "/auth/reset-password/linktoken", { password: "Again#Pass1" })).status, 400, "link is single use");
+    pw = "Linked#Pass1";
+    await signIn();
+  });
+
+  await step("email code sign-in", async () => {
+    token = "";
+    await plant({ emailLoginOtp: hashOtp("777888"), emailLoginOtpExpire: in10(), emailLoginOtpTries: 0 });
+    assert.strictEqual((await call("POST", "/auth/login/email-otp/verify", { email: EMAIL, otp: "000000" })).status, 401);
+    const ok = await call("POST", "/auth/login/email-otp/verify", { email: EMAIL, otp: "777888" });
+    assert.strictEqual(ok.status, 200);
+    assert.ok(ok.data.token);
+  });
+
+  let backup;
+  await step("2FA: setup, confirm, login needs the code, backup code works once", async () => {
+    token = (await signIn()).data.token;
+    const setup = await call("POST", "/auth/2fa/setup");
+    assert.strictEqual(setup.status, 200);
+    assert.ok(setup.data.qr.startsWith("data:image/png"));
+    const totp = () => speakeasy.totp({ secret: setup.data.secret, encoding: "base32" });
+    assert.strictEqual((await call("POST", "/auth/2fa/confirm", { token: "000000" })).status, 400);
+    const confirm = await call("POST", "/auth/2fa/confirm", { token: totp() });
+    assert.strictEqual(confirm.status, 200, JSON.stringify(confirm));
+    assert.strictEqual(confirm.data.backupCodes.length, 10);
+    backup = confirm.data.backupCodes;
+
+    token = "";
+    const first = await call("POST", "/auth/login", { email: EMAIL, password: pw });
+    assert.strictEqual(first.data.requires2FA, true);
+    assert.strictEqual(first.data.token, undefined, "password alone gives no session");
+    token = first.data.pendingToken;
+    assert.strictEqual((await call("GET", "/auth/me")).status, 401, "pending token is not a session");
+    token = "";
+    assert.strictEqual((await call("POST", "/auth/2fa/verify", { pendingToken: first.data.pendingToken, token: "000000" })).status, 401);
+    const done = await call("POST", "/auth/2fa/verify", { pendingToken: first.data.pendingToken, token: totp() });
+    assert.strictEqual(done.status, 200, JSON.stringify(done));
+    token = done.data.token;
+    assert.strictEqual((await call("GET", "/auth/me")).status, 200);
+
+    token = "";
+    const viaBackup = await call("POST", "/auth/login/backup", { email: EMAIL, code: backup[0] });
+    assert.strictEqual(viaBackup.status, 200, JSON.stringify(viaBackup));
+    assert.strictEqual((await call("POST", "/auth/login/backup", { email: EMAIL, code: backup[0] })).status, 401, "backup code is single use");
+    token = viaBackup.data.token;
+    assert.strictEqual((await call("GET", "/auth/backup-codes")).data.remaining, 9);
+    // turning it off needs password + a code
+    assert.strictEqual((await call("POST", "/auth/2fa/disable", { token: totp(), password: "wrong" })).status, 400);
+    assert.strictEqual((await call("POST", "/auth/2fa/disable", { token: totp(), password: pw })).status, 200);
+    assert.strictEqual((await call("GET", "/auth/me")).data.twoFactorEnabled, false);
+  });
+
+  await step("insights report runs (churn, cohorts, LTV, trainers)", async () => {
+    const r = await call("GET", "/reports/insights");
+    assert.strictEqual(r.status, 200, JSON.stringify(r));
+    assert.ok(Array.isArray(r.data.churn) && Array.isArray(r.data.cohorts) && r.data.ltv && Array.isArray(r.data.trainers));
+  });
+
+  await step("devices: list, sign out another, sign out current", async () => {
+    const a = (await signIn()).data.token;
+    const b2 = (await signIn()).data.token;
+    token = b2;
+    const list = await call("GET", "/auth/sessions");
+    assert.ok(list.data.length >= 2);
+    assert.strictEqual(list.data.filter((s) => s.current).length, 1);
+    assert.strictEqual((await call("DELETE", "/auth/sessions/others")).status, 200);
+    token = a;
+    assert.strictEqual((await call("GET", "/auth/me")).status, 401, "other device was signed out");
+    token = b2;
+    const me = await call("GET", "/auth/sessions");
+    assert.strictEqual(me.data.length, 1);
+    assert.strictEqual((await call("DELETE", `/auth/sessions/${me.data[0]._id}`)).status, 200);
+    assert.strictEqual((await call("GET", "/auth/me")).status, 401, "current device signed out");
   });
 
   console.log(process.exitCode ? "\nSMOKE FAILED" : "\nSMOKE PASSED");

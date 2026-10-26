@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { uploadedPhoto } = require("../utils/uploadedPhoto");
+const { FIELD, encryptOnSave, SENSITIVE_MEMBER_PATHS } = require("../utils/fieldCrypt");
 
 const memberSchema = new mongoose.Schema(
   {
@@ -49,12 +50,12 @@ const memberSchema = new mongoose.Schema(
           "other",
         ],
       },
-      number: { type: String, trim: true },
+      number: { type: String, trim: true, ...FIELD },
       file: { type: String },
     },
     emergencyContact: {
-      name: { type: String, trim: true },
-      phone: { type: String, trim: true },
+      name: { type: String, trim: true, ...FIELD },
+      phone: { type: String, trim: true, ...FIELD },
       relation: { type: String, trim: true },
     },
     // PAR-Q style health screen, captured at joining
@@ -64,15 +65,15 @@ const memberSchema = new mongoose.Schema(
         enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", ""],
         default: "",
       },
-      conditions: [{ type: String, trim: true }], // diabetes, hypertension, asthma, heart, thyroid, pcos...
-      injuries: { type: String, trim: true },
-      allergies: { type: String, trim: true },
-      medications: { type: String, trim: true },
+      conditions: [{ type: String, trim: true, ...FIELD }], // diabetes, hypertension, asthma, heart, thyroid, pcos...
+      injuries: { type: String, trim: true, ...FIELD },
+      allergies: { type: String, trim: true, ...FIELD },
+      medications: { type: String, trim: true, ...FIELD },
       pregnant: { type: Boolean, default: false },
       doctorClearance: { type: Boolean, default: false },
       declarationSignedAt: { type: Date }, // liability waiver / PAR-Q accepted
     },
-    medicalNotes: { type: String, trim: true },
+    medicalNotes: { type: String, trim: true, ...FIELD },
     fitness: {
       goal: {
         type: String,
@@ -133,8 +134,11 @@ const memberSchema = new mongoose.Schema(
       default: "active",
     },
     notes: { type: String, trim: true },
+    walletBalance: { type: Number, default: 0, min: 0 }, // rupees, see WalletLedger
+    erasedAt: { type: Date }, // personal data wiped on request / retention (invoices kept for tax law)
+    deletedAt: { type: Date }, // soft delete: hidden from lists, restorable
   },
-  { timestamps: true },
+  { timestamps: true, toJSON: { getters: true, virtuals: false }, toObject: { getters: true, virtuals: false } },
 );
 
 memberSchema.index({ tenantId: 1, branchId: 1 });
@@ -153,4 +157,8 @@ memberSchema.index({
   memberCode: "text",
 });
 
+// sensitive fields are encrypted at rest (legacy plaintext rows are encrypted on their next save)
+encryptOnSave(memberSchema, SENSITIVE_MEMBER_PATHS);
+
+memberSchema.plugin(require("../utils/softDelete"));
 module.exports = mongoose.model("Member", memberSchema);

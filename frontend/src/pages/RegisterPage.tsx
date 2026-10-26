@@ -1,4 +1,5 @@
 import { PhoneInput } from "@/components/ui/PhoneInput";
+import Turnstile from "@/components/Turnstile";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +11,7 @@ import {
   labelCls,
   primaryBtnCls,
 } from "@/components/auth/AuthShell";
+import PasswordChecklist from "@/components/PasswordChecklist";
 
 // Same flow as Nest HR: a short signup (name, email, password), then the onboarding wizard
 // collects the gym details and takes payment.
@@ -112,13 +114,24 @@ export default function RegisterPage() {
             type="password"
             value={form.password}
             onChange={set("password")}
-            placeholder="Min. 8 characters"
+            placeholder="Create a strong password"
             className={inputCls}
             required
             minLength={8}
             autoComplete="new-password"
           />
+        {form.password && <PasswordChecklist password={form.password} />}
         </div>
+        <label className="flex items-start gap-2 text-xs text-gray-600">
+          <input type="checkbox" required className="mt-0.5 accent-[#024BAB]" />
+          <span>
+            I agree to the{" "}
+            <a href="https://www.pixelatenest.com/legal/terms-of-service.html" target="_blank" rel="noopener noreferrer" className="font-bold text-[#024BAB] hover:underline">Terms of Service</a>{" "}
+            and{" "}
+            <a href="https://www.pixelatenest.com/legal/privacy-policy.html" target="_blank" rel="noopener noreferrer" className="font-bold text-[#024BAB] hover:underline">Privacy Policy</a>.
+          </span>
+        </label>
+        <Turnstile />
         <button type="submit" disabled={loading} className={primaryBtnCls}>
           {loading ? (
             <>

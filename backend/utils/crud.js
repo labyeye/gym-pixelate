@@ -104,7 +104,8 @@ function crud(Model, opts = {}) {
   const remove = asyncHandler(async (req, res) => {
     const doc = await Model.findById(req.params.id);
     if (!doc) throw fail(404, `${mod || "Record"} not found`);
-    await Model.deleteOne({ _id: doc._id });
+    if (Model.schema.path("deletedAt")) await Model.updateOne({ _id: doc._id }, { deletedAt: new Date() });
+    else await Model.deleteOne({ _id: doc._id });
     log(
       req,
       "DELETE",

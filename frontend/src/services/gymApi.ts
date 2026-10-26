@@ -61,6 +61,7 @@ export const gym = {
     ...resource("memberships"),
     renew: (id: string, b: any) => post(`/memberships/${id}/renew`, b),
     upgrade: (id: string, b: any) => post(`/memberships/${id}/upgrade`, b),
+    upgradeQuote: (id: string, planId: string) => get(`/memberships/${id}/upgrade-quote`, { planId }),
     freeze: (id: string, b: any) => post(`/memberships/${id}/freeze`, b),
     unfreeze: (id: string) => post(`/memberships/${id}/unfreeze`),
     cancel: (id: string, b: any) => post(`/memberships/${id}/cancel`, b),
@@ -128,6 +129,7 @@ export const gym = {
     renewals: (p?: any) => get("/reports/renewals", p),
     birthdays: (p?: any) => get("/reports/birthdays", p),
     gst: (p?: any) => get("/reports/gst", p),
+    insights: (p?: any) => get("/reports/insights", p),
   },
   paymentLinks: {
     forInvoice: (id: string) => post(`/payment-links/invoice/${id}`),
@@ -140,6 +142,5 @@ export const gym = {
     subscription: () => get("/billing/subscription"),
     razorpayOrder: (b: any) => post("/billing/razorpay/create-order", b),
     razorpayVerify: (b: any) => post("/billing/razorpay/verify", b),
-    hdfcOrder: (b: any) => post("/billing/hdfc/create-order", b),
   },
 };

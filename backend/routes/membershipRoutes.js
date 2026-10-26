@@ -34,6 +34,11 @@ router.post(
   checkPermission("Memberships", "update"),
   c.renewMembership,
 );
+router.get(
+  "/:id/upgrade-quote",
+  checkPermission("Memberships", "update"),
+  c.upgradeQuote,
+);
 router.post(
   "/:id/upgrade",
   checkPermission("Memberships", "update"),

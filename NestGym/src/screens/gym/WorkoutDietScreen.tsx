@@ -7,7 +7,8 @@ import { useFetch } from '../../hooks/useFetch';
 import { C, S } from '../../theme';
 import { fmtDate, titleCase } from '../../utils/format';
 import { MemberPicker, useTrainers } from '../../components/pickers';
-import { Btn, CheckField, Empty, Input, Loader, Pill, Row, Screen, Select, Sheet, StatCard, StatGrid, Tabs, notify, RCard } from '../../components/ui';
+import { Btn, CheckField, Empty, Input, Loader, Pill, Row, Screen, Select, Sheet, StatCard, StatGrid, Tabs, notify, RCard, Pair } from '../../components/ui';
+import { Layers as StatLayers, Users as StatUsers } from 'lucide-react-native';
 
 const GOALS = ['weight_loss', 'muscle_gain', 'strength', 'endurance', 'flexibility', 'general_fitness', 'rehab'];
 const MUSCLES = ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'legs', 'glutes', 'core', 'cardio', 'full_body', 'other'];
@@ -80,9 +81,9 @@ export default function WorkoutDietScreen() {
   return (
     <Screen title="Workout & Diet" refreshing={loading && !!data} onRefresh={reload} right={canWrite ? <Btn small label="New" icon={<Plus size={14} color="#fff" />} onPress={() => openNew()} /> : undefined}>
       <StatGrid>
-        <StatCard label={tab === 'workout' ? 'Workout plans' : 'Diet plans'} value={data?.total ?? 0} color="#024BAB" />
-        <StatCard label="Templates" value={rows.filter(r => r.isTemplate).length} color="#A855F7" />
-        <StatCard label="Assigned to members" value={rows.filter(r => !r.isTemplate).length} color="#FA731C" />
+        <StatCard label={tab === 'workout' ? 'Workout plans' : 'Diet plans'} value={data?.total ?? 0} icon={<StatLayers />} color="#024BAB" />
+        <StatCard label="Templates" value={rows.filter(r => r.isTemplate).length} icon={<StatLayers />} color="#A855F7" />
+        <StatCard label="Assigned to members" value={rows.filter(r => !r.isTemplate).length} icon={<StatUsers />} color="#FA731C" />
       </StatGrid>
       <Tabs value={tab} onChange={t => { setTab(t); setView(''); }} tabs={[{ id: 'workout', label: 'Workout' }, { id: 'diet', label: 'Diet' }]} />
       <Tabs value={view} onChange={setView} tabs={[{ id: '', label: 'All' }, { id: 'templates', label: 'Templates' }, { id: 'assigned', label: 'Assigned' }]} />
@@ -110,21 +111,29 @@ export default function WorkoutDietScreen() {
       <Sheet visible={!!edit} title={`${edit === 'new' ? 'New' : 'Edit'} ${tab} plan`} onClose={() => setEdit(null)} footer={<><Btn light label="Cancel" onPress={() => setEdit(null)} /><Btn label="Save plan" busy={busy} onPress={save} /></>}>
         {tab === 'workout' ? (
           <>
-            <Input label="Plan name" required value={w.name} onChangeText={v => setW({ ...w, name: v })} placeholder="PPL 6-day hypertrophy" />
-            <Select label="Goal" options={GOALS} value={w.goal} onChange={v => setW({ ...w, goal: v })} allowEmpty placeholder="—" />
-            <Select label="Level" options={['beginner', 'intermediate', 'advanced']} value={w.level} onChange={v => setW({ ...w, level: v })} allowEmpty placeholder="—" />
-            <Input label="Duration (weeks)" keyboardType="number-pad" value={w.weeks} onChangeText={v => setW({ ...w, weeks: v })} />
+            <Pair>
+              <Input label="Plan name" required value={w.name} onChangeText={v => setW({ ...w, name: v })} placeholder="PPL 6-day hypertrophy" />
+              <Select label="Goal" options={GOALS} value={w.goal} onChange={v => setW({ ...w, goal: v })} allowEmpty placeholder="—" />
+            </Pair>
+            <Pair>
+              <Select label="Level" options={['beginner', 'intermediate', 'advanced']} value={w.level} onChange={v => setW({ ...w, level: v })} allowEmpty placeholder="—" />
+              <Input label="Duration (weeks)" keyboardType="number-pad" value={w.weeks} onChangeText={v => setW({ ...w, weeks: v })} />
+            </Pair>
             <Select label="Trainer" options={trainers} value={w.trainerId} onChange={v => setW({ ...w, trainerId: v })} allowEmpty placeholder="—" />
             <CheckField label="Template" hint="Save as reusable template" value={w.isTemplate} onChange={v => setW({ ...w, isTemplate: v })} />
             {!w.isTemplate && <MemberPicker label="Assign to member" required value={w.member} onChange={m => setW({ ...w, member: m })} />}
             {w.days.map((dy: any, i: number) => (
               <RCard key={i} style={[S.card, { padding: 10 }]}>
-                <Input label="Day" value={dy.label} onChangeText={v => setDayAt(i, { label: v })} />
-                <Input label="Focus" placeholder="Chest + Triceps" value={dy.focus} onChangeText={v => setDayAt(i, { focus: v })} />
+                <Pair>
+                  <Input label="Day" value={dy.label} onChangeText={v => setDayAt(i, { label: v })} />
+                  <Input label="Focus" placeholder="Chest + Triceps" value={dy.focus} onChangeText={v => setDayAt(i, { focus: v })} />
+                </Pair>
                 {dy.exercises.map((e: any, k: number) => (
                   <View key={k} style={{ borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 10, marginTop: 4 }}>
-                    <Input label={`Exercise ${k + 1}`} value={e.name} onChangeText={v => setExAt(i, k, { name: v })} />
-                    <Select label="Muscle group" options={MUSCLES} value={e.muscleGroup} onChange={v => setExAt(i, k, { muscleGroup: v })} />
+                    <Pair>
+                      <Input label={`Exercise ${k + 1}`} value={e.name} onChangeText={v => setExAt(i, k, { name: v })} />
+                      <Select label="Muscle group" options={MUSCLES} value={e.muscleGroup} onChange={v => setExAt(i, k, { muscleGroup: v })} />
+                    </Pair>
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                       <View style={{ flex: 1 }}><Input label="Sets" keyboardType="number-pad" value={e.sets} onChangeText={v => setExAt(i, k, { sets: v })} /></View>
                       <View style={{ flex: 1 }}><Input label="Reps" value={e.reps} onChangeText={v => setExAt(i, k, { reps: v })} /></View>
@@ -144,19 +153,27 @@ export default function WorkoutDietScreen() {
           </>
         ) : (
           <>
-            <Input label="Plan name" required value={d.name} onChangeText={v => setD({ ...d, name: v })} placeholder="1800 kcal fat-loss (veg)" />
-            <Select label="Diet type" options={['veg', 'non_veg', 'eggetarian', 'vegan', 'jain']} value={d.type} onChange={v => setD({ ...d, type: v })} />
-            <Select label="Goal" options={['weight_loss', 'muscle_gain', 'maintenance', 'general_health']} value={d.goal} onChange={v => setD({ ...d, goal: v })} allowEmpty placeholder="—" />
-            <Input label="Target calories" keyboardType="number-pad" value={d.targetCalories} onChangeText={v => setD({ ...d, targetCalories: v })} />
-            <Input label="Protein target (g)" keyboardType="number-pad" value={d.targetProteinG} onChangeText={v => setD({ ...d, targetProteinG: v })} />
-            <Input label="Water (litres)" keyboardType="decimal-pad" value={d.waterLitres} onChangeText={v => setD({ ...d, waterLitres: v })} />
+            <Pair>
+              <Input label="Plan name" required value={d.name} onChangeText={v => setD({ ...d, name: v })} placeholder="1800 kcal fat-loss (veg)" />
+              <Select label="Diet type" options={['veg', 'non_veg', 'eggetarian', 'vegan', 'jain']} value={d.type} onChange={v => setD({ ...d, type: v })} />
+            </Pair>
+            <Pair>
+              <Select label="Goal" options={['weight_loss', 'muscle_gain', 'maintenance', 'general_health']} value={d.goal} onChange={v => setD({ ...d, goal: v })} allowEmpty placeholder="—" />
+              <Input label="Target calories" keyboardType="number-pad" value={d.targetCalories} onChangeText={v => setD({ ...d, targetCalories: v })} />
+            </Pair>
+            <Pair>
+              <Input label="Protein target (g)" keyboardType="number-pad" value={d.targetProteinG} onChangeText={v => setD({ ...d, targetProteinG: v })} />
+              <Input label="Water (litres)" keyboardType="decimal-pad" value={d.waterLitres} onChangeText={v => setD({ ...d, waterLitres: v })} />
+            </Pair>
             <CheckField hint="Save as reusable template" value={d.isTemplate} onChange={v => setD({ ...d, isTemplate: v })} />
             {!d.isTemplate && <MemberPicker label="Assign to member" required value={d.member} onChange={m => setD({ ...d, member: m })} />}
             <Text style={[S.label, { marginBottom: 6 }]}>Meals</Text>
             {d.meals.map((m: any, i: number) => (
               <RCard key={i} style={[S.card, { padding: 10 }]}>
-                <Select label="Slot" options={SLOTS} value={m.slot} onChange={v => setMealAt(i, { slot: v })} />
-                <Input label="Items" placeholder="2 roti, dal, sabzi, curd" value={m.items} onChangeText={v => setMealAt(i, { items: v })} />
+                <Pair>
+                  <Select label="Slot" options={SLOTS} value={m.slot} onChange={v => setMealAt(i, { slot: v })} />
+                  <Input label="Items" placeholder="2 roti, dal, sabzi, curd" value={m.items} onChangeText={v => setMealAt(i, { items: v })} />
+                </Pair>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <View style={{ flex: 1 }}><Input label="kcal" keyboardType="number-pad" value={m.calories} onChangeText={v => setMealAt(i, { calories: v })} /></View>
                   <View style={{ flex: 1 }}><Input label="Protein g" keyboardType="number-pad" value={m.proteinG} onChangeText={v => setMealAt(i, { proteinG: v })} /></View>

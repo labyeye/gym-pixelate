@@ -53,6 +53,7 @@ export const gym = {
     ...resource('memberships'),
     renew: (id: string, b: any) => post(`/memberships/${id}/renew`, b),
     upgrade: (id: string, b: any) => post(`/memberships/${id}/upgrade`, b),
+    upgradeQuote: (id: string, planId: string) => get(`/memberships/${id}/upgrade-quote`, { planId }),
     freeze: (id: string, b: any) => post(`/memberships/${id}/freeze`, b),
     unfreeze: (id: string) => post(`/memberships/${id}/unfreeze`),
     cancel: (id: string, b: any) => post(`/memberships/${id}/cancel`, b),

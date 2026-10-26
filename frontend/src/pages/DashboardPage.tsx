@@ -31,6 +31,8 @@ import { dashboardService } from "@/services/dashboardService";
 import { gym } from "@/services/gymApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { Panel, StatCard, fmtDate, inr } from "@/components/gym/kit";
+import RangeChartPanel from "@/components/gym/RangeChartPanel";
+import { moduleOn } from "@/config/modules";
 
 const NbTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -53,7 +55,7 @@ const Empty = ({ children }: { children: React.ReactNode }) => (
 );
 
 export default function DashboardPage() {
-  const { user, tenant } = useAuth();
+  const { user, tenant, modules } = useAuth();
   const manager = !!user && ["gym_owner", "branch_manager"].includes(user.role);
   const money =
     !!user && ["gym_owner", "branch_manager", "accountant"].includes(user.role);
@@ -88,10 +90,6 @@ export default function DashboardPage() {
   const ann = useQuery({
     queryKey: ["dash-ann"],
     queryFn: () => gym.announcements.active(),
-  });
-  const sessions = useQuery({
-    queryKey: ["dash-classes"],
-    queryFn: () => gym.classes.sessions({ days: 1 }),
   });
   const log = useQuery({
     queryKey: ["dash-activity"],
@@ -217,107 +215,32 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         {money && (
-          <Panel title="Collections — last 30 days">
-            <ResponsiveContainer width="100%" height={210}>
-              <AreaChart data={ch.revenueByDay || []}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#E5E7EB"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(d) => d.slice(8)}
-                  tick={{ fontSize: 10, fontWeight: 700 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fontWeight: 700 }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={44}
-                />
-                <Tooltip content={<NbTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  name="Revenue"
-                  stroke="#024BAB"
-                  strokeWidth={3}
-                  fill="#024BAB22"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </Panel>
+          <RangeChartPanel
+            title="Collections"
+            seriesName="Collected"
+            color="#024BAB"
+            money
+            daily={(ch.revenueByDay || []).map((d: any) => ({ key: d.date, value: d.revenue }))}
+            monthly={(ch.revenueByMonth || []).map((d: any) => ({ key: d.month, value: d.revenue }))}
+          />
         )}
-        <Panel title="New memberships — 12 months">
-          <ResponsiveContainer width="100%" height={210}>
-            <BarChart data={ch.membershipGrowth || []}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="#E5E7EB"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="month"
-                tick={{ fontSize: 10, fontWeight: 700 }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fontWeight: 700 }}
-                tickLine={false}
-                axisLine={false}
-                width={28}
-                allowDecimals={false}
-              />
-              <Tooltip content={<NbTooltip />} cursor={{ fill: "#024BAB22" }} />
-              <Bar
-                dataKey="newMemberships"
-                name="New"
-                fill="#00C48C"
-                stroke="#0A0A0A"
-                strokeWidth={2}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </Panel>
-        <Panel
-          title="Today's classes"
-          right={
-            <Link
-              to="/classes"
-              className="text-[11px] font-black uppercase underline"
-            >
-              All
-            </Link>
-          }
-        >
-          {(sessions.data?.data || []).length === 0 ? (
-            <Empty>No classes left today</Empty>
-          ) : (
-            <ul className="nb-list divide-y divide-black/10">
-              {(sessions.data?.data || []).slice(0, 6).map((x: any) => (
-                <li
-                  key={x.classId + x.sessionDate}
-                  className="py-2 flex justify-between gap-2 text-sm"
-                >
-                  <span className="font-black">
-                    {new Date(x.sessionDate).toLocaleTimeString("en-IN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}{" "}
-                    · {x.name}
-                  </span>
-                  <span className="font-bold text-black/60">
-                    {x.booked}/{x.capacity}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
+        {(money || desk) && moduleOn(modules, "pos") && (
+          <RangeChartPanel
+            title="Shop / POS revenue"
+            seriesName="POS sales"
+            color="#FA731C"
+            money
+            daily={(ch.posByDay || []).map((d: any) => ({ key: d.date, value: d.revenue }))}
+            monthly={(ch.posByMonth || []).map((d: any) => ({ key: d.month, value: d.revenue }))}
+          />
+        )}
+        <RangeChartPanel
+          title="New memberships"
+          seriesName="New"
+          color="#00C48C"
+          daily={(ch.membersByDay || []).map((d: any) => ({ key: d.date, value: d.count }))}
+          monthly={(ch.membershipGrowth || []).map((d: any) => ({ key: d.month, value: d.newMemberships }))}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">

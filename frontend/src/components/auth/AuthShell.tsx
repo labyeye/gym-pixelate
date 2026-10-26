@@ -1,12 +1,6 @@
 import loginDash from "@/assets/images/login-dash.png";
-import {
-  Dumbbell,
-  Users,
-  CreditCard,
-  BarChart2,
-  Check,
-} from "lucide-react";
-
+import { Dumbbell, Users, CreditCard, BarChart2, Check } from "lucide-react";
+import nestgymlogo from "../../assets/images/logo_long.png";
 const FEATURES = [
   { icon: Users, label: "Members & Plans" },
   { icon: Dumbbell, label: "Trainers & Classes" },
@@ -17,14 +11,7 @@ const FEATURES = [
 export function Brand({ light = false }: { light?: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="w-11 h-11 bg-[#024BAB] border-2 border-black flex items-center justify-center shrink-0">
-        <Dumbbell className="w-6 h-6 text-white" />
-      </div>
-      <span
-        className={`font-display font-bold text-2xl ${light ? "text-white" : "text-black"}`}
-      >
-        NestGym
-      </span>
+      <img src={nestgymlogo} className="h-14 w-auto object-contain bg-white" />
     </div>
   );
 }
@@ -52,7 +39,7 @@ export function AuthShell({
         <img
           src={loginDash}
           alt="Dashboard preview"
-          className="relative z-10 max-w-3xl mx-auto"
+          className="relative z-10 max-w-auto mx-auto"
         />
 
         <div className="relative z-10">

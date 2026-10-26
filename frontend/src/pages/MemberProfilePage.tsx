@@ -53,6 +53,9 @@ import {
 import { printInvoice } from "@/components/gym/printInvoice";
 import { Modal as PModal } from "@/components/gym/kit";
 import { KeyRound } from "lucide-react";
+import AutopayButton from "@/components/gym/AutopayButton";
+import WalletPanel from "@/components/gym/WalletPanel";
+import PrivacyPanel from "@/components/gym/PrivacyPanel";
 
 function Spark({
   points,
@@ -217,6 +220,7 @@ export default function MemberProfilePage() {
             <KeyRound className="w-4 h-4" />{" "}
             {member.userId ? "Reset portal login" : "Portal login"}
           </Btn>
+          {current && <AutopayButton member={member} membership={current} />}
           <Btn
             light
             onClick={() =>
@@ -559,6 +563,8 @@ export default function MemberProfilePage() {
 
       {tab === "about" && (
         <div className="grid lg:grid-cols-2 gap-4">
+          <WalletPanel member={member} invoices={invoices} />
+          <PrivacyPanel member={member} />
           <Panel title="Details">
             {[
               ["Gender", member.gender],

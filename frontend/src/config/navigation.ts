@@ -24,6 +24,7 @@ import {
   LockKeyhole,
   Crown,
   UserCog,
+  BadgeCheck,
 } from "lucide-react";
 
 export type NavIconComponent =
@@ -72,6 +73,12 @@ const allGroups: NavGroup[] = [
         title: "Members",
         href: "/members",
         icon: Users,
+        roles: [...DESK, "trainer"],
+      },
+      {
+        title: "Memberships",
+        href: "/memberships",
+        icon: BadgeCheck,
         roles: [...DESK, "trainer"],
       },
       {

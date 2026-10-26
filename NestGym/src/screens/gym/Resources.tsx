@@ -3,8 +3,14 @@
 import React, { useState } from 'react';
 import { Linking } from 'react-native';
 import {
+  Apple,
   CalendarClock,
+  Clock3,
+  Dumbbell,
+  Flame,
   Layers,
+  Snowflake,
+  Users,
   Megaphone,
   Receipt,
   Ruler,
@@ -18,7 +24,9 @@ import {
 } from 'lucide-react-native';
 import ResourceScreen from '../../components/ResourceScreen';
 import { MemberPicker } from '../../components/pickers';
-import { Btn, Input, Select, Sheet, StatCard, StatGrid, notify } from '../../components/ui';
+import { Btn, Input, MiniStat, MiniStatRow, Pill, Select, Sheet, StatCard, StatGrid, notify } from '../../components/ui';
+import { Text, View } from 'react-native';
+import { C, S } from '../../theme';
 import { gym } from '../../api/gym';
 import { fmtDate, inr, titleCase, todayStr, waLink } from '../../utils/format';
 
@@ -34,23 +42,74 @@ export function PlansScreen() {
       api={gym.plans}
       filters={[{ key: 'isActive', label: 'plans', options: ['true', 'false'] }]}
       stats={(rows, total) => (
-        <StatGrid>
-          <StatCard label="Plans" value={total} icon={I(Layers)} color="#024BAB" />
-          <StatCard label="On sale" value={rows.filter(r => r.isActive).length} icon={I(Tag)} color="#00C48C" />
-        </StatGrid>
+        <MiniStatRow>
+          <MiniStat label="Plans" value={total} icon={Layers} color="#024BAB" />
+          <MiniStat label="On sale" value={rows.filter(r => r.isActive).length} icon={Tag} color="#00C48C" />
+          <MiniStat label="Subscribers" value={rows.reduce((n, r) => n + (r.subscribers?.active || 0), 0)} icon={Users} color="#FA731C" />
+          <MiniStat label="Freezing" value={rows.filter(r => r.freezeAllowedDays > 0).length} icon={Snowflake} color="#14B8A6" />
+        </MiniStatRow>
       )}
-      card={r => ({
-        title: r.name,
-        subtitle: `${titleCase(r.category)} · ${titleCase(r.type)}`,
-        pill: r.isActive ? 'active' : 'inactive',
-        value: inr(r.price),
-        lines: [
-          ['Duration', `${r.durationDays} days`],
-          ['GST', `${r.gstPercent}% ${r.priceIncludesGst ? 'incl.' : 'extra'}${r.admissionFee ? ` · +${inr(r.admissionFee)} joining` : ''}`],
-          ['Includes', [r.includes?.classes && 'Classes', r.includes?.ptSessions > 0 && `${r.includes.ptSessions} PT`, r.includes?.locker && 'Locker', r.includes?.steamSauna && 'Steam', r.includes?.dietConsult && 'Diet'].filter(Boolean).join(', ') || '—'],
-          ['Freeze', r.freezeAllowedDays ? `${r.freezeAllowedDays}d × ${r.maxFreezes}` : 'No'],
-        ],
-      })}
+      card={r => ({ title: r.name })}
+      renderCard={(r, actions) => {
+        const inc = [
+          r.includes?.classes && { icon: CalendarClock, t: 'Classes' },
+          r.includes?.ptSessions > 0 && { icon: Dumbbell, t: `${r.includes.ptSessions} PT` },
+          r.includes?.locker && { icon: LockKeyhole, t: 'Locker' },
+          r.includes?.steamSauna && { icon: Flame, t: 'Steam' },
+          r.includes?.dietConsult && { icon: Apple, t: 'Diet' },
+        ].filter(Boolean) as { icon: any; t: string }[];
+        return (
+          <>
+            <View style={S.rowBetween}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                <View style={{ width: 40, height: 40, borderRadius: 8, borderWidth: 2, borderColor: '#024BAB', backgroundColor: '#024BAB1A', alignItems: 'center', justifyContent: 'center' }}>
+                  <Layers size={20} color="#024BAB" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={S.h3} numberOfLines={1}>{r.name}</Text>
+                  <Text style={S.small} numberOfLines={1}>{titleCase(r.category)} · {titleCase(r.type)}</Text>
+                </View>
+              </View>
+              <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                <Text style={[S.h2, { color: C.primary }]}>{inr(r.price)}</Text>
+                <Pill value={r.isActive ? 'active' : 'inactive'} />
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', marginTop: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#E5E7EB' }}>
+              {[
+                [Clock3, `${r.durationDays} days`, 'Duration'],
+                [Tag, `${r.gstPercent}% ${r.priceIncludesGst ? 'incl.' : 'extra'}`, 'GST'],
+                [Snowflake, r.freezeAllowedDays ? `${r.freezeAllowedDays}d × ${r.maxFreezes}` : 'No', 'Freeze'],
+              ].map(([Ic, v, k]: any, i) => (
+                <View key={k} style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderLeftWidth: i ? 1 : 0, borderColor: '#E5E7EB' }}>
+                  <Ic size={14} color={C.primary} />
+                  <Text style={[S.body, { fontSize: 12, fontFamily: 'Inter-Bold', marginTop: 2 }]}>{v}</Text>
+                  <Text style={[S.small, { fontSize: 9, textTransform: 'uppercase' }]}>{k}</Text>
+                </View>
+              ))}
+            </View>
+            {(inc.length > 0 || !!r.admissionFee) && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                {inc.map(x => (
+                  <View key={x.t} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F3F4F6', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
+                    <x.icon size={11} color={C.black} />
+                    <Text style={[S.small, { color: C.black, fontSize: 11 }]}>{x.t}</Text>
+                  </View>
+                ))}
+                {!!r.admissionFee && <Text style={[S.small, { alignSelf: 'center' }]}>+{inr(r.admissionFee)} joining</Text>}
+              </View>
+            )}
+            <View style={[S.rowBetween, { marginTop: 10 }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Users size={15} color={C.primary} />
+                <Text style={[S.body, { fontFamily: 'Inter-Bold' }]}>{r.subscribers?.active ?? 0} subscribers</Text>
+                <Text style={S.small}>· {r.subscribers?.total ?? 0} all-time</Text>
+              </View>
+              {actions}
+            </View>
+          </>
+        );
+      }}
       fields={[
         { key: 'name', label: 'Plan name', required: true, placeholder: 'Gold – 3 months' },
         { key: 'type', label: 'Duration type', type: 'select', options: PLAN_TYPES, default: 'monthly', required: true },

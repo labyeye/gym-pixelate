@@ -523,6 +523,8 @@ async function sellMembership({
       { $set: { membershipId: membership._id } },
     );
     invoice.membershipId = membership._id;
+    if (!hadBefore && invoice.paidAmount > 0)
+      require("./wallet").rewardReferral(tenantId, member).catch((e) => console.error("[referral]", e.message));
     return { invoice, membership };
   } catch (e) {
     // don't leave a bill for a membership that was never created

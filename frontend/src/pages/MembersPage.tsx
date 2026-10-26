@@ -130,6 +130,7 @@ const EMPTY = {
   },
   source: "walk_in",
   trainerId: "",
+  referrerCode: "",
   emergencyContact: { name: "", phone: "", relation: "" },
   idProof: { type: "", number: "" },
   notes: "",
@@ -145,6 +146,10 @@ export default function MembersPage() {
   const [status, setStatus] = useState("");
   const [fl, setFl] = useState<Record<string, string>>({});
   const plans = usePlans(false);
+  const salePlans = usePlans(true);
+  const [planId, setPlanId] = useState("");
+  const [payNow, setPayNow] = useState("");
+  const [payMethod, setPayMethod] = useState("cash");
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<any>(null); // "new" | member
   const [form, setForm] = useState<any>(EMPTY);
@@ -177,6 +182,9 @@ export default function MembersPage() {
 
   const openNew = () => {
     setForm(EMPTY);
+    setPlanId("");
+    setPayNow("");
+    setPayMethod("cash");
     setTab(0);
     setEditing("new");
   };
@@ -202,6 +210,14 @@ export default function MembersPage() {
       setForm((f: any) => set(f, path, e?.target ? e.target.value : e)),
   });
 
+  const plan = salePlans.find((p: any) => p._id === planId);
+  const planTotal = plan
+    ? Math.round((plan.price + (plan.priceIncludesGst ? 0 : (plan.price * (plan.gstPercent || 0)) / 100)) * 100) / 100
+    : 0;
+  const months = (d: number) =>
+    d >= 30 ? `${Math.round(d / 30)} month${Math.round(d / 30) > 1 ? "s" : ""}` : `${d} days`;
+  const tabs = editing === "new" ? [...TABS, "Membership plan"] : TABS;
+
   const save = async () => {
     if (!form.name.trim() || !form.phone.trim()) {
       setTab(0);
@@ -216,12 +232,29 @@ export default function MembersPage() {
     if (!body.idProof.type) delete body.idProof;
     try {
       setSaving(true);
-      if (editing === "new") await gym.members.create(body);
-      else await gym.members.update(editing._id, body);
+      if (editing === "new") {
+        const created: any = await gym.members.create(body);
+        if (planId) {
+          try {
+            const memberId = created?.data?._id;
+            const pay = payNow === "" ? planTotal : Number(payNow);
+            await gym.memberships.create({
+              memberId,
+              planId,
+              payNow: pay,
+              method: payMethod,
+              idempotencyKey: `${memberId}-${planId}-${Date.now()}`,
+            });
+          } catch (e: any) {
+            notify.error("Member added, but the plan was not sold", e.message);
+          }
+        }
+      } else await gym.members.update(editing._id, body);
       notify.success(
         editing === "new" ? "Member added" : "Member updated",
         form.name,
       );
+      qc.invalidateQueries({ queryKey: ["memberships"] });
       setEditing(null);
       qc.invalidateQueries({ queryKey: ["members"] });
     } catch (e: any) {
@@ -534,7 +567,7 @@ export default function MembersPage() {
             : "A member code is generated automatically"
         }
         onClose={() => setEditing(null)}
-        tabs={TABS}
+        tabs={tabs}
         tab={tab}
         onTab={setTab}
         footer={
@@ -547,7 +580,7 @@ export default function MembersPage() {
             <Btn light onClick={() => setEditing(null)}>
               Cancel
             </Btn>
-            {tab < TABS.length - 1 ? (
+            {tab < tabs.length - 1 ? (
               <Btn onClick={() => setTab(tab + 1)}>Next</Btn>
             ) : (
               <Btn busy={saving} onClick={save}>
@@ -721,6 +754,7 @@ export default function MembersPage() {
             {editing === "new" && (
               <SelectInput label="Trainer (optional)" placeholder="No trainer" options={trainers} {...bind("trainerId")} />
             )}
+            {editing === "new" && <TextInput label="Referred by (member code)" placeholder="GYM-00042" {...bind("referrerCode")} />}
             <TextArea
               className="sm:col-span-2"
               label="Notes"
@@ -757,6 +791,52 @@ export default function MembersPage() {
               {...bind("idProof.type")}
             />
             <TextInput label="ID number" {...bind("idProof.number")} />
+          </div>
+        )}
+        {tab === 4 && editing === "new" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <p className="sm:col-span-2 text-sm text-black/60">
+              Pick the plan this member is taking and its duration. Leave it empty to add the member now and sell a plan later.
+            </p>
+            <div className="sm:col-span-2">
+              <SelectInput
+                label="Membership plan"
+                placeholder="No plan yet"
+                options={salePlans.map((p: any) => ({
+                  value: p._id,
+                  label: `${p.name} — ${months(p.durationDays)} · ₹${p.price}`,
+                }))}
+                value={planId}
+                onChange={(e: any) => {
+                  setPlanId(e?.target ? e.target.value : e);
+                  setPayNow("");
+                }}
+              />
+            </div>
+            {plan && (
+              <>
+                <div className="sm:col-span-2 border-2 border-black bg-[#EFF6FF] p-3 text-sm">
+                  <p className="flex justify-between"><span>Duration</span><b>{plan.durationDays} days ({months(plan.durationDays)})</b></p>
+                  <p className="flex justify-between"><span>Total with GST</span><b>₹{planTotal}</b></p>
+                  {!!plan.admissionFee && (
+                    <p className="text-xs text-black/60 mt-1">Joining fee of ₹{plan.admissionFee} is added automatically for new members.</p>
+                  )}
+                </div>
+                <TextInput
+                  label="Collect now (₹)"
+                  type="number"
+                  placeholder={String(planTotal)}
+                  value={payNow}
+                  onChange={(e: any) => setPayNow(e.target.value)}
+                />
+                <SelectInput
+                  label="Payment method"
+                  options={["cash", "upi", "card", "online", "bank_transfer", "cheque"]}
+                  value={payMethod}
+                  onChange={(e: any) => setPayMethod(e?.target ? e.target.value : e)}
+                />
+              </>
+            )}
           </div>
         )}
       </Modal>

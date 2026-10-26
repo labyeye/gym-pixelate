@@ -45,6 +45,12 @@ import { printInvoice } from "@/components/gym/printInvoice";
 import { waDigits } from "@/lib/countries";
 
 const STATUSES = ["paid", "partial", "pending", "refunded", "cancelled"];
+const TYPES: Record<string, [string, string]> = {
+  membership: ["Membership", "bg-blue-100 text-blue-800"],
+  product: ["Product sale", "bg-orange-100 text-orange-800"],
+  pt: ["PT package", "bg-purple-100 text-purple-800"],
+  other: ["Other", "bg-gray-100 text-gray-800"],
+};
 const METHODS = ["cash", "upi", "card", "online", "bank_transfer", "cheque"];
 const newLine = () => ({
   description: "",
@@ -74,21 +80,15 @@ export default function InvoicesPage() {
   const [method, setMethod] = useState("cash");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
+  const [type, setType] = useState("");
 
   const params = useMemo(
-    () => ({ page, limit: 25, search, status, from, to }),
-    [page, search, status, from, to],
+    () => ({ page, limit: 25, search, status, type, from, to }),
+    [page, search, status, type, from, to],
   );
   const { data, isLoading } = useQuery({
     queryKey: ["invoices", params],
     queryFn: () => gym.invoices.list(params),
-  });
-  const { data: summary } = useQuery({
-    queryKey: ["dash-summary"],
-    queryFn: () =>
-      import("@/services/dashboardService").then((m) =>
-        m.dashboardService.getSummary(),
-      ),
   });
   const invoices: any[] = data?.data || [];
 
@@ -224,7 +224,12 @@ export default function InvoicesPage() {
     }
   };
 
-  const s = summary?.data || {};
+  const s = {
+    todayRevenue: (data as any)?.summary?.today,
+    monthlyRevenue: (data as any)?.summary?.month,
+    pendingPayments: (data as any)?.summary?.dues,
+    membersWithDues: (data as any)?.summary?.duesCount,
+  };
   return (
     <AppLayout title="Invoices & Payments">
       <StatGrid>
@@ -245,7 +250,7 @@ export default function InvoicesPage() {
           value={inr(s.pendingPayments)}
           icon={CreditCard}
           color={s.pendingPayments > 0 ? "#EF4444" : "#14B8A6"}
-          sub={`${s.membersWithDues ?? 0} members`}
+          sub={`${s.membersWithDues ?? 0} invoices`}
           onClick={() => setStatus("partial")}
         />
         <StatCard
@@ -271,6 +276,7 @@ export default function InvoicesPage() {
               }
               cols={[
                 { header: "Invoice no", value: (v: any) => v.invoiceNumber },
+                { header: "Type", value: (v: any) => (TYPES[v.type] || TYPES.other)[0] },
                 { header: "Member ID", value: (v: any) => v.memberId?.memberCode || "Walk-in" },
                 { header: "Member", value: (v: any) => v.memberId?.name },
                 { header: "Date", value: (v: any) => (v.issuedAt || "").slice(0, 10) },
@@ -320,6 +326,21 @@ export default function InvoicesPage() {
             <option key={x}>{x}</option>
           ))}
         </select>
+        <select
+          className={inputCls + " sm:w-44 font-bold"}
+          value={type}
+          onChange={(e) => {
+            setType(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">All payment types</option>
+          {Object.entries(TYPES).map(([k, [label]]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
+        </select>
         <input
           type="date"
           className={inputCls + " sm:w-40"}
@@ -345,6 +366,7 @@ export default function InvoicesPage() {
       <DataTable
         head={[
           "Invoice no",
+          "Type",
           "Gym ID",
           "Member",
           "Date",
@@ -361,6 +383,16 @@ export default function InvoicesPage() {
           <Tr key={v._id} i={i}>
             <Td>
               <p className="text-xs font-bold whitespace-nowrap">{v.invoiceNumber}</p>
+            </Td>
+            <Td>
+              <span className={"text-[10px] font-bold uppercase px-1.5 py-0.5 border border-black/10 whitespace-nowrap " + (TYPES[v.type] || TYPES.other)[1]}>
+                {(TYPES[v.type] || TYPES.other)[0]}
+              </span>
+              {v.type === "product" && (
+                <p className="text-[10px] text-black/50 mt-1 max-w-[160px] truncate">
+                  {(v.items || []).filter((x: any) => x.kind === "product").map((x: any) => `${x.description} ×${x.quantity}`).join(", ")}
+                </p>
+              )}
             </Td>
             <Td className="text-xs font-bold whitespace-nowrap">
               {v.memberId?.memberCode || "—"}

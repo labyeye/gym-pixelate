@@ -11,7 +11,10 @@ import { inr, titleCase, todayStr } from '../../utils/format';
 import { PhoneInput } from '../../components/PhoneInput';
 import { Avatar, PhotoPicker } from '../../components/PhotoPicker';
 import { MemberPicker } from '../../components/pickers';
-import { Btn, Empty, Input, Loader, Pill, Row, Screen, Select, StatCard, StatGrid, Sheet, Tabs, notify, RCard } from '../../components/ui';
+import { Btn, Empty, Input, Loader, Pill, Row, Screen, Select, StatCard, StatGrid, Sheet, Tabs, notify, RCard, Pair } from '../../components/ui';
+import { Dumbbell as StatDumbbell, IndianRupee as StatIndianRupee, Layers as StatLayers, Users as StatUsers } from 'lucide-react-native';
+import ExportSheet, { ExportSpec } from '../../components/ExportSheet';
+import { Download as ExportIcon } from 'lucide-react-native';
 
 /* ------------------------------------------------------------------ trainers */
 const blank = {
@@ -36,6 +39,7 @@ export function TrainersScreen() {
   const [f, setF] = useState<any>(blank);
   const [ftab, setFtab] = useState('0');
   const [busy, setBusy] = useState(false);
+  const [exp, setExp] = useState<ExportSpec | null>(null);
 
   const tr = useFetch(() => gym.users.list({ role: 'trainer' }), []);
   const asg = useFetch(() => request<any>('/trainers?limit=500'), []);
@@ -45,6 +49,19 @@ export function TrainersScreen() {
   const clientsOf = (id: string) => assignments.filter(a => (a.trainerId?._id || a.trainerId) === id);
   const ptOf = (id: string) => (pts.data?.data || []).filter((p: any) => (p.trainerId?._id || p.trainerId) === id);
   const reload = () => { tr.reload(); asg.reload(); pts.reload(); };
+  const exportTrainers = () =>
+    setExp({
+      name: 'Trainers',
+      cols: [
+        { header: 'Name', value: (t: any) => t.name },
+        { header: 'Phone', value: (t: any) => t.phone },
+        { header: 'Email', value: (t: any) => t.email },
+        { header: 'Status', value: (t: any) => t.status },
+        { header: 'Active clients', value: (t: any) => clientsOf(t._id).length },
+        { header: 'Active PT packages', value: (t: any) => ptOf(t._id).length },
+      ],
+      rows: async () => trainers,
+    });
   const cur = open ? trainers.find(t => t._id === open._id) || open : null;
 
   const openEdit = (t?: any) => {
@@ -88,12 +105,12 @@ export function TrainersScreen() {
   const set = (k: string) => (v: string) => setF((s: any) => ({ ...s, [k]: v }));
 
   return (
-    <Screen title="Trainers" refreshing={tr.loading && !!tr.data} onRefresh={reload} right={canWrite ? <Btn small label="Add" icon={<Plus size={14} color="#fff" />} onPress={() => openEdit()} /> : undefined}>
+    <Screen title="Trainers" refreshing={tr.loading && !!tr.data} onRefresh={reload} right={<><Btn small label="Export" icon={<ExportIcon />} onPress={exportTrainers} />{canWrite && <Btn small label="Add" icon={<Plus size={14} color="#fff" />} onPress={() => openEdit()} />}</>}>
       <StatGrid>
-        <StatCard label="Trainers" value={trainers.filter(t => t.status === 'active').length} color="#024BAB" />
-        <StatCard label="Assigned clients" value={assignments.length} color="#00C48C" />
-        <StatCard label="Active PT packages" value={pts.data?.count ?? 0} color="#A855F7" />
-        <StatCard label="Avg clients / trainer" value={trainers.length ? (assignments.length / trainers.length).toFixed(1) : '0'} color="#FA731C" />
+        <StatCard label="Trainers" value={trainers.filter(t => t.status === 'active').length} icon={<StatDumbbell />} color="#024BAB" />
+        <StatCard label="Assigned clients" value={assignments.length} icon={<StatUsers />} color="#00C48C" />
+        <StatCard label="Active PT packages" value={pts.data?.count ?? 0} icon={<StatLayers />} color="#A855F7" />
+        <StatCard label="Avg clients / trainer" value={trainers.length ? (assignments.length / trainers.length).toFixed(1) : '0'} icon={<StatUsers />} color="#FA731C" />
       </StatGrid>
       {tr.loading && !tr.data ? <Loader /> : trainers.length === 0 ? <Empty text="No trainers yet" /> : trainers.map(t => {
         const max = t.trainerProfile?.maxClients;
@@ -172,52 +189,75 @@ export function TrainersScreen() {
         {ftab === '0' && (
           <>
             <PhotoPicker label="Photo" name={f.name} value={f.avatar} onChange={set('avatar')} />
-            <Input label="Name" required value={f.name} onChangeText={set('name')} />
-            <PhoneInput label="Phone" value={f.phone} onChange={set('phone')} />
+            <Pair>
+              <Input label="Name" required value={f.name} onChangeText={set('name')} />
+              <PhoneInput label="Phone" value={f.phone} onChange={set('phone')} />
+            </Pair>
             {edit === 'new' && (
               <>
-                <Input label="Login email" required keyboardType="email-address" autoCapitalize="none" value={f.email} onChangeText={set('email')} />
-                <Input label="Password" required secureTextEntry hint="Min 6 characters" value={f.password} onChangeText={set('password')} />
+                <Pair>
+                  <Input label="Login email" required keyboardType="email-address" autoCapitalize="none" value={f.email} onChangeText={set('email')} />
+                  <Input label="Password" required secureTextEntry hint="Min 6 characters" value={f.password} onChangeText={set('password')} />
+                </Pair>
               </>
             )}
           </>
         )}
         {ftab === '1' && (
           <>
-            <Input label="Date of birth" placeholder="YYYY-MM-DD" value={f.dob} onChangeText={set('dob')} />
-            <Select label="Gender" options={['male', 'female', 'other']} value={f.gender} onChange={set('gender')} allowEmpty />
-            <Select label="Blood group" options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']} value={f.bloodGroup} onChange={set('bloodGroup')} allowEmpty />
-            <Input label="Languages" hint="Comma separated: English, Hindi" value={f.languages} onChangeText={set('languages')} />
-            <Input label="City" value={f.city} onChangeText={set('city')} />
-            <Input label="Pincode" keyboardType="number-pad" maxLength={6} value={f.pincode} onChangeText={set('pincode')} />
+            <Pair>
+              <Input label="Date of birth" placeholder="YYYY-MM-DD" value={f.dob} onChangeText={set('dob')} />
+              <Select label="Gender" options={['male', 'female', 'other']} value={f.gender} onChange={set('gender')} allowEmpty />
+            </Pair>
+            <Pair>
+              <Select label="Blood group" options={['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']} value={f.bloodGroup} onChange={set('bloodGroup')} allowEmpty />
+              <Input label="Languages" hint="Comma separated: English, Hindi" value={f.languages} onChangeText={set('languages')} />
+            </Pair>
+            <Pair>
+              <Input label="City" value={f.city} onChangeText={set('city')} />
+              <Input label="Pincode" keyboardType="number-pad" maxLength={6} value={f.pincode} onChangeText={set('pincode')} />
+            </Pair>
             <Input label="Address" multiline value={f.address} onChangeText={set('address')} />
-            <Input label="Emergency contact name" value={f.emergencyName} onChangeText={set('emergencyName')} />
-            <PhoneInput label="Emergency contact phone" value={f.emergencyPhone} onChange={set('emergencyPhone')} />
+            <Pair>
+              <Input label="Emergency contact name" value={f.emergencyName} onChangeText={set('emergencyName')} />
+              <PhoneInput label="Emergency contact phone" value={f.emergencyPhone} onChange={set('emergencyPhone')} />
+            </Pair>
             <Input label="Relation" value={f.emergencyRelation} onChangeText={set('emergencyRelation')} />
           </>
         )}
         {ftab === '2' && (
           <>
-            <Input label="Specialisations" hint="Comma separated: weight training, yoga" value={f.specializations} onChangeText={set('specializations')} />
-            <Input label="Certifications" hint="ACE, ISSA, NASM…" value={f.certifications} onChangeText={set('certifications')} />
-            <Input label="Experience (years)" keyboardType="number-pad" value={f.experienceYears} onChangeText={set('experienceYears')} />
-            <Input label="Shift" placeholder="06:00-14:00" value={f.shift} onChangeText={set('shift')} />
+            <Pair>
+              <Input label="Specialisations" hint="Comma separated: weight training, yoga" value={f.specializations} onChangeText={set('specializations')} />
+              <Input label="Certifications" hint="ACE, ISSA, NASM…" value={f.certifications} onChangeText={set('certifications')} />
+            </Pair>
+            <Pair>
+              <Input label="Experience (years)" keyboardType="number-pad" value={f.experienceYears} onChangeText={set('experienceYears')} />
+              <Input label="Shift" placeholder="06:00-14:00" value={f.shift} onChangeText={set('shift')} />
+            </Pair>
             <Input label="Max clients" hint="Blocks assigning beyond this" keyboardType="number-pad" value={f.maxClients} onChangeText={set('maxClients')} />
             <Input label="Bio" multiline value={f.bio} onChangeText={set('bio')} />
           </>
         )}
         {ftab === '3' && (
           <>
-            <Input label="Joining date" placeholder="YYYY-MM-DD" value={f.joiningDate} onChangeText={set('joiningDate')} />
-            <Select label="Employment type" options={[{ value: 'full_time', label: 'Full time' }, { value: 'part_time', label: 'Part time' }, { value: 'freelance', label: 'Freelance' }]} value={f.employmentType} onChange={set('employmentType')} allowEmpty />
-            <Input label="Monthly salary (₹)" hint="Used by payroll" keyboardType="decimal-pad" value={f.monthlySalary} onChangeText={set('monthlySalary')} />
-            <Input label="PT rate / session (₹)" keyboardType="decimal-pad" value={f.ptRate} onChangeText={set('ptRate')} />
-            <Input label="Default commission %" keyboardType="decimal-pad" value={f.commissionPercent} onChangeText={set('commissionPercent')} />
-            <Select label="ID proof" options={['aadhaar', 'pan', 'driving_license', 'passport', 'voter_id', 'other']} value={f.idType} onChange={set('idType')} allowEmpty />
+            <Pair>
+              <Input label="Joining date" placeholder="YYYY-MM-DD" value={f.joiningDate} onChangeText={set('joiningDate')} />
+              <Select label="Employment type" options={[{ value: 'full_time', label: 'Full time' }, { value: 'part_time', label: 'Part time' }, { value: 'freelance', label: 'Freelance' }]} value={f.employmentType} onChange={set('employmentType')} allowEmpty />
+            </Pair>
+            <Pair>
+              <Input label="Monthly salary (₹)" hint="Used by payroll" keyboardType="decimal-pad" value={f.monthlySalary} onChangeText={set('monthlySalary')} />
+              <Input label="PT rate / session (₹)" keyboardType="decimal-pad" value={f.ptRate} onChangeText={set('ptRate')} />
+            </Pair>
+            <Pair>
+              <Input label="Default commission %" keyboardType="decimal-pad" value={f.commissionPercent} onChangeText={set('commissionPercent')} />
+              <Select label="ID proof" options={['aadhaar', 'pan', 'driving_license', 'passport', 'voter_id', 'other']} value={f.idType} onChange={set('idType')} allowEmpty />
+            </Pair>
             <Input label="ID number" value={f.idNumber} onChangeText={set('idNumber')} />
           </>
         )}
       </Sheet>
+      <ExportSheet spec={exp} onClose={() => setExp(null)} />
     </Screen>
   );
 }
@@ -270,9 +310,9 @@ export function StaffScreen() {
   return (
     <Screen title="Staff & Payroll" refreshing={grid.loading && !!grid.data} onRefresh={() => { grid.reload(); pay.reload(); }}>
       <StatGrid>
-        <StatCard label="Staff" value={staff.length} color="#024BAB" />
-        <StatCard label="Present on date" value={present} color="#00C48C" />
-        <StatCard label="Payroll (this month)" value={inr(pay.data?.totals?.total)} sub="base + PT commission" color="#A855F7" />
+        <StatCard label="Staff" value={staff.length} icon={<StatUsers />} color="#024BAB" />
+        <StatCard label="Present on date" value={present} icon={<StatUsers />} color="#00C48C" />
+        <StatCard label="Payroll (this month)" value={inr(pay.data?.totals?.total)} sub="base + PT commission" icon={<StatIndianRupee />} color="#A855F7" />
       </StatGrid>
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'attendance', label: 'Attendance' }, { id: 'payroll', label: 'Payroll' }]} />
       <Input label={tab === 'attendance' ? 'Date' : 'Month (taken from date)'} value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" />

@@ -1,11 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useUsageTracker } from "@/hooks/useUsageTracker";
+import TermsGate from "@/components/TermsGate";
 import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { pathEnabled } from "@/config/modules";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import IntroOnboarding from "@/components/IntroOnboarding";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { CreditsProvider } from "@/contexts/CreditsContext";
 import { Dumbbell } from "lucide-react";
 import PayPage from "./pages/PayPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -13,13 +16,17 @@ import MembersPage from "./pages/MembersPage";
 import MemberProfilePage from "./pages/MemberProfilePage";
 import InvoicesPage from "./pages/InvoicesPage";
 import SubscriptionPage from "./pages/SubscriptionPage";
+import CreditsPage from "./pages/CreditsPage";
 import SettingsPage from "./pages/SettingsPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import WelcomePage from "./pages/WelcomePage";
 import NotFound from "./pages/NotFound";
 import PlansPage from "./pages/gym/PlansPage";
+import MembershipsPage from "./pages/MembershipsPage";
 import ClassesPage from "./pages/gym/ClassesPage";
 import PersonalTrainingPage from "./pages/gym/PersonalTrainingPage";
 import WorkoutDietPage from "./pages/gym/WorkoutDietPage";
@@ -35,6 +42,7 @@ import {
   EquipmentPage,
 } from "./pages/gym/FacilityPages";
 import { NotificationProvider } from "@/components/ui/Notification";
+import RefundNotice from "@/components/RefundNotice";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -123,6 +131,13 @@ function AppRoutes() {
         path="/login"
         element={!isAuthenticated ? <LoginPage /> : <Navigate to="/" replace />}
       />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+      <Route
+        path="/forgot-password"
+        element={
+          !isAuthenticated ? <ForgotPasswordPage /> : <Navigate to="/" replace />
+        }
+      />
       <Route
         path="/"
         element={
@@ -144,6 +159,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <MemberProfilePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/memberships"
+        element={
+          <ProtectedRoute>
+            <MembershipsPage />
           </ProtectedRoute>
         }
       />
@@ -260,6 +283,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/credits"
+        element={
+          <ProtectedRoute>
+            <CreditsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/settings"
         element={
           <ProtectedRoute>
@@ -282,11 +313,16 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
+        <CreditsProvider>
         <BrowserRouter>
           <NotificationProvider>
             <AppRoutes />
+            <TermsGate />
+            <IntroOnboarding />
+            <RefundNotice />
           </NotificationProvider>
         </BrowserRouter>
+        </CreditsProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

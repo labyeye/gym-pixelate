@@ -3,6 +3,11 @@ const validator = require("validator");
 const User = require("../models/User");
 const Tenant = require("../models/Tenant");
 const generateToken = require("../utils/generateToken");
+const { generatePendingToken } = generateToken;
+const { issueRefresh, startSession, signInPayload, completeSignIn } = require("../utils/signIn");
+const Session = require("../models/Session");
+const { STRONG_PASSWORD_RE, STRONG_PASSWORD_MSG } = require("../utils/otpTools");
+const { sendSecurityAlertEmail } = require("../utils/emailService");
 const logActivity = require("../utils/activityLogger");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
@@ -43,9 +48,9 @@ const register = asyncHandler(async (req, res) => {
     throw new Error("Please provide a valid email address");
   }
 
-  if (password.length < 8) {
+  if (!STRONG_PASSWORD_RE.test(password)) {
     res.status(400);
-    throw new Error("Password must be at least 8 characters");
+    throw new Error(STRONG_PASSWORD_MSG);
   }
 
   if (name.trim().length < 2 || name.trim().length > 80) {
@@ -102,27 +107,8 @@ const register = asyncHandler(async (req, res) => {
     ip: req.ip,
   });
 
-  res.status(201).json({
-    success: true,
-    data: {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      phone: user.phone,
-      department: user.department,
-      status: user.status,
-      tenantId: tenant._id,
-      token: generateToken(user._id),
-      tenant: {
-        _id: tenant._id,
-        name: tenant.name,
-        plan: tenant.plan,
-        status: tenant.status,
-        onboarded: tenant.onboarded !== false,
-      },
-    },
-  });
+  const { status, body } = await signInPayload(req, user, 201, res);
+  res.status(status).json(body);
 });
 
 const login = asyncHandler(async (req, res) => {
@@ -189,56 +175,18 @@ const login = asyncHandler(async (req, res) => {
     throw new Error("Account is deactivated. Contact your administrator.");
   }
 
-  user.failedLogins = 0;
-  user.lockUntil = undefined;
-  await sendSession(req, res, user);
+  if (user.twoFactorEnabled) {
+    // The code step must present this token, so 2FA can't be attempted without first knowing the password.
+    user.failedLogins = 0;
+    user.lockUntil = undefined;
+    await user.save({ validateBeforeSave: false });
+    return res.json({
+      success: true,
+      data: { requires2FA: true, pendingToken: generatePendingToken(user._id) },
+    });
+  }
+  await completeSignIn(req, res, user);
 });
-
-// Shared by password login and WhatsApp-OTP login.
-async function sendSession(req, res, user) {
-  user.lastLogin = new Date();
-  await user.save({ validateBeforeSave: false });
-
-  const tenant = user.tenantId
-    ? await Tenant.findById(user.tenantId).select(
-        "name plan status planExpiresAt onboarded",
-      )
-    : null;
-
-  logActivity({
-    user,
-    action: "LOGIN",
-    module: "Auth",
-    description: `${user.name} logged in`,
-    ip: req.ip,
-  });
-
-  res.json({
-    success: true,
-    data: {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      phone: user.phone,
-      department: user.department,
-      avatar: user.avatar,
-      status: user.status,
-      tenantId: user.tenantId,
-      lastLogin: user.lastLogin,
-      token: generateToken(user._id),
-      tenant: tenant
-        ? {
-            _id: tenant._id,
-            name: tenant.name,
-            plan: tenant.plan,
-            status: tenant.status,
-            onboarded: tenant.onboarded !== false,
-          }
-        : null,
-    },
-  });
-}
 
 // WhatsApp OTP login - step 1: send a code to the account's phone.
 const sendOtp = asyncHandler(async (req, res) => {
@@ -278,13 +226,9 @@ const sendOtp = asyncHandler(async (req, res) => {
   });
 });
 
-// WhatsApp OTP login - step 2: verify the code, lift any password lock and sign in.
-const verifyOtp = asyncHandler(async (req, res) => {
-  const { phone, otp } = req.body;
-  if (typeof phone !== "string" || typeof otp !== "string" || !phone || !otp) {
-    res.status(400);
-    throw new Error("Phone and OTP are required");
-  }
+// Checks a WhatsApp OTP (single use, 5 tries) and returns the user with the OTP fields cleared and any
+// password lock lifted; the caller saves the user. Shared by OTP login and password reset.
+const consumeOtp = async (res, phone, otp) => {
   const user = await User.findOne({
     phone: { $in: phoneVariants(phone) },
     status: { $ne: "inactive" },
@@ -315,7 +259,19 @@ const verifyOtp = asyncHandler(async (req, res) => {
   user.loginOtpTries = 0;
   user.failedLogins = 0;
   user.lockUntil = undefined;
-  await sendSession(req, res, user);
+  return user;
+};
+
+// WhatsApp OTP login - step 2: verify the code, lift any password lock and sign in.
+const verifyOtp = asyncHandler(async (req, res) => {
+  const { phone, otp } = req.body;
+  if (typeof phone !== "string" || typeof otp !== "string" || !phone || !otp) {
+    res.status(400);
+    throw new Error("Phone and OTP are required");
+  }
+  const user = await consumeOtp(res, phone, otp);
+  user.phoneVerified = true; // holding the phone and reading the code proves the number
+  await completeSignIn(req, res, user);
 });
 
 const getMe = asyncHandler(async (req, res) => {
@@ -354,7 +310,10 @@ const updateProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
   if (name) user.name = name.trim();
-  if (phone !== undefined) user.phone = phone.trim();
+  if (phone !== undefined && phone.trim() !== (user.phone || "")) {
+    user.phone = phone.trim();
+    user.phoneVerified = false; // a new number has to be proven again
+  }
   if (department !== undefined) user.department = department.trim();
 
   const updated = await user.save();
@@ -379,9 +338,9 @@ const changePassword = asyncHandler(async (req, res) => {
     throw new Error("Current and new password are required");
   }
 
-  if (newPassword.length < 8) {
+  if (!STRONG_PASSWORD_RE.test(newPassword)) {
     res.status(400);
-    throw new Error("New password must be at least 8 characters");
+    throw new Error(STRONG_PASSWORD_MSG);
   }
 
   if (currentPassword === newPassword) {
@@ -399,6 +358,10 @@ const changePassword = asyncHandler(async (req, res) => {
 
   user.password = newPassword;
   await user.save();
+  // every other device is signed out; this one gets a fresh session
+  await Session.deleteMany({ userId: user._id });
+  const sid = await startSession(req, user);
+  sendSecurityAlertEmail({ to: user.email, name: user.name, what: "Your NestGym password was just changed." });
 
   logActivity({
     user: req.user,
@@ -412,7 +375,7 @@ const changePassword = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: "Password updated successfully",
-    data: { token: generateToken(user._id) },
+    data: { token: generateToken(user._id, sid), refreshToken: await issueRefresh(req, res, sid) },
   });
 });
 

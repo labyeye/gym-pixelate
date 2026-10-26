@@ -121,7 +121,7 @@ const deletePlan = asyncHandler(async (req, res) => {
     throw new Error("Membership plan not found");
   }
 
-  await MembershipPlan.findByIdAndDelete(req.params.id);
+  await MembershipPlan.updateOne({ _id: plan._id }, { deletedAt: new Date() }); // restorable from /api/trash
 
   logActivity({
     user: req.user,

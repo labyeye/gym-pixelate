@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const { uploadedPhoto } = require("../utils/uploadedPhoto");
 const bcrypt = require("bcryptjs");
+const { addPasswordPolicy } = require("../utils/passwordPolicy");
 
 const userSchema = new mongoose.Schema(
   {
@@ -116,11 +117,59 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+userSchema.add({
+  passwordChangedAt: { type: Date },
+  // Authenticator-app 2FA (TOTP). Recovery codes live in backupCodes (hashes only).
+  twoFactorSecret: { type: String, select: false },
+  twoFactorEnabled: { type: Boolean, default: false },
+  twoFactorFailedAttempts: { type: Number, default: 0 },
+  twoFactorLockUntil: { type: Date },
+  backupCodes: { type: [{ hash: String, usedAt: Date }], default: [], select: false },
+  backupCodesGeneratedAt: { type: Date },
+  // WebAuthn passkeys; publicKey is base64url of the COSE key.
+  passkeys: {
+    type: [
+      {
+        credentialId: { type: String, required: true },
+        publicKey: { type: String, required: true },
+        counter: { type: Number, default: 0 },
+        transports: [String],
+        name: { type: String, default: "Passkey" },
+        createdAt: { type: Date, default: Date.now },
+        lastUsedAt: { type: Date },
+      },
+    ],
+    default: [],
+    select: false,
+  },
+  // Proven ownership of phone / email. Phone gates WhatsApp password reset; both reset on change.
+  phoneVerified: { type: Boolean, default: false },
+  phoneVerifyOtp: { type: String, select: false },
+  phoneVerifyOtpExpire: { type: Date, select: false },
+  phoneVerifyOtpTries: { type: Number, default: 0, select: false },
+  emailVerified: { type: Boolean, default: false },
+  pendingEmail: { type: String, select: false },
+  contactOtp: { type: String, select: false },
+  contactOtpExpire: { type: Date, select: false },
+  contactOtpTries: { type: Number, default: 0, select: false },
+  // email OTP sign-in
+  emailLoginOtp: { type: String, select: false },
+  emailLoginOtpExpire: { type: Date, select: false },
+  emailLoginOtpTries: { type: Number, default: 0, select: false },
+  // password reset: emailed link (hashed token) or WhatsApp code
+  resetPasswordToken: { type: String, select: false },
+  resetPasswordExpire: { type: Date, select: false },
+  resetOtp: { type: String, select: false },
+  resetOtpExpire: { type: Date, select: false },
+  resetOtpTries: { type: Number, default: 0, select: false },
+});
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
     return next();
   }
+  // tokens issued before this moment stop working (see middleware/auth.js)
+  if (!this.isNew) this.passwordChangedAt = new Date();
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
 });
@@ -128,5 +177,16 @@ userSchema.pre("save", async function (next) {
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+// Terms & Privacy acceptance (see utils/terms.js)
+userSchema.add({
+  termsVersion: { type: String },
+  termsAcceptedAt: { type: Date },
+  termsAcceptedIp: { type: String },
+  termsAcceptedAgent: { type: String },
+});
+
+// 8+ chars with upper/lower/number/special, no simple series, not among the last 5 passwords
+addPasswordPolicy(userSchema);
 
 module.exports = mongoose.model("User", userSchema);

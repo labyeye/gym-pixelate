@@ -10,6 +10,7 @@ router.get("/overview", c.overview);
 router.get("/invoices", c.invoices);
 router.get("/plans", c.plans);
 router.post("/measurements", c.addMeasurement);
+router.post("/feedback", c.addFeedback);
 router.get("/classes/sessions", c.sessions);
 router.get("/classes/mine", c.myBookings);
 router.post("/classes/book", c.book);
@@ -17,6 +18,10 @@ router.post("/classes/pay-order", c.classPayOrder);
 router.post("/classes/pay-verify", c.classPayVerify);
 router.post("/classes/bookings/:id/cancel", c.cancelBooking);
 router.get("/announcements", c.announcements);
+router.get("/membership/change-options", c.changeOptions);
+router.post("/membership/change", c.changePlan);
+router.get("/membership/renew-options", c.renewOptions);
+router.post("/membership/renew", c.renewPlan);
 router.post("/invoices/:id/pay", c.createPayOrder);
 router.post("/invoices/:id/verify", c.verifyPayment);
 

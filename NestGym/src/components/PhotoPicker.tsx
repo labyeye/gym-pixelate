@@ -14,7 +14,9 @@ export function PhotoPicker({
   value,
   name,
   onChange,
+  square,
 }: {
+  square?: boolean;
   label?: string;
   value: string;
   name: string;
@@ -46,7 +48,7 @@ export function PhotoPicker({
   return (
     <Field label={label}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        <View style={{ width: 76, height: 76, borderWidth: 2, borderColor: C.black, borderRadius: 8, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        <View style={{ width: 76, height: 76, borderWidth: 2, borderColor: C.black, borderRadius: square ? 8 : 38, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {value ? <Image source={{ uri: value }} style={{ width: '100%', height: '100%' }} /> : <Text style={{ fontFamily: FONT.bold, fontSize: 28, color: '#fff' }}>{(name[0] || '?').toUpperCase()}</Text>}
         </View>
         <View style={{ gap: 8 }}>
@@ -59,10 +61,19 @@ export function PhotoPicker({
 }
 
 /** Avatar for lists/profiles: the uploaded photo, else the initial. */
-export function Avatar({ uri, name, size = 40 }: { uri?: string; name: string; size?: number }) {
+export function Avatar({ uri, name, size = 40, round }: { uri?: string; name: string; size?: number; round?: boolean }) {
   return (
-    <View style={{ width: size, height: size, borderWidth: 2, borderColor: C.black, borderRadius: 8, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+    <View style={{ width: size, height: size, borderWidth: 2, borderColor: C.black, borderRadius: round ? size / 2 : 8, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
       {uri ? <Image source={{ uri }} style={{ width: '100%', height: '100%' }} /> : <Text style={{ fontFamily: FONT.bold, fontSize: size * 0.4, color: '#fff' }}>{(name?.[0] || '?').toUpperCase()}</Text>}
+    </View>
+  );
+}
+
+/** Square product / item thumbnail: the uploaded photo, else the first letter. */
+export function Thumb({ uri, name, size = 44 }: { uri?: string; name: string; size?: number }) {
+  return (
+    <View style={{ width: size, height: size, borderWidth: 2, borderColor: C.black, borderRadius: 8, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      {uri ? <Image source={{ uri }} style={{ width: '100%', height: '100%' }} /> : <Text style={{ fontFamily: FONT.bold, fontSize: size * 0.4, color: C.primary }}>{(name?.[0] || '?').toUpperCase()}</Text>}
     </View>
   );
 }

@@ -25,6 +25,7 @@ import { iconFor, plain } from '../utils/fieldIcons';
 import FadeInUp from './motion/FadeInUp';
 import Pop from './motion/Pop';
 import AnimatedValue from './motion/AnimatedValue';
+import AnimatedNumber from './motion/AnimatedNumber';
 import { useReduceMotion } from './motion/useReduceMotion';
 
 // stagger cards that mount together: the n-th card mounted within the same burst waits n * 55ms
@@ -142,24 +143,23 @@ export function Screen({
   footer,
 }: ScreenProps) {
   const nav = useNavigation<any>();
+  const goBack = () => (nav.canGoBack() ? nav.goBack() : nav.navigate('Dashboard'));
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          {back && (
-            <TouchableOpacity
-              onPress={() => nav.goBack()}
-              hitSlop={10}
-              style={{ marginRight: 10 }}
-            >
-              <ArrowLeft size={22} color={C.black} />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity onPress={goBack} hitSlop={10} style={{ marginRight: 10 }} accessibilityLabel="Back">
+            <ArrowLeft size={24} color={C.black} />
+          </TouchableOpacity>
           <Text style={styles.title} numberOfLines={1}>
             {title}
           </Text>
         </View>
-        {right}
+        {!!right && (
+          <BareCtx.Provider value>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>{right}</View>
+          </BareCtx.Provider>
+        )}
       </View>
       {scroll ? (
         <ScrollView
@@ -242,6 +242,18 @@ export function Panel({
 
 /* ------------------------------------------------------------------ buttons / pills */
 
+/** Inside a screen header, buttons render as bare icons (no background / border). */
+const BareCtx = React.createContext(false);
+
+/** Icon-only action: no background, no border. */
+export function IconBtn({ icon: Icon, onPress, color = C.black, size = 20, label }: { icon: any; onPress?: () => void; color?: string; size?: number; label?: string }) {
+  return (
+    <TouchableOpacity onPress={onPress} hitSlop={8} style={{ padding: 6 }} accessibilityRole="button" accessibilityLabel={label}>
+      <Icon size={size} color={color} />
+    </TouchableOpacity>
+  );
+}
+
 export function Btn({
   label,
   onPress,
@@ -265,12 +277,23 @@ export function Btn({
   small?: boolean;
   style?: ViewStyle;
 }) {
+  const inHeader = React.useContext(BareCtx);
   const bg = light ? C.white : danger ? C.danger : color;
   const fg = light ? C.black : C.white;
   const scale = useRef(new Animated.Value(1)).current;
   const reduce = useReduceMotion();
   const press = (to: number) =>
     !reduce && Animated.spring(scale, { toValue: to, friction: 5, tension: 220, useNativeDriver: true }).start();
+  // small / header buttons are bare: no background, no border (icon only in the header)
+  if (small || inHeader) {
+    const tone = danger ? C.danger : light ? C.black : color;
+    return (
+      <TouchableOpacity disabled={disabled || busy} onPress={onPress} hitSlop={8} activeOpacity={0.6} style={{ padding: inHeader ? 6 : 4, opacity: disabled ? 0.45 : 1, flexDirection: 'row', alignItems: 'center', gap: 5 }} accessibilityRole="button" accessibilityLabel={label}>
+        {busy ? <ActivityIndicator size="small" color={tone} /> : icon ? React.cloneElement(icon as React.ReactElement<any>, { color: tone, size: inHeader ? 22 : 15 }) : null}
+        {(!inHeader || !icon) && <Text style={{ fontFamily: FONT.bold, fontSize: 12, color: tone, textTransform: 'uppercase' }}>{label}</Text>}
+      </TouchableOpacity>
+    );
+  }
   return (
     <Pressable
       disabled={disabled || busy}
@@ -360,6 +383,7 @@ export function Pill({ value, tone }: { value?: string; tone?: string }) {
 
 /* ------------------------------------------------------------------ stats */
 
+/** Summary card (older call sites). Same look as the Dashboard cards: see MiniStat. */
 export function StatCard({
   label,
   value,
@@ -377,39 +401,8 @@ export function StatCard({
   onPress?: () => void;
   index?: number;
 }) {
-  return (
-    <FadeInUp delay={Math.min(index, 10) * 60} distance={16} duration={550} style={{ flex: 1, minWidth: '45%' }}>
-    <TouchableOpacity
-      activeOpacity={onPress ? 0.8 : 1}
-      onPress={onPress}
-      style={[brut({ backgroundColor: C.white, padding: 12 })]}
-    >
-      <View style={[S.rowBetween, { marginBottom: 6 }]}>
-        <Text style={[S.label, { flex: 1, fontSize: 10 }]} numberOfLines={2}>
-          {label}
-        </Text>
-        <Pop delay={180 + Math.min(index, 10) * 60}>
-          <View
-            style={{
-              width: 26,
-              height: 26,
-              borderWidth: 2,
-              borderColor: C.black,
-              borderRadius: 6,
-              backgroundColor: color,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {icon}
-          </View>
-        </Pop>
-      </View>
-      <AnimatedValue value={value} style={{ fontFamily: FONT.bold, fontSize: 20, color: C.black }} />
-      {!!sub && <Text style={[S.small, { marginTop: 2 }]}>{sub}</Text>}
-    </TouchableOpacity>
-    </FadeInUp>
-  );
+  const v = typeof value === 'number' || typeof value === 'string' ? value : '';
+  return <MiniStat label={label} value={v} sub={sub} color={color} icon={icon} onPress={onPress} index={index} />;
 }
 
 // each card in a grid gets its own index, so they rise one after another
@@ -418,6 +411,48 @@ export const StatGrid = ({ children }: { children: React.ReactNode }) => (
     {React.Children.toArray(children).map((c, i) =>
       React.isValidElement(c) && (c.props as any).index === undefined ? React.cloneElement(c as any, { index: i }) : c,
     )}
+  </View>
+);
+
+/** Compact KPI card, same look as the dashboard summary cards. Up to four share a row, more wrap. */
+export function MiniStat({ label, value, sub, icon, color = C.primary, onPress, index = 0 }: { label: string; value: number | string; sub?: string; icon?: any; color?: string; onPress?: () => void; index?: number }) {
+  const Icon = icon;
+  const glyph = !Icon ? null : React.isValidElement(Icon) ? React.cloneElement(Icon as React.ReactElement<any>, { size: 14, color }) : <Icon size={14} color={color} />;
+  return (
+    <FadeInUp delay={Math.min(index, 10) * 70} style={{ flexGrow: 1, flexBasis: '22%', minWidth: 0 }}>
+      <TouchableOpacity
+        activeOpacity={onPress ? 0.8 : 1}
+        onPress={onPress}
+        style={brut({ flex: 1, backgroundColor: C.white, padding: 10, alignItems: 'center', gap: 8 })}
+      >
+        <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderRadius: 14, borderColor: color, backgroundColor: color + '1A' }}>
+          {glyph || <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />}
+        </View>
+        <View style={{ alignItems: 'center', minWidth: 0, width: '100%' }}>
+          <Text style={{ fontFamily: FONT.bold, fontSize: 8, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'center' }} numberOfLines={2}>{label}</Text>
+          {typeof value === 'number' ? (
+            <AnimatedNumber style={{ fontFamily: FONT.bold, fontSize: 19, color: C.black }} value={value} />
+          ) : (
+            <Text style={{ fontFamily: FONT.bold, fontSize: 15, color: C.black, marginTop: 2 }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+          )}
+          {!!sub && <Text style={{ fontFamily: FONT.medium, fontSize: 9, color: C.textMuted, marginTop: 1, textAlign: 'center' }} numberOfLines={1}>{sub}</Text>}
+        </View>
+      </TouchableOpacity>
+    </FadeInUp>
+  );
+}
+export const MiniStatRow = ({ children }: { children: React.ReactNode }) => (
+  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+    {React.Children.toArray(children).map((c, i) => (React.isValidElement(c) ? React.cloneElement(c as any, { index: i }) : c))}
+  </View>
+);
+
+/** Two form fields side by side. */
+export const Pair = ({ children }: { children: React.ReactNode }) => (
+  <View style={{ flexDirection: 'row', gap: 10 }}>
+    {React.Children.toArray(children).map((c, i) => (
+      <View key={i} style={{ flex: 1, minWidth: 0 }}>{c}</View>
+    ))}
   </View>
 );
 
@@ -812,13 +847,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     backgroundColor: C.white,
-    borderBottomWidth: 2,
-    borderBottomColor: C.black,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
-  title: { fontFamily: FONT.bold, fontSize: 20, color: C.black, flexShrink: 1 },
+  title: { fontFamily: FONT.bold, fontSize: 22, color: C.black, flexShrink: 1 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: C.white,

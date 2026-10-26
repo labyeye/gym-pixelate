@@ -1,19 +1,21 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
-import { Plus } from 'lucide-react-native';
+import { Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { Api } from '../api/gym';
 import { useAuth, isManager } from '../contexts/AuthContext';
 import { useDebounced, useFetch } from '../hooks/useFetch';
-import { S } from '../theme';
-import { idOf, toInputDate } from '../utils/format';
+import { C, S } from '../theme';
+import { fmtDate, idOf, titleCase, toInputDate } from '../utils/format';
 import { PhoneInput } from './PhoneInput';
 import { MemberPicker, useClasses, usePlans, useTrainers } from './pickers';
 import {
   Btn,
   CheckField,
   Empty,
+  IconBtn,
   Input,
   Loader,
+  Pair,
   Pager,
   Pill,
   Screen,
@@ -23,6 +25,8 @@ import {
   Tabs,
   notify, RCard,
 } from './ui';
+import ExportSheet, { ExportSpec } from './ExportSheet';
+import { Download as ExportIcon } from 'lucide-react-native';
 
 export interface FieldDef {
   key: string;
@@ -59,6 +63,8 @@ export interface CardInfo {
 }
 export interface RowAction {
   label: string;
+  /** icon-only button when set; otherwise a bare text button */
+  icon?: any;
   onPress: () => void;
   tone?: 'primary' | 'danger' | 'light';
   hidden?: boolean;
@@ -80,9 +86,23 @@ interface Props {
   toPayload?: (body: Record<string, any>) => Record<string, any>;
   after?: React.ReactNode;
   back?: boolean;
+  /** replace the default card; `actions` is the ready-made icon row */
+  renderCard?: (row: any, actions: React.ReactNode) => React.ReactNode;
   /** pull the raw list result (some endpoints use a different param name for search) */
   searchParam?: string;
 }
+
+// two short fields share a row; textareas and member pickers stay full width
+const wide = (f: FieldDef) => f.type === 'textarea' || f.type === 'member';
+const pairUp = (fields: FieldDef[]) => {
+  const out: FieldDef[][] = [];
+  for (const f of fields) {
+    const last = out[out.length - 1];
+    if (!wide(f) && last && last.length === 1 && !wide(last[0])) last.push(f);
+    else out.push([f]);
+  }
+  return out;
+};
 
 const getPath = (o: any, p: string) =>
   p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
@@ -116,6 +136,7 @@ export default function ResourceScreen(p: Props) {
   const [editing, setEditing] = useState<any>(null); // row | 'new'
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
+  const [exp, setExp] = useState<ExportSpec | null>(null);
   const trainers = useTrainers();
   const plans = usePlans(false);
   const classes = useClasses();
@@ -133,6 +154,23 @@ export default function ResourceScreen(p: Props) {
   );
   const { data, loading, reload } = useFetch(() => p.api.list(params), [params]);
   const rows: any[] = data?.data || [];
+
+  // every field of the form becomes a column; all pages of the current search / filters are exported
+  const cell = (row: any, f: FieldDef) => {
+    const v = getPath(row, f.key);
+    if (v === undefined || v === null || v === '') return '';
+    if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+    if (typeof v === 'object') return v.name || v.title || v.label || '';
+    if (f.type === 'date' || f.type === 'datetime') return fmtDate(v);
+    if (f.type === 'select') return titleCase(String(v));
+    return String(v);
+  };
+  const openExport = () =>
+    setExp({
+      name: p.title,
+      cols: p.fields.map(f => ({ header: f.label, value: (r: any) => cell(r, f) })),
+      rows: async () => (await p.api.list({ ...params, page: 1, limit: 1000 })).data || [],
+    });
 
   const openNew = () => {
     setForm(blank(p.fields));
@@ -252,7 +290,7 @@ export default function ResourceScreen(p: Props) {
       back={p.back}
       refreshing={loading && !!data}
       onRefresh={reload}
-      right={canWrite ? <Btn small label="Add" icon={<Plus size={14} color="#fff" />} onPress={openNew} /> : undefined}
+      right={<><Btn small label="Export" icon={<ExportIcon />} onPress={openExport} />{canWrite && <Btn small label="Add" icon={<Plus size={14} color="#fff" />} onPress={openNew} />}</>}
     >
       {p.stats?.(rows, data?.total ?? rows.length)}
       {p.searchable !== false && (
@@ -276,9 +314,21 @@ export default function ResourceScreen(p: Props) {
           const c = p.card(r);
           const acts = [
             ...(p.rowActions?.(r, reload) || []),
-            ...(canWrite ? [{ label: 'Edit', onPress: () => openEdit(r) } as RowAction] : []),
-            ...(owner && p.canDelete !== false ? [{ label: 'Delete', tone: 'danger', onPress: () => remove(r) } as RowAction] : []),
+            ...(canWrite ? [{ label: 'Edit', icon: Pencil, onPress: () => openEdit(r) } as RowAction] : []),
+            ...(owner && p.canDelete !== false ? [{ label: 'Delete', icon: Trash2, tone: 'danger', onPress: () => remove(r) } as RowAction] : []),
           ].filter(a => !a.hidden);
+          const actions = acts.length > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              {acts.map(a =>
+                a.icon ? (
+                  <IconBtn key={a.label} icon={a.icon} label={a.label} color={a.tone === 'danger' ? C.danger : a.tone === 'primary' ? C.primary : C.black} onPress={a.onPress} />
+                ) : (
+                  <Btn key={a.label} small label={a.label} light={a.tone !== 'primary' && a.tone !== 'danger'} danger={a.tone === 'danger'} onPress={a.onPress} />
+                ),
+              )}
+            </View>
+          );
+          if (p.renderCard) return <RCard key={r._id} style={S.card}>{p.renderCard(r, actions)}</RCard>;
           return (
             <RCard key={r._id} style={S.card}>
               <View style={[S.rowBetween, { alignItems: 'flex-start' }]}>
@@ -297,13 +347,7 @@ export default function ResourceScreen(p: Props) {
                   <Text style={[S.body, { fontSize: 13, flexShrink: 1, textAlign: 'right' }]}>{v ?? '—'}</Text>
                 </View>
               ))}
-              {acts.length > 0 && (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-                  {acts.map(a => (
-                    <Btn key={a.label} small label={a.label} light={a.tone !== 'primary' && a.tone !== 'danger'} danger={a.tone === 'danger'} onPress={a.onPress} />
-                  ))}
-                </View>
-              )}
+              {!!actions && <View style={{ alignItems: 'flex-end', marginTop: 8 }}>{actions}</View>}
             </RCard>
           );
         })
@@ -322,8 +366,11 @@ export default function ResourceScreen(p: Props) {
           </>
         }
       >
-        {p.fields.map(renderField)}
+        {pairUp(p.fields.filter(f => !(f.createOnly && editing !== 'new'))).map((g, i) =>
+          g.length === 2 ? <Pair key={i}>{g.map(renderField)}</Pair> : renderField(g[0]),
+        )}
       </Sheet>
+      <ExportSheet spec={exp} onClose={() => setExp(null)} />
     </Screen>
   );
 }

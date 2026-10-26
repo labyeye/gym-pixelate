@@ -40,4 +40,5 @@ const productSchema = new mongoose.Schema(
 );
 productSchema.index({ tenantId: 1, branchId: 1, isActive: 1 });
 
+productSchema.plugin(require("../utils/softDelete"));
 module.exports = mongoose.model("Product", productSchema);

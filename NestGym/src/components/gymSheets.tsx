@@ -6,7 +6,7 @@ import { gym } from '../api/gym';
 import { C, S } from '../theme';
 import { fmtDate, idOf, inr, r2, titleCase } from '../utils/format';
 import { MemberPicker, usePlans } from './pickers';
-import { Btn, Input, Row, Select, Sheet, Totals, notify, RCard } from './ui';
+import { Btn, Input, Row, Select, Sheet, Totals, notify, RCard, Pair } from './ui';
 
 export const METHODS = ['cash', 'upi', 'card', 'online', 'bank_transfer', 'cheque'];
 const newKey = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -39,6 +39,7 @@ export function SellMembershipSheet({
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<any>(null);
   const [key, setKey] = useState(newKey);
+  const [quote, setQuote] = useState<any>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -49,6 +50,18 @@ export function SellMembershipSheet({
   }, [open, m0, membership, mode]);
 
   const plan = plans.find((p: any) => p._id === planId);
+
+  // Changing plan: the server works out the credit (all that was paid inside 24 h, unused days after that).
+  useEffect(() => {
+    setQuote(null);
+    if (mode !== 'upgrade' || !planId || !membership?._id) return;
+    let live = true;
+    gym.memberships.upgradeQuote(membership._id, planId)
+      .then((r: any) => live && setQuote(r.data))
+      .catch((e: any) => live && notify.error('Could not price the change', e.message));
+    return () => { live = false; };
+  }, [mode, planId, membership?._id]);
+  const blocked = mode === 'upgrade' && !!quote && !quote.allowed;
   const calc = useMemo(() => {
     if (!plan) return null;
     const g = plan.gstPercent || 0;
@@ -56,10 +69,11 @@ export function SellMembershipSheet({
     const adm = admission === 'yes' || (admission === 'auto' && mode === 'sell' && !m0?.currentMembership && !member?.currentMembership);
     const admFee = adm && plan.admissionFee ? (plan.priceIncludesGst ? plan.admissionFee / (1 + g / 100) : plan.admissionFee) : 0;
     const sub = r2(unit + admFee);
-    const disc = Math.min(sub, Math.max(0, Number(discount) || 0));
+    const credit = mode === 'upgrade' && quote ? quote.discount : 0;
+    const disc = Math.min(sub, credit + Math.max(0, Number(discount) || 0));
     const gst = r2((sub - disc) * (g / 100));
     return { unit, sub, disc, gst, total: r2(sub - disc + gst), adm: admFee > 0, admFee: r2(admFee) };
-  }, [plan, discount, admission, member, m0, mode]);
+  }, [plan, discount, admission, member, m0, mode, quote]);
 
   const payNow = pay === '' ? calc?.total ?? 0 : Number(pay);
   const balance = calc ? Math.max(0, r2(calc.total - payNow)) : 0;
@@ -102,7 +116,7 @@ export function SellMembershipSheet({
         ) : (
           <>
             <Btn light label="Cancel" onPress={onClose} />
-            <Btn label={mode === 'upgrade' ? 'Upgrade & bill' : 'Confirm & bill'} busy={busy} disabled={!plan} onPress={submit} />
+            <Btn label={mode === 'upgrade' ? 'Upgrade & bill' : 'Confirm & bill'} busy={busy} disabled={!plan || blocked || (mode === 'upgrade' && !quote)} onPress={submit} />
           </>
         )
       }
@@ -124,12 +138,27 @@ export function SellMembershipSheet({
         <>
           {mode === 'sell' && !m0 && <MemberPicker value={member} onChange={setMember} required />}
           <Select label="Plan" required value={planId} onChange={setPlanId} placeholder="Choose a plan" options={plans.map((p: any) => ({ value: p._id, label: `${p.name} — ${inr(p.price)} / ${p.durationDays}d` }))} />
+          {mode === 'upgrade' && !!quote && (
+            <View style={[S.card, { padding: 10, borderColor: blocked ? C.danger : C.black, backgroundColor: blocked ? '#FEF2F2' : '#FFF7E6' }]}>
+              <Text style={[S.body, { fontFamily: 'Inter-Bold', color: blocked ? C.danger : C.black }]}>
+                {blocked
+                  ? 'This membership was bought more than 24 hours ago. Only the gym owner or a manager can change the plan.'
+                  : quote.withinWindow
+                    ? `Within 24 hours of buying: ${inr(quote.credit, 2)} already paid is credited in full. Collect only ${inr(quote.payable, 2)}.`
+                    : `After 24 hours: credit is the unused days of the old plan (${inr(quote.credit, 2)}). Collect ${inr(quote.payable, 2)}.`}
+              </Text>
+            </View>
+          )}
           {plan && (
             <>
-              <Input label="Start date" hint="Blank = today (or right after the running plan)" value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" />
-              <Select label="Admission fee" value={admission} onChange={setAdmission} options={[{ value: 'auto', label: plan.admissionFee ? `Auto (${inr(plan.admissionFee)} for new members)` : 'None on this plan' }, { value: 'yes', label: 'Charge' }, { value: 'no', label: 'Waive' }]} />
-              <Input label="Coupon code" hint="Discount is applied when billed" autoCapitalize="characters" value={coupon} onChangeText={v => setCoupon(v.toUpperCase())} />
-              <Input label="Extra discount (₹)" keyboardType="decimal-pad" value={discount} onChangeText={setDiscount} />
+              <Pair>
+                <Input label="Start date" hint="Blank = today (or right after the running plan)" value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" />
+                <Select label="Admission fee" value={admission} onChange={setAdmission} options={[{ value: 'auto', label: plan.admissionFee ? `Auto (${inr(plan.admissionFee)} for new members)` : 'None on this plan' }, { value: 'yes', label: 'Charge' }, { value: 'no', label: 'Waive' }]} />
+              </Pair>
+              <Pair>
+                <Input label="Coupon code" hint="Discount is applied when billed" autoCapitalize="characters" value={coupon} onChangeText={v => setCoupon(v.toUpperCase())} />
+                <Input label="Extra discount (₹)" keyboardType="decimal-pad" value={discount} onChangeText={setDiscount} />
+              </Pair>
             </>
           )}
           {calc && (
@@ -137,7 +166,7 @@ export function SellMembershipSheet({
               rows={[
                 [plan.name, inr(calc.unit, 2)],
                 ...(calc.adm ? [['Admission fee', inr(calc.admFee, 2)] as [string, string]] : []),
-                ...(calc.disc > 0 ? [['Discount', `− ${inr(calc.disc, 2)}`, 'green'] as [string, string, 'green']] : []),
+                ...(calc.disc > 0 ? [[mode === 'upgrade' ? 'Credit & discount' : 'Discount', `− ${inr(calc.disc, 2)}`, 'green'] as [string, string, 'green']] : []),
                 [`GST (${plan.gstPercent}%)`, inr(calc.gst, 2)],
                 [`Total${coupon ? ' (before coupon)' : ''}`, inr(calc.total, 2), 'bold'],
               ]}
@@ -145,8 +174,10 @@ export function SellMembershipSheet({
           )}
           {calc && (
             <>
-              <Input label="Collect now (₹)" keyboardType="decimal-pad" value={pay} placeholder={String(calc.total)} onChangeText={setPay} hint={balance > 0 ? `Balance ${inr(balance, 2)} stays as dues` : 'Paid in full'} />
-              <Select label="Payment method" value={method} onChange={setMethod} options={METHODS} />
+              <Pair>
+                <Input label="Collect now (₹)" keyboardType="decimal-pad" value={pay} placeholder={String(calc.total)} onChangeText={setPay} hint={balance > 0 ? `Balance ${inr(balance, 2)} stays as dues` : 'Paid in full'} />
+                <Select label="Payment method" value={method} onChange={setMethod} options={METHODS} />
+              </Pair>
               <Input label="Reference / txn id" value={reference} onChangeText={setReference} placeholder="UPI ref, cheque no…" />
               {balance > 0 && <Input label="Balance due by" hint="Entry is blocked after this date until paid" value={dueDate} onChangeText={setDueDate} placeholder="YYYY-MM-DD" />}
             </>
@@ -213,10 +244,14 @@ export function PaymentSheet({
       }
     >
       <Totals rows={[['Total', inr(invoice?.totalAmount, 2)], ['Paid', inr(invoice?.paidAmount, 2)], ['Balance', inr(balance, 2), 'bold']]} />
-      <Input label={mode === 'pay' ? 'Amount (₹)' : 'Refund amount (₹)'} keyboardType="decimal-pad" value={amount} onChangeText={setAmount} hint={mode === 'pay' ? `Up to ${inr(balance, 2)}` : `Up to ${inr(invoice?.paidAmount, 2)} collected`} />
-      <Select label="Method" options={METHODS} value={method} onChange={setMethod} />
-      <Input label="Reference / txn id" value={reference} onChangeText={setReference} />
-      <Input label="Note" value={note} onChangeText={setNote} />
+      <Pair>
+        <Input label={mode === 'pay' ? 'Amount (₹)' : 'Refund amount (₹)'} keyboardType="decimal-pad" value={amount} onChangeText={setAmount} hint={mode === 'pay' ? `Up to ${inr(balance, 2)}` : `Up to ${inr(invoice?.paidAmount, 2)} collected`} />
+        <Select label="Method" options={METHODS} value={method} onChange={setMethod} />
+      </Pair>
+      <Pair>
+        <Input label="Reference / txn id" value={reference} onChangeText={setReference} />
+        <Input label="Note" value={note} onChangeText={setNote} />
+      </Pair>
     </Sheet>
   );
 }

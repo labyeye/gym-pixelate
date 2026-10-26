@@ -81,4 +81,5 @@ const membershipPlanSchema = new mongoose.Schema(
 
 membershipPlanSchema.index({ tenantId: 1, branchId: 1 });
 
+membershipPlanSchema.plugin(require("../utils/softDelete"));
 module.exports = mongoose.model("MembershipPlan", membershipPlanSchema);

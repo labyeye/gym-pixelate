@@ -50,6 +50,8 @@ const REPORTS: { id: string; name: string; desc: string; cat: Cat; icon: any }[]
   { id: "gst", name: "GST Register", desc: "Invoice-wise taxable value, GST and totals for filing — pick any date range.", cat: "finance", icon: FileText },
   { id: "dues", name: "Outstanding Dues", desc: "Members with unpaid balances, oldest invoice and days overdue, with WhatsApp reminders.", cat: "finance", icon: Wallet },
   { id: "renewals", name: "Upcoming Renewals", desc: "Memberships ending in the next few days so the desk can follow up before they lapse.", cat: "members", icon: CalendarClock },
+  { id: "retention", name: "Churn, Cohorts & LTV", desc: "Monthly churn, how each joining-month cohort sticks around, and average lifetime value per member.", cat: "members", icon: TrendingDown },
+  { id: "trainers", name: "Trainer Utilisation", desc: "Active clients per trainer against their client limit.", cat: "members", icon: UserMinus },
   { id: "birthdays", name: "Birthdays This Month", desc: "Members celebrating a birthday this month — send wishes on WhatsApp.", cat: "members", icon: Cake },
 ];
 const CatTag = ({ cat }: { cat: Cat }) => (
@@ -126,6 +128,11 @@ export default function ReportsPage() {
     queryKey: ["rep-bday"],
     queryFn: () => gym.reports.birthdays(),
     enabled: tab === "birthdays",
+  });
+  const insights = useQuery({
+    queryKey: ["rep-insights"],
+    queryFn: () => gym.reports.insights(),
+    enabled: tab === "retention" || tab === "trainers",
   });
   const gst = useQuery({
     queryKey: ["rep-gst", from, to],
@@ -476,6 +483,61 @@ export default function ReportsPage() {
             ))}
           </DataTable>
         </>
+      )}
+
+      {tab === "retention" && (
+        <div className="space-y-4">
+          <StatGrid>
+            <StatCard label="Avg lifetime" value={`${insights.data?.data?.ltv?.avgLifetimeMonths ?? 0} mo`} icon={CalendarClock} color="#024BAB" />
+            <StatCard label="LTV per member" value={inr(insights.data?.data?.ltv?.ltv ?? 0)} icon={IndianRupee} color="#00C48C" />
+            <StatCard label="Revenue / member / month" value={inr(insights.data?.data?.ltv?.revenuePerMemberMonth ?? 0)} icon={Wallet} color="#A855F7" />
+            <StatCard label="Revenue / paying member" value={inr(insights.data?.data?.ltv?.revenuePerMember ?? 0)} icon={TrendingUp} color="#FA731C" />
+          </StatGrid>
+          <Panel title={`Member satisfaction (NPS, last 90 days) · ${insights.data?.data?.nps?.score ?? "no"} score from ${insights.data?.data?.nps?.responses ?? 0} ratings`}>
+            <div className="p-4 space-y-1 text-sm">
+              {(insights.data?.data?.nps?.recent || []).map((r: any, i: number) => (
+                <p key={i}>
+                  <b>{r.score}/10</b> · {r.name || "Member"}: {r.comment}
+                </p>
+              ))}
+            </div>
+          </Panel>
+          <Panel title="Monthly churn (plan ended, did not return within 30 days)">
+            <div className="p-4">
+              <Bars
+                rows={(insights.data?.data?.churn || []).map((r: any) => ({ label: `${r.month} · ${r.lost}/${r.ended}`, value: r.churnPct }))}
+                color="#EF4444"
+                fmt={(n) => `${n}%`}
+              />
+            </div>
+          </Panel>
+          <DataTable head={["Joined", "Members", "+0 mo", "+1", "+2", "+3", "+4", "+5"]} loading={insights.isLoading} empty={!(insights.data?.data?.cohorts || []).length}>
+            {(insights.data?.data?.cohorts || []).map((c: any, i: number) => (
+              <Tr key={c.cohort} i={i}>
+                <Td className="font-black">{c.cohort}</Td>
+                <Td>{c.size}</Td>
+                {[0, 1, 2, 3, 4, 5].map((k) => (
+                  <Td key={k} className="font-bold">
+                    {c.retained[k] === undefined ? "" : `${c.retained[k]}%`}
+                  </Td>
+                ))}
+              </Tr>
+            ))}
+          </DataTable>
+        </div>
+      )}
+
+      {tab === "trainers" && (
+        <DataTable head={["Trainer", "Clients", "Limit", "Utilisation"]} loading={insights.isLoading} empty={!(insights.data?.data?.trainers || []).length}>
+          {(insights.data?.data?.trainers || []).map((t: any, i: number) => (
+            <Tr key={t._id} i={i}>
+              <Td className="font-black">{t.name}</Td>
+              <Td>{t.clients}</Td>
+              <Td>{t.maxClients || "No limit"}</Td>
+              <Td className="font-bold">{t.utilisationPct === null ? "-" : `${t.utilisationPct}%`}</Td>
+            </Tr>
+          ))}
+        </DataTable>
       )}
 
       {tab === "birthdays" && (

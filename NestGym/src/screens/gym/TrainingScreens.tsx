@@ -7,7 +7,10 @@ import { useFetch } from '../../hooks/useFetch';
 import { C, S } from '../../theme';
 import { fmtDate, fmtDateTime, inr, titleCase } from '../../utils/format';
 import { MemberPicker, useTrainers } from '../../components/pickers';
-import { Btn, CheckField, Empty, Input, Loader, Pill, Row, Screen, Select, Sheet, StatCard, StatGrid, Tabs, notify, RCard } from '../../components/ui';
+import { Btn, CheckField, Empty, Input, Loader, Pill, Row, Screen, Select, Sheet, StatCard, StatGrid, Tabs, notify, RCard, Pair } from '../../components/ui';
+import { CalendarDays as StatCalendarDays, Clock3 as StatClock3, Dumbbell as StatDumbbell, IndianRupee as StatIndianRupee, Layers as StatLayers } from 'lucide-react-native';
+import ExportSheet, { ExportSpec } from '../../components/ExportSheet';
+import { Download as ExportIcon } from 'lucide-react-native';
 
 /* ------------------------------------------------------------------ group classes */
 const CATS = ['yoga', 'zumba', 'hiit', 'crossfit', 'spin', 'pilates', 'aerobics', 'martial_arts', 'dance', 'other'];
@@ -73,10 +76,10 @@ export function ClassesScreen() {
   return (
     <Screen title="Group Classes" refreshing={sess.loading && !!sess.data} onRefresh={reload} right={tab === 'classes' && canWrite ? <Btn small label="New" icon={<Plus size={14} color="#fff" />} onPress={() => openEdit()} /> : undefined}>
       <StatGrid>
-        <StatCard label="Sessions (7 days)" value={sessions.length} color="#024BAB" />
-        <StatCard label="Seats booked" value={booked} sub={seats ? `${Math.round((booked / seats) * 100)}% full` : undefined} color="#00C48C" />
-        <StatCard label="On waitlists" value={sessions.reduce((s, x) => s + x.waitlisted, 0)} color="#FA731C" />
-        <StatCard label="Active classes" value={(classes.data?.data || []).filter((c: any) => c.isActive).length} color="#A855F7" />
+        <StatCard label="Sessions (7 days)" value={sessions.length} icon={<StatCalendarDays />} color="#024BAB" />
+        <StatCard label="Seats booked" value={booked} sub={seats ? `${Math.round((booked / seats) * 100)}% full` : undefined} icon={<StatCalendarDays />} color="#00C48C" />
+        <StatCard label="On waitlists" value={sessions.reduce((s, x) => s + x.waitlisted, 0)} icon={<StatClock3 />} color="#FA731C" />
+        <StatCard label="Active classes" value={(classes.data?.data || []).filter((c: any) => c.isActive).length} icon={<StatLayers />} color="#A855F7" />
       </StatGrid>
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'schedule', label: 'Upcoming sessions' }, { id: 'classes', label: 'Class setup' }]} />
 
@@ -157,14 +160,22 @@ export function ClassesScreen() {
       </Sheet>
 
       <Sheet visible={!!edit} title={edit === 'new' ? 'New class' : 'Edit class'} onClose={() => setEdit(null)} footer={<><Btn light label="Cancel" onPress={() => setEdit(null)} /><Btn label="Save class" busy={busy} onPress={saveClass} /></>}>
-        <Input label="Class name" required value={form.name} onChangeText={v => setForm({ ...form, name: v })} />
-        <Select label="Category" options={CATS} value={form.category} onChange={v => setForm({ ...form, category: v })} />
-        <Select label="Trainer" options={trainers} value={form.trainerId} onChange={v => setForm({ ...form, trainerId: v })} allowEmpty placeholder="— none —" />
-        <Input label="Room / studio" value={form.room} onChangeText={v => setForm({ ...form, room: v })} />
-        <Input label="Capacity" keyboardType="number-pad" value={form.capacity} onChangeText={v => setForm({ ...form, capacity: v })} />
-        <Input label="Duration (min)" keyboardType="number-pad" value={form.durationMin} onChangeText={v => setForm({ ...form, durationMin: v })} />
-        <Input label="Drop-in price (₹)" hint="For non-members / plans without classes" keyboardType="decimal-pad" value={form.dropInPrice} onChangeText={v => setForm({ ...form, dropInPrice: v })} />
-        <Input label="Credits per booking" keyboardType="number-pad" value={form.creditsRequired} onChangeText={v => setForm({ ...form, creditsRequired: v })} />
+        <Pair>
+          <Input label="Class name" required value={form.name} onChangeText={v => setForm({ ...form, name: v })} />
+          <Select label="Category" options={CATS} value={form.category} onChange={v => setForm({ ...form, category: v })} />
+        </Pair>
+        <Pair>
+          <Select label="Trainer" options={trainers} value={form.trainerId} onChange={v => setForm({ ...form, trainerId: v })} allowEmpty placeholder="— none —" />
+          <Input label="Room / studio" value={form.room} onChangeText={v => setForm({ ...form, room: v })} />
+        </Pair>
+        <Pair>
+          <Input label="Capacity" keyboardType="number-pad" value={form.capacity} onChangeText={v => setForm({ ...form, capacity: v })} />
+          <Input label="Duration (min)" keyboardType="number-pad" value={form.durationMin} onChangeText={v => setForm({ ...form, durationMin: v })} />
+        </Pair>
+        <Pair>
+          <Input label="Drop-in price (₹)" hint="For non-members / plans without classes" keyboardType="decimal-pad" value={form.dropInPrice} onChangeText={v => setForm({ ...form, dropInPrice: v })} />
+          <Input label="Credits per booking" keyboardType="number-pad" value={form.creditsRequired} onChangeText={v => setForm({ ...form, creditsRequired: v })} />
+        </Pair>
         <Text style={[S.label, { marginBottom: 6 }]}>Runs on</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
           {DAYS.map((d, i) => {
@@ -192,10 +203,25 @@ export function PersonalTrainingScreen() {
   const [open, setOpen] = useState<any>(null);
   const [when, setWhen] = useState('');
   const [busy, setBusy] = useState(false);
+  const [exp, setExp] = useState<ExportSpec | null>(null);
   const { data, loading, reload } = useFetch(() => gym.pt.list({ status }), [status]);
   const comm = useFetch(() => gym.pt.commission(), [], tab === 'commission');
   const pkgs: any[] = data?.data || [];
   const cur = open ? pkgs.find(p => p._id === open._id) || open : null;
+  const exportPackages = () =>
+    setExp({
+      name: `PT packages (${status})`,
+      cols: [
+        { header: 'Package', value: (p: any) => p.name },
+        { header: 'Member', value: (p: any) => p.memberId?.name },
+        { header: 'Trainer', value: (p: any) => p.trainerId?.name },
+        { header: 'Total sessions', value: (p: any) => p.totalSessions },
+        { header: 'Sessions left', value: (p: any) => p.remainingSessions },
+        { header: 'Amount', value: (p: any) => p.totalAmount },
+        { header: 'Status', value: (p: any) => p.status },
+      ],
+      rows: async () => (await gym.pt.list({ status, limit: 1000 })).data || pkgs,
+    });
   const total = (Number(f.totalSessions) || 0) * (Number(f.pricePerSession) || 0);
   const withGst = Math.round(total * 1.18 * 100) / 100;
 
@@ -220,12 +246,12 @@ export function PersonalTrainingScreen() {
   const set = (k: string) => (v: any) => setF((s: any) => ({ ...s, [k]: v }));
 
   return (
-    <Screen title="Personal Training" refreshing={loading && !!data} onRefresh={reload} right={tab === 'packages' && canWrite ? <Btn small label="Sell" icon={<Plus size={14} color="#fff" />} onPress={() => setSell(true)} /> : undefined}>
+    <Screen title="Personal Training" refreshing={loading && !!data} onRefresh={reload} right={tab === 'packages' ? <><Btn small label="Export" icon={<ExportIcon />} onPress={exportPackages} />{canWrite && <Btn small label="Sell" icon={<Plus size={14} color="#fff" />} onPress={() => setSell(true)} />}</> : undefined}>
       <StatGrid>
-        <StatCard label="Packages" value={data?.count ?? 0} sub={status} color="#024BAB" />
-        <StatCard label="Sessions left" value={pkgs.reduce((s, p) => s + p.remainingSessions, 0)} color="#A855F7" />
-        <StatCard label="Revenue (these)" value={inr(pkgs.reduce((s, p) => s + p.totalAmount, 0))} color="#00C48C" />
-        <StatCard label="Trainers" value={trainers.length} color="#FA731C" />
+        <StatCard label="Packages" value={data?.count ?? 0} sub={status} icon={<StatLayers />} color="#024BAB" />
+        <StatCard label="Sessions left" value={pkgs.reduce((s, p) => s + p.remainingSessions, 0)} icon={<StatCalendarDays />} color="#A855F7" />
+        <StatCard label="Revenue (these)" value={inr(pkgs.reduce((s, p) => s + p.totalAmount, 0))} icon={<StatIndianRupee />} color="#00C48C" />
+        <StatCard label="Trainers" value={trainers.length} icon={<StatDumbbell />} color="#FA731C" />
       </StatGrid>
       <Tabs value={tab} onChange={setTab} tabs={[{ id: 'packages', label: 'Packages' }, { id: 'commission', label: 'Trainer commission' }]} />
       {tab === 'packages' && <Tabs value={status} onChange={setStatus} tabs={['active', 'completed', 'expired', 'cancelled'].map(s => ({ id: s, label: s }))} />}
@@ -262,12 +288,18 @@ export function PersonalTrainingScreen() {
 
       <Sheet visible={sell} title="Sell PT package" onClose={() => setSell(false)} footer={<><Btn light label="Cancel" onPress={() => setSell(false)} /><Btn label="Sell & bill" busy={busy} disabled={!f.member || !f.trainerId || !(total > 0)} onPress={create} /></>}>
         <MemberPicker value={f.member} onChange={set('member')} required />
-        <Select label="Trainer" required options={trainers} value={f.trainerId} onChange={set('trainerId')} placeholder="Select trainer" />
-        <Input label="Package name" value={f.name} onChangeText={set('name')} />
-        <Input label="Sessions" keyboardType="number-pad" value={f.totalSessions} onChangeText={set('totalSessions')} />
-        <Input label="Price / session (₹)" keyboardType="decimal-pad" value={f.pricePerSession} onChangeText={set('pricePerSession')} />
-        <Input label="Trainer commission %" keyboardType="decimal-pad" value={f.commissionPercent} onChangeText={set('commissionPercent')} />
-        <Input label="Collect now (₹)" keyboardType="decimal-pad" placeholder={String(withGst)} value={f.payNow} onChangeText={set('payNow')} hint={`Total incl. 18% GST: ${inr(withGst, 2)}`} />
+        <Pair>
+          <Select label="Trainer" required options={trainers} value={f.trainerId} onChange={set('trainerId')} placeholder="Select trainer" />
+          <Input label="Package name" value={f.name} onChangeText={set('name')} />
+        </Pair>
+        <Pair>
+          <Input label="Sessions" keyboardType="number-pad" value={f.totalSessions} onChangeText={set('totalSessions')} />
+          <Input label="Price / session (₹)" keyboardType="decimal-pad" value={f.pricePerSession} onChangeText={set('pricePerSession')} />
+        </Pair>
+        <Pair>
+          <Input label="Trainer commission %" keyboardType="decimal-pad" value={f.commissionPercent} onChangeText={set('commissionPercent')} />
+          <Input label="Collect now (₹)" keyboardType="decimal-pad" placeholder={String(withGst)} value={f.payNow} onChangeText={set('payNow')} hint={`Total incl. 18% GST: ${inr(withGst, 2)}`} />
+        </Pair>
         <Select label="Method" options={['cash', 'upi', 'card', 'online', 'bank_transfer']} value={f.method} onChange={set('method')} />
       </Sheet>
 
@@ -295,6 +327,7 @@ export function PersonalTrainingScreen() {
           </View>
         ))}
       </Sheet>
+      <ExportSheet spec={exp} onClose={() => setExp(null)} />
     </Screen>
   );
 }

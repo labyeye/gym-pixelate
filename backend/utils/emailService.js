@@ -536,4 +536,96 @@ async function sendWelcomeEmail({
   });
 }
 
-module.exports = { sendWelcomeEmail };
+// ── Account security emails (NestGym's own users) ────────────────────────────
+const esc = (v) =>
+  String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function securityShell(title, bodyHtml) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8" /></head>
+<body style="font-family:Arial,sans-serif;background:#F0F6FF;margin:0;padding:24px">
+<div style="max-width:480px;margin:0 auto;background:#fff;border:2px solid #000">
+<div style="background:#024BAB;padding:20px 28px;border-bottom:2px solid #000"><h1 style="color:#fff;margin:0;font-size:18px;font-weight:900">${esc(title)}</h1></div>
+<div style="padding:28px">${bodyHtml}</div></div></body></html>`;
+}
+
+// Sends and throws on failure (callers decide whether to tell the user).
+async function sendSecurityMail({ to, subject, html, text }) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    throw new Error("Email is not configured on the server");
+  }
+  const fromName = process.env.SMTP_FROM_NAME || "NestGym";
+  const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
+  const masked = String(to).replace(/^(.).*(@.*)$/, "$1***$2");
+  try {
+    await createTransport().sendMail({ from: `"${fromName}" <${fromEmail}>`, to, subject, html, text });
+  } catch (err) {
+    console.error(`[security-mail] FAILED to ${masked}: ${err.code || ""} ${err.message}`);
+    throw err;
+  }
+}
+
+// One-time code emails: purpose "login" (sign in / unlock) or "verify-email".
+async function sendOtpEmail({ to, name, otp, purpose }) {
+  const verify = purpose === "verify-email";
+  const subject = verify ? "NestGym - Verify your email" : "NestGym - Your sign-in code";
+  const intro = verify
+    ? "Use this code to verify your email address."
+    : "Use this code to sign in to your account. It also unlocks your account if it was temporarily locked.";
+  const html = securityShell(
+    subject,
+    `<p style="font-size:14px;color:#333">Hello ${esc(name || "there")},</p>
+<p style="font-size:14px;color:#555;line-height:1.6">${intro}</p>
+<p style="text-align:center;font-size:34px;font-weight:900;letter-spacing:8px;color:#024BAB;margin:24px 0">${esc(otp)}</p>
+<p style="font-size:12px;color:#888;line-height:1.6">This code expires in 10 minutes. If you didn't request it, ignore this email: nobody can sign in without it.</p>`,
+  );
+  await sendSecurityMail({ to, subject, html, text: `Your NestGym code is ${otp}. It expires in 10 minutes.` });
+}
+
+async function sendPasswordResetEmail({ toEmail, toName, resetUrl }) {
+  const subject = "NestGym - Reset your password";
+  const html = securityShell(
+    subject,
+    `<p style="font-size:14px;color:#333">Hello ${esc(toName || "there")},</p>
+<p style="font-size:14px;color:#555;line-height:1.6">We received a request to reset your password. The link works for 1 hour.</p>
+<p style="text-align:center;margin:24px 0"><a href="${esc(resetUrl)}" style="background:#024BAB;color:#fff;padding:12px 24px;text-decoration:none;font-weight:700;border:2px solid #000">Reset password</a></p>
+<p style="font-size:12px;color:#888;line-height:1.6">If you didn't ask for this, ignore this email. Your password stays the same.</p>`,
+  );
+  await sendSecurityMail({ to: toEmail, subject, html, text: `Reset your NestGym password (valid 1 hour): ${resetUrl}` });
+}
+
+// Heads-up after a security-relevant change. Best effort: never blocks the action.
+async function sendSecurityAlertEmail({ to, name, what }) {
+  try {
+    const subject = "NestGym - Security alert";
+    const html = securityShell(
+      subject,
+      `<p style="font-size:14px;color:#333">Hello ${esc(name || "there")},</p>
+<p style="font-size:14px;color:#555;line-height:1.6">${esc(what)}</p>
+<p style="font-size:12px;color:#888;line-height:1.6">If this wasn't you, reset your password straight away and contact support@pixelatenest.com.</p>`,
+    );
+    await sendSecurityMail({ to, subject, html, text: what });
+  } catch {
+    /* logged in sendSecurityMail */
+  }
+}
+
+// Heads-up that WhatsApp credits are low / finished. Best effort: never blocks the send that triggered it.
+async function sendLowCreditsEmail({ to, name, credits, zero }) {
+  try {
+    const subject = zero ? "NestGym - WhatsApp credits finished, messages are paused" : "NestGym - WhatsApp credits are running low";
+    const line = zero
+      ? "Your WhatsApp credits are <b>0</b>. Renewal reminders, due-fee links and other messages to your members are paused until you add credits. Login OTPs are not affected."
+      : `You have <b>${esc(credits)}</b> WhatsApp credits left. Add credits so messages to your members don't stop.`;
+    const html = securityShell(
+      subject,
+      `<p style="font-size:14px;color:#333">Hello ${esc(name || "there")},</p>
+<p style="font-size:14px;color:#555;line-height:1.6">${line}</p>
+<p style="font-size:12px;color:#888;line-height:1.6">Open NestGym &rarr; Credits to add more.</p>`,
+    );
+    await sendSecurityMail({ to, subject, html, text: zero ? "Your NestGym WhatsApp credits are 0." : `You have ${credits} NestGym WhatsApp credits left.` });
+  } catch {
+    /* logged in sendSecurityMail */
+  }
+}
+
+module.exports = { sendWelcomeEmail, sendOtpEmail, sendPasswordResetEmail, sendSecurityAlertEmail, sendLowCreditsEmail };

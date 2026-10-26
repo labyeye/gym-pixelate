@@ -1,9 +1,10 @@
 import { PhoneInput } from "@/components/ui/PhoneInput";
+import Turnstile from "@/components/Turnstile";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { authAPI } from "@/services/api";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight, Eye, EyeOff, Smartphone } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, KeyRound, Mail, ShieldCheck, Smartphone } from "lucide-react";
 import { useNotify } from "@/components/ui/Notification";
 import {
   AuthShell,
@@ -13,8 +14,13 @@ import {
   primaryBtnCls,
 } from "@/components/auth/AuthShell";
 
+import { passkeysSupported, serializeAssertion, toRequestOptions } from "@/lib/webauthn";
+
+type Mode = "password" | "otp";
+type Channel = "whatsapp" | "email";
+
 export default function LoginPage() {
-  const { login, loginWithOtp } = useAuth();
+  const { login, loginWithOtp, completeLogin } = useAuth();
   const navigate = useNavigate();
   const notify = useNotify();
   const [email, setEmail] = useState("");
@@ -22,100 +28,176 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  // WhatsApp OTP sign-in; also the way to unlock an account after 4 wrong passwords.
-  const [otpMode, setOtpMode] = useState(false);
+  // Set when the password was right for an account with two-factor on.
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
+  const [tfaCode, setTfaCode] = useState("");
+  // One-time code sign-in (WhatsApp or email); also the way to unlock an account locked after wrong passwords.
+  const [mode, setMode] = useState<Mode>("password");
+  const [channel, setChannel] = useState<Channel>("whatsapp");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const signInWithPasskey = async () => {
     setError("");
-    setLoading(true);
-    let result: { success: boolean; error?: string };
-    if (!otpMode) {
-      result = await login(email, password);
-    } else if (!otpSent) {
-      try {
-        await authAPI.otpSend(phone);
-        setOtpSent(true);
-        result = { success: false };
-        notify.info("OTP sent", "Check WhatsApp for your 6-digit code.");
-      } catch (err: any) {
-        result = { success: false, error: err.message };
-      }
-    } else {
-      result = await loginWithOtp(phone, otp);
-    }
-    setLoading(false);
-    if (result.success) {
+    setPasskeyBusy(true);
+    try {
+      if (!passkeysSupported()) throw new Error("Passkeys are not supported on this browser or device.");
+      const { data: options } = await authAPI.passkeyLoginOptions();
+      const credential = (await navigator.credentials.get({ publicKey: toRequestOptions(options) })) as PublicKeyCredential | null;
+      if (!credential) throw new Error("Passkey sign-in was cancelled.");
+      const res = await authAPI.passkeyLogin({ challengeToken: options.challengeToken, ...serializeAssertion(credential) });
+      completeLogin(res.data);
       navigate("/");
-    } else {
-      if (result.error) setError(result.error);
-      else if (!otpMode)
-        setError("Login failed. Please check your credentials.");
+    } catch (err: any) {
+      setError(err?.name === "NotAllowedError" ? "Passkey sign-in was cancelled." : err.message || "Passkey sign-in failed.");
+    } finally {
+      setPasskeyBusy(false);
     }
   };
 
-  const backToPassword = () => {
-    setOtpMode(false);
+  const run = async (fn: () => Promise<{ success: boolean; error?: string } | void>) => {
+    setError("");
+    setLoading(true);
+    try {
+      const r = await fn();
+      if (r && r.success) navigate("/");
+      else if (r && r.error) setError(r.error);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pendingToken) {
+      return run(async () => {
+        const res = await authAPI.verify2FA(pendingToken, tfaCode.trim());
+        completeLogin(res.data);
+        return { success: true };
+      });
+    }
+    if (mode === "password") {
+      return run(async () => {
+        const r = await login(email, password);
+        if (r.requires2FA) {
+          setPendingToken(r.pendingToken || "");
+          setTfaCode("");
+          return;
+        }
+        return r.success ? r : { success: false, error: r.error || "Login failed. Please check your credentials." };
+      });
+    }
+    if (!otpSent) {
+      return run(async () => {
+        if (channel === "whatsapp") await authAPI.otpSend(phone);
+        else await authAPI.emailOtpSend(email.trim().toLowerCase());
+        setOtpSent(true);
+        notify.info("Code sent", channel === "whatsapp" ? "Check WhatsApp for your 6-digit code." : "Check your email for your 6-digit code.");
+      });
+    }
+    return run(async () => {
+      if (channel === "whatsapp") return loginWithOtp(phone, otp);
+      const res = await authAPI.emailOtpVerify(email.trim().toLowerCase(), otp);
+      completeLogin(res.data);
+      return { success: true };
+    });
+  };
+
+  const reset = (m: Mode) => {
+    setMode(m);
     setOtpSent(false);
     setOtp("");
     setError("");
   };
+
+  const title = pendingToken
+    ? "Two-step check"
+    : mode === "otp"
+      ? otpSent
+        ? "Enter code"
+        : "Sign in with a code"
+      : "Welcome back";
+  const subtitle = pendingToken
+    ? "Enter the 6-digit code from your authenticator app, or one of your backup codes."
+    : mode === "otp"
+      ? otpSent
+        ? channel === "whatsapp"
+          ? "We sent a 6-digit code to your WhatsApp."
+          : "We sent a 6-digit code to your email."
+        : channel === "whatsapp"
+          ? "We'll send a one-time code to your WhatsApp."
+          : "We'll send a one-time code to your email."
+      : "Sign in to manage your gym";
 
   return (
     <AuthShell
       headline={
         <>
           Every member.
-          
+          <br />
           Every renewal.
-          
+          <br />
           One place.
         </>
       }
     >
       <div className="mb-8">
-        {otpMode ? (
-          <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-2">
+          {pendingToken ? (
+            <ShieldCheck className="w-7 h-7 text-[#024BAB]" />
+          ) : mode === "otp" ? (
             <Smartphone className="w-7 h-7 text-[#024BAB]" />
-            <h2 className="text-2xl font-display font-bold text-black">
-              {otpSent ? "Enter OTP" : "Phone Login"}
-            </h2>
-          </div>
-        ) : (
-          <h2 className="text-2xl sm:text-3xl font-display font-bold text-black">
-            Welcome back
-          </h2>
-        )}
-        <p className="text-sm text-gray-500 mt-1 font-medium">
-          {otpMode
-            ? otpSent
-              ? "We sent a 6-digit OTP to your WhatsApp."
-              : "We'll send a one-time password to your WhatsApp."
-            : "Sign in to manage your gym"}
-        </p>
+          ) : null}
+          <h2 className="text-2xl sm:text-3xl font-display font-bold text-black">{title}</h2>
+        </div>
+        <p className="text-sm text-gray-500 mt-1 font-medium">{subtitle}</p>
       </div>
       <ErrorBanner error={error} />
 
       <form onSubmit={handleSubmit} className="space-y-5 login-anim">
-        {otpMode ? (
+        {pendingToken ? (
+          <div>
+            <label className={labelCls}>Authentication or backup code</label>
+            <input
+              value={tfaCode}
+              onChange={(e) => setTfaCode(e.target.value)}
+              placeholder="123456"
+              className={`${inputCls} text-lg font-bold tracking-[0.3em] text-center`}
+              maxLength={11}
+              autoCapitalize="characters"
+              required
+              autoFocus
+            />
+          </div>
+        ) : mode === "otp" ? (
           <>
-            <div>
-              <label className={labelCls}>WhatsApp number</label>
-              <PhoneInput
-                value={phone}
-                onChange={setPhone}
-                inputClassName={inputCls}
-                required
-                disabled={otpSent}
-                autoFocus
-              />
-            </div>
+            {channel === "whatsapp" ? (
+              <div>
+                <label className={labelCls}>WhatsApp number</label>
+                <PhoneInput value={phone} onChange={setPhone} inputClassName={inputCls} required disabled={otpSent} autoFocus />
+              </div>
+            ) : (
+              <div>
+                <label className={labelCls}>Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@gym.com"
+                  className={inputCls}
+                  required
+                  disabled={otpSent}
+                  autoFocus
+                />
+              </div>
+            )}
             {otpSent && (
               <div>
-                <label className={labelCls}>WhatsApp OTP</label>
+                <label className={labelCls}>6-digit code</label>
                 <input
                   inputMode="numeric"
                   maxLength={6}
@@ -149,24 +231,12 @@ export default function LoginPage() {
                 autoFocus
               />
             </div>
-
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold text-black uppercase tracking-wider">
-                  Password
-                </label>
-                <button
-                  type="button"
-                  onClick={() =>
-                    notify.info(
-                      "Password reset",
-                      "Contact your gym owner to reset your password.",
-                    )
-                  }
-                  className="text-xs font-bold text-[#024BAB] hover:underline"
-                >
+                <label className="block text-xs font-bold text-black uppercase tracking-wider">Password</label>
+                <Link to="/forgot-password" className="text-xs font-bold text-[#024BAB] hover:underline">
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <div className="flex border-2 border-black transition-colors">
                 <input
@@ -185,17 +255,16 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPw(!showPw)}
                   className="px-3 border-l-2 border-black hover:bg-gray-50 transition-colors"
+                  aria-label={showPw ? "Hide password" : "Show password"}
                 >
-                  {showPw ? (
-                    <EyeOff className="w-4 h-4 text-black" />
-                  ) : (
-                    <Eye className="w-4 h-4 text-black" />
-                  )}
+                  {showPw ? <EyeOff className="w-4 h-4 text-black" /> : <Eye className="w-4 h-4 text-black" />}
                 </button>
               </div>
             </div>
           </>
         )}
+
+        <Turnstile />
 
         <button type="submit" disabled={loading} className={primaryBtnCls}>
           {loading ? (
@@ -205,56 +274,90 @@ export default function LoginPage() {
             </>
           ) : (
             <>
-              {otpMode
-                ? otpSent
-                  ? "Verify OTP"
-                  : "Send OTP on WhatsApp"
-                : "Sign In"}
+              {pendingToken
+                ? "Verify"
+                : mode === "otp"
+                  ? otpSent
+                    ? "Verify code"
+                    : channel === "whatsapp"
+                      ? "Send code on WhatsApp"
+                      : "Send code to email"
+                  : "Sign In"}
               <ArrowRight className="w-4 h-4" />
             </>
           )}
         </button>
-        {otpMode && (
-          <button
-            type="button"
-            onClick={backToPassword}
-            className="w-full py-2 text-xs font-bold text-gray-500 hover:text-black transition-colors"
-          >
-            ← Sign in with Email
-          </button>
-        )}
-      </form>
 
-      {!otpMode && (
-        <div className="mt-6 flex flex-col items-center gap-3">
-          <div className="flex items-center gap-3 w-full">
-            <div className="flex-1 h-px bg-black/10" />
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-              Or continue with
-            </span>
-            <div className="flex-1 h-px bg-black/10" />
-          </div>
+        {pendingToken && (
           <button
             type="button"
             onClick={() => {
-              setOtpMode(true);
+              setPendingToken(null);
+              setTfaCode("");
               setError("");
             }}
-            className="w-full flex items-center justify-center gap-2 border-2 border-black py-2.5 text-xs font-bold text-black hover:bg-gray-50 hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#0a0a0a] transition-all"
+            className="w-full py-2 text-xs font-bold text-gray-500 hover:text-black transition-colors"
           >
-            <Smartphone className="w-4 h-4 text-[#024BAB]" />
-            Phone OTP (also unlocks a locked account)
+            ← Back to sign in
           </button>
+        )}
+        {!pendingToken && mode === "otp" && (
+          <div className="flex items-center justify-between">
+            <button type="button" onClick={() => reset("password")} className="py-2 text-xs font-bold text-gray-500 hover:text-black transition-colors">
+              ← Sign in with password
+            </button>
+            {otpSent && (
+              <button type="button" onClick={() => { setOtpSent(false); setOtp(""); setError(""); }} className="py-2 text-xs font-bold text-[#024BAB] hover:underline">
+                Change / resend
+              </button>
+            )}
+          </div>
+        )}
+      </form>
+
+      {!pendingToken && mode === "password" && (
+        <div className="mt-6 flex flex-col items-center gap-3">
+          <div className="flex items-center gap-3 w-full">
+            <div className="flex-1 h-px bg-black/10" />
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Or continue with</span>
+            <div className="flex-1 h-px bg-black/10" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 w-full">
+            {([
+              ["whatsapp", "WhatsApp code", Smartphone],
+              ["email", "Email code", Mail],
+            ] as [Channel, string, typeof Mail][]).map(([c, label, Icon]) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => {
+                  setChannel(c);
+                  reset("otp");
+                }}
+                className="flex items-center justify-center gap-2 border-2 border-black py-2.5 text-xs font-bold text-black hover:bg-gray-50 hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#0a0a0a] transition-all"
+              >
+                <Icon className="w-4 h-4 text-[#024BAB]" />
+                {label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={signInWithPasskey}
+            disabled={passkeyBusy}
+            className="w-full flex items-center justify-center gap-2 border-2 border-black py-2.5 text-xs font-bold text-black hover:bg-gray-50 hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_#0a0a0a] transition-all disabled:opacity-50"
+          >
+            <KeyRound className="w-4 h-4 text-[#024BAB]" />
+            {passkeyBusy ? "Waiting for passkey…" : "Sign in with a passkey"}
+          </button>
+          <p className="text-[11px] text-gray-500 text-center">A code also unlocks an account locked after wrong passwords.</p>
         </div>
       )}
 
       <div className="mt-6 pt-6 border-t-2 border-black/10 text-center">
         <p className="text-xs text-gray-500">
           New to NestGym?{" "}
-          <Link
-            to="/register"
-            className="font-bold text-[#024BAB] hover:underline transition-colors"
-          >
+          <Link to="/register" className="font-bold text-[#024BAB] hover:underline transition-colors">
             Create an account
           </Link>
         </p>

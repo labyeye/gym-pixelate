@@ -1,0 +1,18 @@
+{
+  "name": "NestGym",
+  "short_name": "NestGym",
+  "description": "Gym management software",
+  "theme_color": "#024BAB",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

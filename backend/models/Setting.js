@@ -53,8 +53,21 @@ const settingSchema = new mongoose.Schema(
 
     // the gym's OWN Razorpay account for member payments (secret is AES-encrypted and never sent to the browser)
     onlinePaymentsEnabled: { type: Boolean, default: false },
+    // owners/managers must turn on two-factor before they can use the app
+    require2fa: { type: Boolean, default: false },
+    // rupees credited to a member's wallet when someone they referred buys their first plan (0 = off)
+    referralReward: { type: Number, default: 0, min: 0 },
+    // automatic WhatsApp reminders to members (utils/reminders.js); all off until the owner turns them on
+    reminders: {
+      expiring: { type: Boolean, default: false },
+      expired: { type: Boolean, default: false },
+      birthday: { type: Boolean, default: false },
+    },
+    // wipe personal data of members whose last membership ended this many months ago (0 = never)
+    retentionMonths: { type: Number, default: 0, min: 0, max: 120 },
     razorpayKeyId: { type: String, default: "" },
     razorpayKeySecretEnc: { type: String, select: false },
+    razorpayWebhookSecretEnc: { type: String, select: false },
 
     permissions: {
       type: mongoose.Schema.Types.Mixed,

@@ -45,8 +45,6 @@ const subscriptionSchema = new mongoose.Schema(
     invoices: [
       {
         invoiceNumber: String, // KHT/GYM/001, assigned when the payment is recorded
-        hdfcPaymentId: String,
-        hdfcTrackingId: String,
         razorpayPaymentId: String,
         razorpayOrderId: String,
         amount: Number,

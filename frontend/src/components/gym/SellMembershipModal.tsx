@@ -51,6 +51,7 @@ export function SellMembershipModal({
   const [dueDate, setDueDate] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<any>(null);
+  const [quote, setQuote] = useState<any>(null);
   const [key] = useState(() =>
     crypto.randomUUID ? crypto.randomUUID() : String(Math.random()),
   );
@@ -76,6 +77,22 @@ export function SellMembershipModal({
   }, [open, m0, membership, mode]);
 
   const plan = plans.find((p) => p._id === planId);
+
+  // Changing plan: the server works out the credit (all of what was paid inside 24 h, unused days after that).
+  useEffect(() => {
+    setQuote(null);
+    if (mode !== "upgrade" || !planId || !membership?._id) return;
+    let live = true;
+    (gym.memberships as any)
+      .upgradeQuote(membership._id, planId)
+      .then((r: any) => live && setQuote(r.data))
+      .catch((e: any) => live && notify.error("Could not price the change", e.message));
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, planId, membership?._id]);
+  const blocked = mode === "upgrade" && !!quote && !quote.allowed;
   const calc = useMemo(() => {
     if (!plan) return null;
     const g = plan.gstPercent || 0;
@@ -95,7 +112,8 @@ export function SellMembershipModal({
           : plan.admissionFee
         : 0;
     const sub = r2(unit + admFee);
-    const disc = Math.min(sub, Math.max(0, Number(discount) || 0));
+    const credit = mode === "upgrade" && quote ? quote.discount : 0;
+    const disc = Math.min(sub, credit + Math.max(0, Number(discount) || 0));
     const gst = r2((sub - disc) * (g / 100));
     return {
       sub,
@@ -105,7 +123,7 @@ export function SellMembershipModal({
       adm: admFee > 0,
       admFee: r2(admFee),
     };
-  }, [plan, discount, admission, member, m0, mode]);
+  }, [plan, discount, admission, member, m0, mode, quote]);
 
   const payNow = pay === "" ? (calc?.total ?? 0) : Number(pay);
   const balance = calc ? Math.max(0, r2(calc.total - payNow)) : 0;
@@ -175,7 +193,7 @@ export function SellMembershipModal({
             <Btn light onClick={onClose}>
               Cancel
             </Btn>
-            <Btn busy={busy} onClick={submit} disabled={!plan}>
+            <Btn busy={busy} onClick={submit} disabled={!plan || blocked || (mode === "upgrade" && !quote)}>
               {mode === "upgrade" ? "Upgrade & bill" : "Confirm & bill"}
             </Btn>
           </>
@@ -238,6 +256,15 @@ export function SellMembershipModal({
               label: `${p.name} — ${inr(p.price)} / ${p.durationDays} days`,
             }))}
           />
+          {mode === "upgrade" && quote && (
+            <div className={"border-2 p-3 text-sm font-bold " + (blocked ? "border-red-600 bg-red-50 text-red-700" : "border-black bg-[#FFF7E6]")}>
+              {blocked
+                ? "This membership was bought more than 24 hours ago. Only the gym owner or a manager can change the plan."
+                : quote.withinWindow
+                  ? `Within 24 hours of buying: ${inr(quote.credit, 2)} already paid is credited in full. Collect only ${inr(quote.payable, 2)}.`
+                  : `After 24 hours: credit is the unused days of the old plan (${inr(quote.credit, 2)}). Collect ${inr(quote.payable, 2)}.`}
+            </div>
+          )}
           {plan && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <TextInput
@@ -298,7 +325,7 @@ export function SellMembershipModal({
               )}
               {calc.disc > 0 && (
                 <p className="flex justify-between font-bold text-[#00A070]">
-                  <span>Discount</span>
+                  <span>{mode === "upgrade" ? "Credit & discount" : "Discount"}</span>
                   <span>− {inr(calc.disc, 2)}</span>
                 </p>
               )}

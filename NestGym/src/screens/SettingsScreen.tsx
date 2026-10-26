@@ -10,7 +10,7 @@ import { PhoneInput } from '../components/PhoneInput';
 import InvoiceDesigner from '../components/InvoiceDesigner';
 import { MODULES, moduleOn } from '../config/modules';
 import { PhotoPicker } from '../components/PhotoPicker';
-import { Btn, CheckField, Empty, Input, Loader, Panel, Pill, Row, Screen, Select, Sheet, Tabs, brut, notify, RCard, Rise } from '../components/ui';
+import { Btn, CheckField, Empty, Input, Loader, Panel, Pill, Row, Screen, Select, Sheet, Tabs, brut, notify, RCard, Rise, Pair } from '../components/ui';
 
 const STAFF_ROLES = ['branch_manager', 'receptionist', 'trainer', 'accountant'];
 const PROFILE0: any = { companyName: '', companyAddress: '', companyPhone: '', companyEmail: '', companyGST: '', companyPAN: '', invoicePrefix: 'INV', invoiceFooter: '', companyWebsite: '', companyState: '', companyStateCode: '', bankName: '', bankAccountName: '', bankAccountNumber: '', bankIFSC: '', bankBranch: '', bankAccountType: '', invoiceTerms: [], gymTiming: { open: '06:00', close: '22:00' }, onlinePaymentsEnabled: false, razorpayKeyId: '', razorpayKeySecret: '' };
@@ -95,8 +95,10 @@ export default function SettingsScreen() {
             <Row k="Plan" v={titleCase(tenant?.plan)} />
           </Panel>
           <Panel title="Change password">
-            <Input label="Current password" secureTextEntry value={pw.current} onChangeText={v => setPw({ ...pw, current: v })} />
-            <Input label="New password" secureTextEntry hint="Min 6 characters" value={pw.next} onChangeText={v => setPw({ ...pw, next: v })} />
+            <Pair>
+              <Input label="Current password" secureTextEntry value={pw.current} onChangeText={v => setPw({ ...pw, current: v })} />
+              <Input label="New password" secureTextEntry hint="Min 6 characters" value={pw.next} onChangeText={v => setPw({ ...pw, next: v })} />
+            </Pair>
             <Btn label="Update password" disabled={!pw.current || pw.next.length < 6} onPress={changePw} />
           </Panel>
           <Btn danger label="Sign out" icon={<LogOut size={14} color="#fff" />} onPress={confirmLogout} />
@@ -107,32 +109,50 @@ export default function SettingsScreen() {
         <>
           <Text style={[S.small, { marginBottom: 12 }]}>These details print on every GST invoice and receipt.</Text>
           <PhotoPicker label="Gym logo" name={profile.companyName || 'G'} value={profile.logoUrl ?? ''} onChange={p('logoUrl')} />
-          <Input label="Gym / business name" value={profile.companyName ?? ''} onChangeText={p('companyName')} />
-          <PhoneInput label="Phone" value={profile.companyPhone ?? ''} onChange={p('companyPhone')} />
-          <Input label="Email" keyboardType="email-address" autoCapitalize="none" value={profile.companyEmail ?? ''} onChangeText={p('companyEmail')} />
-          <Input label="GSTIN" autoCapitalize="characters" value={profile.companyGST ?? ''} onChangeText={p('companyGST')} />
-          <Input label="PAN" autoCapitalize="characters" value={profile.companyPAN ?? ''} onChangeText={p('companyPAN')} />
-          <Input label="Invoice prefix" value={profile.invoicePrefix ?? ''} onChangeText={p('invoicePrefix')} />
+          <Pair>
+            <Input label="Gym / business name" value={profile.companyName ?? ''} onChangeText={p('companyName')} />
+            <PhoneInput label="Phone" value={profile.companyPhone ?? ''} onChange={p('companyPhone')} />
+          </Pair>
+          <Pair>
+            <Input label="Email" keyboardType="email-address" autoCapitalize="none" value={profile.companyEmail ?? ''} onChangeText={p('companyEmail')} />
+            <Input label="GSTIN" autoCapitalize="characters" value={profile.companyGST ?? ''} onChangeText={p('companyGST')} />
+          </Pair>
+          <Pair>
+            <Input label="PAN" autoCapitalize="characters" value={profile.companyPAN ?? ''} onChangeText={p('companyPAN')} />
+            <Input label="Invoice prefix" value={profile.invoicePrefix ?? ''} onChangeText={p('invoicePrefix')} />
+          </Pair>
           <Input label="Address" multiline value={profile.companyAddress ?? ''} onChangeText={p('companyAddress')} />
-          <Input label="Website" autoCapitalize="none" value={profile.companyWebsite ?? ''} onChangeText={p('companyWebsite')} placeholder="www.mygym.com" />
-          <Input label="State" value={profile.companyState ?? ''} onChangeText={p('companyState')} placeholder="Maharashtra" />
+          <Pair>
+            <Input label="Website" autoCapitalize="none" value={profile.companyWebsite ?? ''} onChangeText={p('companyWebsite')} placeholder="www.mygym.com" />
+            <Input label="State" value={profile.companyState ?? ''} onChangeText={p('companyState')} placeholder="Maharashtra" />
+          </Pair>
           <Input label="State code" keyboardType="number-pad" maxLength={2} value={profile.companyStateCode ?? ''} onChangeText={p('companyStateCode')} placeholder="27" />
           <Panel title="Bank details (printed on invoices)">
-            <Input label="Bank name" value={profile.bankName ?? ''} onChangeText={p('bankName')} placeholder="HDFC Bank" />
-            <Input label="Account holder name" value={profile.bankAccountName ?? ''} onChangeText={p('bankAccountName')} />
-            <Input label="Account number" keyboardType="number-pad" value={profile.bankAccountNumber ?? ''} onChangeText={p('bankAccountNumber')} />
-            <Input label="IFSC code" autoCapitalize="characters" value={profile.bankIFSC ?? ''} onChangeText={p('bankIFSC')} placeholder="HDFC0001234" />
-            <Input label="Bank branch" value={profile.bankBranch ?? ''} onChangeText={p('bankBranch')} />
-            <Input label="Account type" value={profile.bankAccountType ?? ''} onChangeText={p('bankAccountType')} placeholder="Current" />
+            <Pair>
+              <Input label="Bank name" value={profile.bankName ?? ''} onChangeText={p('bankName')} placeholder="HDFC Bank" />
+              <Input label="Account holder name" value={profile.bankAccountName ?? ''} onChangeText={p('bankAccountName')} />
+            </Pair>
+            <Pair>
+              <Input label="Account number" keyboardType="number-pad" value={profile.bankAccountNumber ?? ''} onChangeText={p('bankAccountNumber')} />
+              <Input label="IFSC code" autoCapitalize="characters" value={profile.bankIFSC ?? ''} onChangeText={p('bankIFSC')} placeholder="HDFC0001234" />
+            </Pair>
+            <Pair>
+              <Input label="Bank branch" value={profile.bankBranch ?? ''} onChangeText={p('bankBranch')} />
+              <Input label="Account type" value={profile.bankAccountType ?? ''} onChangeText={p('bankAccountType')} placeholder="Current" />
+            </Pair>
           </Panel>
           <Input label="Terms & conditions (one per line)" multiline value={(profile.invoiceTerms || []).join('\n')} onChangeText={v => p('invoiceTerms')(v.split('\n'))} placeholder="e.g. Fees once paid are non-refundable" />
-          <Input label="Opens at (HH:mm)" value={profile.gymTiming?.open ?? ''} onChangeText={v => p('gymTiming')({ ...profile.gymTiming, open: v })} />
-          <Input label="Closes at (HH:mm)" value={profile.gymTiming?.close ?? ''} onChangeText={v => p('gymTiming')({ ...profile.gymTiming, close: v })} />
+          <Pair>
+            <Input label="Opens at (HH:mm)" value={profile.gymTiming?.open ?? ''} onChangeText={v => p('gymTiming')({ ...profile.gymTiming, open: v })} />
+            <Input label="Closes at (HH:mm)" value={profile.gymTiming?.close ?? ''} onChangeText={v => p('gymTiming')({ ...profile.gymTiming, close: v })} />
+          </Pair>
           <Panel title="Member online payments (your own Razorpay)">
             <Text style={[S.small, { marginBottom: 10 }]}>Members pay dues from their portal; money goes straight to your Razorpay. Use your Razorpay Key ID and Key Secret.</Text>
             <CheckField hint="Allow members to pay online" value={!!profile.onlinePaymentsEnabled} onChange={p('onlinePaymentsEnabled')} />
-            <Input label="Key ID" autoCapitalize="none" placeholder="rzp_live_…" value={profile.razorpayKeyId ?? ''} onChangeText={p('razorpayKeyId')} />
-            <Input label="Key Secret" secureTextEntry autoCapitalize="none" placeholder={profile.razorpaySecretSaved ? 'Secret saved — type to replace' : 'Key Secret'} value={profile.razorpayKeySecret ?? ''} onChangeText={p('razorpayKeySecret')} />
+            <Pair>
+              <Input label="Key ID" autoCapitalize="none" placeholder="rzp_live_…" value={profile.razorpayKeyId ?? ''} onChangeText={p('razorpayKeyId')} />
+              <Input label="Key Secret" secureTextEntry autoCapitalize="none" placeholder={profile.razorpaySecretSaved ? 'Secret saved — type to replace' : 'Key Secret'} value={profile.razorpayKeySecret ?? ''} onChangeText={p('razorpayKeySecret')} />
+            </Pair>
           </Panel>
           <Btn label="Save settings" busy={saving} onPress={saveGeneral} />
         </>
@@ -197,16 +217,24 @@ export default function SettingsScreen() {
       )}
 
       <Sheet visible={branchOpen} title="Add branch" onClose={() => setBranchOpen(false)} footer={<><Btn light label="Cancel" onPress={() => setBranchOpen(false)} /><Btn label="Save" disabled={!branch.name} onPress={addBranch} /></>}>
-        <Input label="Name" required value={branch.name} onChangeText={v => setBranch({ ...branch, name: v })} />
-        <Input label="Address" value={branch.address} onChangeText={v => setBranch({ ...branch, address: v })} />
-        <Input label="City" value={branch.city} onChangeText={v => setBranch({ ...branch, city: v })} />
-        <PhoneInput label="Phone" value={branch.phone} onChange={v => setBranch({ ...branch, phone: v })} />
+        <Pair>
+          <Input label="Name" required value={branch.name} onChangeText={v => setBranch({ ...branch, name: v })} />
+          <Input label="Address" value={branch.address} onChangeText={v => setBranch({ ...branch, address: v })} />
+        </Pair>
+        <Pair>
+          <Input label="City" value={branch.city} onChangeText={v => setBranch({ ...branch, city: v })} />
+          <PhoneInput label="Phone" value={branch.phone} onChange={v => setBranch({ ...branch, phone: v })} />
+        </Pair>
       </Sheet>
       <Sheet visible={staffOpen} title="Invite staff" onClose={() => setStaffOpen(false)} footer={<><Btn light label="Cancel" onPress={() => setStaffOpen(false)} /><Btn label="Invite" disabled={!staff.name || !staff.email || staff.password.length < 6} onPress={addStaff} /></>}>
-        <Input label="Name" required value={staff.name} onChangeText={v => setStaff({ ...staff, name: v })} />
-        <Input label="Email" required keyboardType="email-address" autoCapitalize="none" value={staff.email} onChangeText={v => setStaff({ ...staff, email: v })} />
-        <Input label="Password" required secureTextEntry hint="Min 6 characters" value={staff.password} onChangeText={v => setStaff({ ...staff, password: v })} />
-        <Select label="Role" options={STAFF_ROLES} value={staff.role} onChange={v => setStaff({ ...staff, role: v })} />
+        <Pair>
+          <Input label="Name" required value={staff.name} onChangeText={v => setStaff({ ...staff, name: v })} />
+          <Input label="Email" required keyboardType="email-address" autoCapitalize="none" value={staff.email} onChangeText={v => setStaff({ ...staff, email: v })} />
+        </Pair>
+        <Pair>
+          <Input label="Password" required secureTextEntry hint="Min 6 characters" value={staff.password} onChangeText={v => setStaff({ ...staff, password: v })} />
+          <Select label="Role" options={STAFF_ROLES} value={staff.role} onChange={v => setStaff({ ...staff, role: v })} />
+        </Pair>
       </Sheet>
     </Screen>
   );

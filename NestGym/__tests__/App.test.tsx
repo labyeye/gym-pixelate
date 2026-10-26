@@ -21,8 +21,13 @@ jest.mock('lucide-react-native', () =>
   new Proxy({}, { get: (_t, k) => (k === '__esModule' ? true : () => null) }),
 );
 
-test('renders correctly (signed out → login)', async () => {
+test('renders correctly (splash first)', async () => {
+  let tree!: ReactTestRenderer.ReactTestRenderer;
   await ReactTestRenderer.act(async () => {
-    ReactTestRenderer.create(<App />);
+    tree = ReactTestRenderer.create(<App />);
+  });
+  // stop the splash animation timers so Jest can exit cleanly
+  await ReactTestRenderer.act(async () => {
+    tree.unmount();
   });
 });

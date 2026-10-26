@@ -8,6 +8,7 @@ import { useFetch } from '../hooks/useFetch';
 import { C, S } from '../theme';
 import { fmtDate, titleCase } from '../utils/format';
 import { Btn, Empty, Loader, Panel, Pill, Row, Screen, StatCard, StatGrid, Tabs, brut, RCard } from '../components/ui';
+import { CalendarClock as StatCalendarClock, CreditCard as StatCreditCard, Layers as StatLayers, ShieldCheck as StatShieldCheck } from 'lucide-react-native';
 
 const CYCLES = [
   { id: 'monthly', label: 'Monthly', months: 1, off: 0 },
@@ -53,10 +54,10 @@ export default function SubscriptionScreen() {
   return (
     <Screen title="Subscription & Plan" back refreshing={subRes.loading} onRefresh={reload}>
       <StatGrid>
-        <StatCard label="Current plan" value={titleCase(current)} sub={sub?.billingCycle ? titleCase(sub.billingCycle) : undefined} color="#024BAB" />
-        <StatCard label={current === 'trial' ? 'Trial ends in' : 'Renews in'} value={daysLeft == null ? '—' : `${Math.max(0, daysLeft)} days`} sub={expires ? fmtDate(expires) : undefined} color={daysLeft != null && daysLeft <= 5 ? '#EF4444' : '#00C48C'} />
-        <StatCard label="Status" value={titleCase(sub?.status || tenant?.status || 'active')} color="#A855F7" />
-        <StatCard label="Payments" value={(invRes.data?.data || []).length} color="#FA731C" />
+        <StatCard label="Current plan" value={titleCase(current)} sub={sub?.billingCycle ? titleCase(sub.billingCycle) : undefined} icon={<StatLayers />} color="#024BAB" />
+        <StatCard label={current === 'trial' ? 'Trial ends in' : 'Renews in'} value={daysLeft == null ? '—' : `${Math.max(0, daysLeft)} days`} sub={expires ? fmtDate(expires) : undefined} icon={<StatCalendarClock />} color={daysLeft != null && daysLeft <= 5 ? '#EF4444' : '#00C48C'} />
+        <StatCard label="Status" value={titleCase(sub?.status || tenant?.status || 'active')} icon={<StatShieldCheck />} color="#A855F7" />
+        <StatCard label="Payments" value={(invRes.data?.data || []).length} icon={<StatCreditCard />} color="#FA731C" />
       </StatGrid>
 
       {usage.data && (
@@ -82,7 +83,7 @@ export default function SubscriptionScreen() {
             <Text style={S.small}>{p.members == null && !p.custom ? 'Unlimited members' : p.members ? `Up to ${p.members} members` : 'Multi-branch chains'}</Text>
             {total != null ? (
               <View style={{ marginVertical: 8 }}>
-                <Text style={{ fontFamily: 'DMSans-Bold', fontSize: 26, color: C.black }}>{rupees(total / months)}<Text style={S.small}> /mo</Text></Text>
+                <Text style={{ fontFamily: 'Inter-Bold', fontSize: 26, color: C.black }}>{rupees(total / months)}<Text style={S.small}> /mo</Text></Text>
                 <Text style={S.small}>{months > 1 ? `${rupees(total)} billed every ${months} months · excl. GST` : 'excl. GST'}</Text>
               </View>
             ) : <Text style={[S.h1, { marginVertical: 8 }]}>Custom</Text>}

@@ -1,7 +1,7 @@
 // Mirrors frontend/src/config/navigation.ts (web sidebar) — same groups, same role access.
 import {
-  Apple, BarChart3, CalendarDays, ClipboardList, Crown, Dumbbell, LayoutDashboard, Layers, LockKeyhole, Megaphone,
-  Receipt, Ruler, Settings, ShoppingBag, Tag, UserCog, Users, Wallet, Wrench,
+  Apple, BadgeCheck, BarChart3, CalendarDays, ClipboardList, Coins, Crown, Dumbbell, LayoutDashboard, Layers, LockKeyhole, Megaphone,
+  Receipt, Ruler, Settings, ShieldCheck, ShoppingBag, Tag, UserCog, Users, Wallet, Wrench,
 } from 'lucide-react-native';
 import { UserRole } from '../contexts/AuthContext';
 import { ModuleFlags, routeEnabled } from '../config/modules';
@@ -21,6 +21,7 @@ const groups: NavGroup[] = [
     label: 'Members',
     items: [
       { title: 'Members', route: 'Members', icon: Users, roles: [...DESK, 'trainer'] },
+      { title: 'Memberships', route: 'Memberships', icon: BadgeCheck, roles: [...DESK, 'trainer'] },
       { title: 'Membership Plans', route: 'Plans', icon: Layers, roles: MANAGERS },
       { title: 'Lockers', route: 'Lockers', icon: LockKeyhole, roles: [...DESK, 'trainer'] },
     ],
@@ -57,6 +58,8 @@ const groups: NavGroup[] = [
     label: 'System',
     items: [
       { title: 'Subscription', route: 'Subscription', icon: Crown, roles: ['gym_owner'] },
+      { title: 'WhatsApp Credits', route: 'Credits', icon: Coins, roles: ['gym_owner', 'branch_manager'] },
+      { title: 'Security', route: 'Security', icon: ShieldCheck, roles: ALL },
       { title: 'Settings', route: 'Settings', icon: Settings, roles: ALL },
     ],
   },

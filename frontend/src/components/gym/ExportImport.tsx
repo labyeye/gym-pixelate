@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Download, Upload, Loader2 } from "lucide-react";
-import * as XLSX from "xlsx";
+import { downloadSheet, readRows } from "@/lib/spreadsheet";
 import { useNotify } from "@/components/ui/Notification";
 import { cn } from "@/lib/utils";
 
@@ -40,13 +40,7 @@ export function ExportImport<T>(p: Props<T>) {
         p.cols.map((c) => c.header),
         ...rows.map((r) => p.cols.map((c) => c.value(r) ?? "")),
       ];
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(
-        wb,
-        XLSX.utils.aoa_to_sheet(aoa),
-        p.name.slice(0, 31),
-      );
-      XLSX.writeFile(wb, `${p.name}_${stamp()}.${ext}`);
+      await downloadSheet(`${p.name}_${stamp()}`, aoa, ext, p.name);
     } catch (e: any) {
       notify.error("Export failed", e.message);
     } finally {
@@ -56,13 +50,7 @@ export function ExportImport<T>(p: Props<T>) {
 
   const template = () => {
     if (!p.importTemplate) return;
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(
-      wb,
-      XLSX.utils.aoa_to_sheet([p.importTemplate.headers, p.importTemplate.example]),
-      "Template",
-    );
-    XLSX.writeFile(wb, `${p.name}_template.xlsx`);
+    void downloadSheet(`${p.name}_template`, [p.importTemplate.headers, p.importTemplate.example], "xlsx", "Template");
   };
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,11 +59,7 @@ export function ExportImport<T>(p: Props<T>) {
     if (!f || !p.onImportRow) return;
     try {
       setBusy("import");
-      const wb = XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true });
-      const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(
-        wb.Sheets[wb.SheetNames[0]],
-        { defval: "", raw: false },
-      );
+      const rows = await readRows(f);
       let ok = 0;
       const errs: string[] = [];
       // ponytail: sequential per-row save — fine for a few hundred rows; add a bulk endpoint if sheets get big

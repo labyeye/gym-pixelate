@@ -10,7 +10,7 @@ const { parsePhone } = require("./phone");
 const { sendPlatformTemplate } = require("./whatsappOtp");
 
 /*
- * "Pay your fee" links for members, like NestPlay's guardian payment links: a WhatsApp message with a
+ * "Pay your fee" links for members, like NestAcademy's guardian payment links: a WhatsApp message with a
  * public /pay/<token> page. Money goes to the GYM's own Razorpay (gymPay.getCreds), the token is the
  * only credential, and what is owed is re-read from the invoice every time it is used.
  */
@@ -82,12 +82,20 @@ async function sendDue(tenantId, now = new Date()) {
         process.env.WHATSAPP_PAYLINK_TEMPLATE_NAME || "nestgym_fee_payment_link",
         [member.name, name, rupees(balanceOf(inv)), inv.invoiceNumber, linkUrl(link.token)],
         process.env.WHATSAPP_PAYLINK_TEMPLATE_LANG || "en",
+        { tenantId, kind: "payment_link" },
       );
       link.sentAt = new Date();
       link.lastSentMonth = month;
       link.lastError = undefined;
       stats.sent++;
     } catch (err) {
+      if (err.code === "NO_CREDITS") {
+        // no top-up yet: do not burn the member's retry attempts, and stop this gym's run
+        link.lastError = err.message;
+        await link.save();
+        stats.noCredits = true;
+        break;
+      }
       link.sendAttempts += 1;
       link.lastError = err.message;
       stats.failed++;
