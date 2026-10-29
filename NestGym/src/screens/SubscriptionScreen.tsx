@@ -83,7 +83,7 @@ export default function SubscriptionScreen() {
             <Text style={S.small}>{p.members == null && !p.custom ? 'Unlimited members' : p.members ? `Up to ${p.members} members` : 'Multi-branch chains'}</Text>
             {total != null ? (
               <View style={{ marginVertical: 8 }}>
-                <Text style={{ fontFamily: 'Inter-Bold', fontSize: 26, color: C.black }}>{rupees(total / months)}<Text style={S.small}> /mo</Text></Text>
+                <Text style={{ fontFamily: 'DMSans-Bold', fontSize: 26, color: C.black }}>{rupees(total / months)}<Text style={S.small}> /mo</Text></Text>
                 <Text style={S.small}>{months > 1 ? `${rupees(total)} billed every ${months} months · excl. GST` : 'excl. GST'}</Text>
               </View>
             ) : <Text style={[S.h1, { marginVertical: 8 }]}>Custom</Text>}

@@ -83,7 +83,7 @@ export function PlansScreen() {
               ].map(([Ic, v, k]: any, i) => (
                 <View key={k} style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderLeftWidth: i ? 1 : 0, borderColor: '#E5E7EB' }}>
                   <Ic size={14} color={C.primary} />
-                  <Text style={[S.body, { fontSize: 12, fontFamily: 'Inter-Bold', marginTop: 2 }]}>{v}</Text>
+                  <Text style={[S.body, { fontSize: 12, fontFamily: 'DMSans-Bold', marginTop: 2 }]}>{v}</Text>
                   <Text style={[S.small, { fontSize: 9, textTransform: 'uppercase' }]}>{k}</Text>
                 </View>
               ))}
@@ -102,7 +102,7 @@ export function PlansScreen() {
             <View style={[S.rowBetween, { marginTop: 10 }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Users size={15} color={C.primary} />
-                <Text style={[S.body, { fontFamily: 'Inter-Bold' }]}>{r.subscribers?.active ?? 0} subscribers</Text>
+                <Text style={[S.body, { fontFamily: 'DMSans-Bold' }]}>{r.subscribers?.active ?? 0} subscribers</Text>
                 <Text style={S.small}>· {r.subscribers?.total ?? 0} all-time</Text>
               </View>
               {actions}

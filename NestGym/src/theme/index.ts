@@ -1,10 +1,10 @@
 import { StyleSheet } from 'react-native';
 
 export const FONT = {
-  regular: 'Inter-Regular',
-  medium: 'Inter-Medium',
-  semiBold: 'Inter-SemiBold',
-  bold: 'Inter-Bold',
+  regular: 'DMSans-Regular',
+  medium: 'DMSans-Medium',
+  semiBold: 'DMSans-SemiBold',
+  bold: 'DMSans-Bold',
 };
 
 export const C = {

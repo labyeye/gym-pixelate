@@ -140,7 +140,7 @@ export function SellMembershipSheet({
           <Select label="Plan" required value={planId} onChange={setPlanId} placeholder="Choose a plan" options={plans.map((p: any) => ({ value: p._id, label: `${p.name} — ${inr(p.price)} / ${p.durationDays}d` }))} />
           {mode === 'upgrade' && !!quote && (
             <View style={[S.card, { padding: 10, borderColor: blocked ? C.danger : C.black, backgroundColor: blocked ? '#FEF2F2' : '#FFF7E6' }]}>
-              <Text style={[S.body, { fontFamily: 'Inter-Bold', color: blocked ? C.danger : C.black }]}>
+              <Text style={[S.body, { fontFamily: 'DMSans-Bold', color: blocked ? C.danger : C.black }]}>
                 {blocked
                   ? 'This membership was bought more than 24 hours ago. Only the gym owner or a manager can change the plan.'
                   : quote.withinWindow

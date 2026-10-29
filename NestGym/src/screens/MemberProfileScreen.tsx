@@ -149,7 +149,7 @@ export default function MemberProfileScreen() {
               <View>
                 <Text style={S.h3}>{workout.name}</Text>
                 <Text style={[S.small, { marginBottom: 6 }]}>{titleCase(workout.goal)} · {workout.days.length} day split · {workout.weeks} weeks</Text>
-                {workout.days.map((d: any) => <Text key={d.label} style={S.body}><Text style={{ fontFamily: 'Inter-Bold' }}>{d.label}</Text> — {d.exercises.map((e: any) => e.name).join(', ')}</Text>)}
+                {workout.days.map((d: any) => <Text key={d.label} style={S.body}><Text style={{ fontFamily: 'DMSans-Bold' }}>{d.label}</Text> — {d.exercises.map((e: any) => e.name).join(', ')}</Text>)}
               </View>
             ) : <Text style={S.small}>No active workout plan</Text>}
           </Panel>
@@ -158,7 +158,7 @@ export default function MemberProfileScreen() {
               <View>
                 <Text style={S.h3}>{diet.name}</Text>
                 <Text style={[S.small, { marginBottom: 6 }]}>{diet.targetCalories} kcal · {diet.targetProteinG} g protein · {titleCase(diet.type)}</Text>
-                {diet.meals.map((m: any, i: number) => <Text key={i} style={S.body}><Text style={{ fontFamily: 'Inter-Bold' }}>{titleCase(m.slot)}</Text> — {m.items}</Text>)}
+                {diet.meals.map((m: any, i: number) => <Text key={i} style={S.body}><Text style={{ fontFamily: 'DMSans-Bold' }}>{titleCase(m.slot)}</Text> — {m.items}</Text>)}
               </View>
             ) : <Text style={S.small}>No active diet plan</Text>}
           </Panel>

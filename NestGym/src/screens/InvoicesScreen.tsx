@@ -149,7 +149,7 @@ export default function InvoicesScreen() {
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={S.h3} numberOfLines={1}>{v.memberId ? v.memberId.name : 'Walk-in'}</Text>
                 <Text style={S.small} numberOfLines={1}>{v.invoiceNumber} · {fmtDate(v.issuedAt)}</Text>
-                <Text style={{ fontFamily: 'Inter-Bold', fontSize: 10, textTransform: 'uppercase', color: (TYPES[v.type] || TYPES.other)[1], marginTop: 2 }}>{(TYPES[v.type] || TYPES.other)[0]}</Text>
+                <Text style={{ fontFamily: 'DMSans-Bold', fontSize: 10, textTransform: 'uppercase', color: (TYPES[v.type] || TYPES.other)[1], marginTop: 2 }}>{(TYPES[v.type] || TYPES.other)[0]}</Text>
                 {!!v.items?.[0]?.description && !v.items.some((x: any) => x.kind === 'product') && <Text style={S.small} numberOfLines={1}>{v.items[0].description}</Text>}
               </View>
               <View style={{ alignItems: 'flex-end', gap: 4 }}>
@@ -171,8 +171,8 @@ export default function InvoicesScreen() {
               <View style={{ height: '100%', width: `${pct}%`, backgroundColor: v.status === 'paid' ? C.success : C.warning }} />
             </View>
             <View style={[S.rowBetween, { marginTop: 6 }]}>
-              <Text style={S.small}>Paid <Text style={{ color: C.black, fontFamily: 'Inter-Bold' }}>{inr(v.paidAmount, 2)}</Text></Text>
-              {v.balance > 0 && <Text style={[S.small, { color: C.danger }]}>Balance <Text style={{ fontFamily: 'Inter-Bold' }}>{inr(v.balance, 2)}</Text>{v.dueDate ? ` · due ${fmtDate(v.dueDate)}` : ''}</Text>}
+              <Text style={S.small}>Paid <Text style={{ color: C.black, fontFamily: 'DMSans-Bold' }}>{inr(v.paidAmount, 2)}</Text></Text>
+              {v.balance > 0 && <Text style={[S.small, { color: C.danger }]}>Balance <Text style={{ fontFamily: 'DMSans-Bold' }}>{inr(v.balance, 2)}</Text>{v.dueDate ? ` · due ${fmtDate(v.dueDate)}` : ''}</Text>}
             </View>
             </TouchableOpacity>
             {(open || v.paidAmount > 0) && (
