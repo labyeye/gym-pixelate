@@ -19,10 +19,11 @@ const router = express.Router();
 
 // Each call makes a separate limiter, so routes don't share one counter (sending a code and then
 // verifying it must not burn the same budget). Signed-in routes are counted per user, public ones per IP.
-const limiter = (max = 5) =>
+const limiter = (max = 5, countOnlyFailures = false) =>
   rateLimit({
     windowMs: 15 * 60 * 1000,
     max,
+    skipSuccessfulRequests: countOnlyFailures, // a good login does not use up the budget
     message: { success: false, message: "Too many attempts, please wait a few minutes and try again." },
     standardHeaders: true,
     legacyHeaders: false,
@@ -30,7 +31,7 @@ const limiter = (max = 5) =>
   });
 
 router.post("/register", limiter(10), captcha, register);
-router.post("/login", limiter(20), login);
+router.post("/login", limiter(20, true), login);
 router.post("/refresh", limiter(60), require("../utils/signIn").refresh);
 router.post("/otp/send", limiter(5), captcha, otpCountryLimit, sendOtp);
 router.post("/otp/verify", limiter(10), verifyOtp);
