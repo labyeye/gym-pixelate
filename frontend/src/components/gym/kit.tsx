@@ -656,11 +656,11 @@ export function Toolbar({
   right?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 w-full lg:flex-1 min-w-0">
         {children}
       </div>
-      <div className="flex gap-2 flex-wrap">{right}</div>
+      <div className="flex gap-2 flex-wrap shrink-0">{right}</div>
     </div>
   );
 }
