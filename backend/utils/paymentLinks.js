@@ -65,6 +65,8 @@ async function shareMessage(tenantId, inv, member, link) {
  */
 async function sendDue(tenantId, now = new Date()) {
   const stats = { sent: 0, skipped: 0, failed: 0, noPhone: 0 };
+  const cfgWa = await Setting.findOne({ tenantId }).select("whatsappEnabled reminders.paymentLink").lean();
+  if (cfgWa && (cfgWa.whatsappEnabled === false || cfgWa.reminders?.paymentLink === false)) return stats; // owner turned it off
   const month = monthKey(now);
   const name = await gymName(tenantId);
   const invoices = await Invoice.find({ tenantId, status: { $in: ["pending", "partial"] }, memberId: { $ne: null } }).limit(500);

@@ -255,7 +255,7 @@ export default function SettingsPage() {
                       { id: "modules", label: "Modules", icon: LayoutGrid },
                       { id: "invoice", label: "Invoice design", icon: FileText },
                       { id: "receipt", label: "Receipt design", icon: Receipt },
-                      { id: "reminders", label: "Reminders", icon: MessageCircle },
+                      { id: "reminders", label: "WhatsApp", icon: MessageCircle },
                       { id: "bin", label: "Recycle bin", icon: Trash2 },
                     ] }]
                   : []),

@@ -51,6 +51,7 @@ async function runForGym(s, now = new Date()) {
   const tenantId = s.tenantId;
   const on = s.reminders || {};
   const out = { sent: 0, failed: 0, skipped: 0 };
+  if (s.whatsappEnabled === false) return out;
   const bump = (r) => (out[r === "sent" ? "sent" : r === "failed" ? "failed" : "skipped"]++);
   const gym = s.companyName || (await Tenant.findById(tenantId).select("name").lean())?.name || "your gym";
   const member = (id) => Member.findById(id).select("name phone whatsappOptIn erasedAt status");

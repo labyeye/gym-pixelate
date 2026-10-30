@@ -48,14 +48,15 @@ router.get("/ledger", protect, view, asyncHandler(async (req, res) => {
 // What the automatic WhatsApp messages will cost, from what is on the books right now. Only the kinds the gym switched on count.
 router.get("/estimate", protect, view, asyncHandler(async (req, res) => {
   const tenantId = req.user.tenantId;
-  const s = await Setting.findOne({ tenantId }).select("reminders onlinePaymentsEnabled").lean();
-  const on = s?.reminders || {};
+  const s = await Setting.findOne({ tenantId }).select("reminders onlinePaymentsEnabled whatsappEnabled").lean();
+  const waOff = s?.whatsappEnabled === false;
+  const on = waOff ? {} : s?.reminders || {};
   const now = new Date();
   const ist = new Date(now.getTime() + 5.5 * 3600000);
   const [expiring, expired, outstanding, birthdays] = await Promise.all([
     on.expiring ? Membership.countDocuments({ tenantId, status: "active", endDate: { $gt: now, $lte: new Date(now.getTime() + 3 * DAY) } }) : 0,
     on.expired ? Membership.countDocuments({ tenantId, status: "expired", endDate: { $gte: new Date(now.getTime() - 3 * DAY), $lte: now } }) : 0,
-    s?.onlinePaymentsEnabled ? Invoice.countDocuments({ tenantId, status: { $in: ["pending", "partial"] }, memberId: { $ne: null } }) : 0,
+    s?.onlinePaymentsEnabled && !waOff && on.paymentLink !== false ? Invoice.countDocuments({ tenantId, status: { $in: ["pending", "partial"] }, memberId: { $ne: null } }) : 0,
     on.birthday
       ? Member.countDocuments({ tenantId, status: "active", dob: { $ne: null }, $expr: { $eq: [{ $month: "$dob" }, ist.getUTCMonth() + 1] } })
       : 0,

@@ -57,8 +57,12 @@ const settingSchema = new mongoose.Schema(
     require2fa: { type: Boolean, default: false },
     // rupees credited to a member's wallet when someone they referred buys their first plan (0 = off)
     referralReward: { type: Number, default: 0, min: 0 },
+    // master switch for every WhatsApp message NestGym sends to members for this gym (reminders and fee payment links)
+    whatsappEnabled: { type: Boolean, default: true },
     // automatic WhatsApp reminders to members (utils/reminders.js); all off until the owner turns them on
+    // (paymentLink = the monthly "pay your fee" link, which has always been on)
     reminders: {
+      paymentLink: { type: Boolean, default: true },
       expiring: { type: Boolean, default: false },
       expired: { type: Boolean, default: false },
       birthday: { type: Boolean, default: false },
