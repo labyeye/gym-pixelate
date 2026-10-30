@@ -300,7 +300,7 @@ const getMe = asyncHandler(async (req, res) => {
 });
 
 const updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone, department } = req.body;
+  const { name, phone, department, avatar } = req.body;
 
   if (name && (name.trim().length < 2 || name.trim().length > 80)) {
     res.status(400);
@@ -315,6 +315,7 @@ const updateProfile = asyncHandler(async (req, res) => {
     user.phoneVerified = false; // a new number has to be proven again
   }
   if (department !== undefined) user.department = department.trim();
+  if (avatar !== undefined) user.avatar = String(avatar).trim(); // only an uploaded /uploads/ file passes the model check
 
   const updated = await user.save();
 

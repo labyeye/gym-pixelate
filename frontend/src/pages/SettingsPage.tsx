@@ -3,7 +3,7 @@ import { PhoneInput } from "@/components/ui/PhoneInput";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { settingsAPI, usersAPI } from "@/services/api";
+import { authAPI, settingsAPI, usersAPI } from "@/services/api";
 import { branchService } from "@/services/branchService";
 import { useNotify } from "@/components/ui/Notification";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -66,7 +66,7 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [profile, setProfile] = useState<any>(PROFILE0);
   const [saving, setSaving] = useState(false);
-  const { user, setModules } = useAuth();
+  const { user, setModules, updateUser } = useAuth();
   const isOwner = user?.role === "gym_owner";
   const [tab, setTab] = useState(new URLSearchParams(window.location.search).get("tab") || "general");
   const [designerOpened, setDesignerOpened] = useState(false);
@@ -293,6 +293,25 @@ export default function SettingsPage() {
           <p className="text-xs font-bold text-black/60 mb-4">
             These details print on every GST invoice and receipt.
           </p>
+          <div className="space-y-1 mb-4">
+            <label className="block text-[10px] font-black uppercase tracking-widest text-black">
+              Your profile photo
+            </label>
+            <PhotoUpload
+              value={user?.avatar ?? ""}
+              name={user?.name || "U"}
+              onChange={async (url) => {
+                try {
+                  await authAPI.updateProfile({ avatar: url });
+                  updateUser({ avatar: url });
+                  notify.success(url ? "Photo saved" : "Photo removed");
+                } catch (e: any) {
+                  notify.error("Could not save photo", e.message);
+                }
+              }}
+              hint="Shown in the top bar. JPG, PNG or WebP, up to 5 MB."
+            />
+          </div>
           <div className="grid sm:grid-cols-2 gap-4 mb-4">
             <div className="space-y-1">
               <label className="block text-[10px] font-black uppercase tracking-widest text-black">

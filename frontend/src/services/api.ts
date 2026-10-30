@@ -259,7 +259,7 @@ export const authAPI = {
 
   getMe: () => request<{ success: boolean; data: any }>("/auth/me"),
 
-  updateProfile: (updates: { name?: string; phone?: string }) =>
+  updateProfile: (updates: { name?: string; phone?: string; avatar?: string }) =>
     request<{ success: boolean; data: any }>("/auth/me", {
       method: "PUT",
       body: JSON.stringify(updates),
