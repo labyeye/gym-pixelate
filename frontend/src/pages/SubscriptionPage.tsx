@@ -400,6 +400,8 @@ export default function SubscriptionPage() {
                     name: g.companyName,
                     address: g.companyAddress,
                     gst: g.companyGST,
+                    state: g.companyState,
+                    pan: g.companyPAN,
                     email: g.companyEmail,
                     phone: g.companyPhone,
                   });
