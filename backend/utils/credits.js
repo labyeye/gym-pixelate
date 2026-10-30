@@ -134,13 +134,11 @@ async function enable(tenantId) {
   await CreditWallet.updateOne({ tenantId }, { $set: { metered: true }, $setOnInsert: { balance: 0, bonusBalance: 0 } }, { upsert: true });
 }
 
-/** Called when a plan payment completes. New metered gyms get the bonus once per payment (refId = payment id). */
-async function onSubscriptionPaid(tenantId, { amountPaid, refId }) {
+/** Called when a plan payment completes. A metered gym gets the welcome credits once (fixed refId, so later payments add nothing). */
+async function onSubscriptionPaid(tenantId) {
   if (process.env.CREDITS_FOR_NEW_SIGNUPS === "true" && !(await CreditWallet.exists({ tenantId }))) await enable(tenantId);
   if (!(await isMetered(tenantId))) return;
-  const credits = cfg.bonusFor(amountPaid);
-  if (!credits) return;
-  await grantBonus(tenantId, { credits, refId: `sub:${refId}`, note: "Plan purchase bonus" });
+  await grantBonus(tenantId, { credits: cfg.WELCOME_CREDITS, refId: `welcome:${tenantId}`, note: "Welcome credits" });
 }
 
 // ---- top-up (Razorpay) ------------------------------------------------------

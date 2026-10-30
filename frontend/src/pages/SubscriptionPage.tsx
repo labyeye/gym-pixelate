@@ -34,13 +34,10 @@ import { settingsAPI } from "@/services/api";
 
 const CYCLES: { id: string; label: string; months: number; off: number }[] = [
   { id: "monthly", label: "Monthly", months: 1, off: 0 },
-  { id: "quarterly", label: "Quarterly", months: 3, off: 10 },
-  { id: "half_yearly", label: "6 months", months: 6, off: 20 },
-  { id: "yearly", label: "Yearly", months: 12, off: 30 },
 ];
 const rupees = (paise: number) =>
   "₹" + Math.round(paise / 100).toLocaleString("en-IN");
-const ORDER = ["starter", "growth", "pro", "elite", "enterprise"];
+const ORDER = ["starter", "growth", "pro"];
 
 function loadRazorpay(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -57,7 +54,7 @@ export default function SubscriptionPage() {
   const notify = useNotify();
   const qc = useQueryClient();
   const { refreshTenant } = useAuth();
-  const [cycle, setCycle] = useState("yearly");
+  const [cycle, setCycle] = useState("monthly");
   const [busy, setBusy] = useState("");
   const { data: gymSettings } = useQuery({ queryKey: ["gym-settings"], queryFn: () => settingsAPI.get() });
 
@@ -245,7 +242,7 @@ export default function SubscriptionPage() {
         <h2 className="text-sm font-black uppercase tracking-widest">
           Choose a plan
         </h2>
-        <div className="flex border-2 border-black bg-white">
+        <div className="hidden">
           {CYCLES.map((c) => (
             <button
               key={c.id}

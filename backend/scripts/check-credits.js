@@ -72,16 +72,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await CreditWallet.updateOne({ tenantId: c }, { $set: { bonusExpiresAt: new Date(Date.now() - 1000) } });
   assert.strictEqual((await credits.getBalance(c)).bonus, 0, "expired bonus does not count");
 
-  // 5b. plan-purchase bonus: 10% of what was paid, once per payment
+  // 5b. welcome credits: 1000, once per gym, however many payments
   const bz = oid();
   await credits.enable(bz);
-  await credits.onSubscriptionPaid(bz, { amountPaid: 3999, refId: "pay_1" });
-  await credits.onSubscriptionPaid(bz, { amountPaid: 3999, refId: "pay_1" });
-  assert.strictEqual((await credits.getBalance(bz)).bonus, 350, "10% of 3999 = 399, rounded down to 350, granted once");
-  const tiny = oid();
-  await credits.enable(tiny);
-  await credits.onSubscriptionPaid(tiny, { amountPaid: 300, refId: "pay_2" });
-  assert.strictEqual((await credits.getBalance(tiny)).bonus, 0, "too small to earn a bonus");
+  await credits.onSubscriptionPaid(bz);
+  await credits.onSubscriptionPaid(bz);
+  assert.strictEqual((await credits.getBalance(bz)).bonus, 1000, "welcome credits granted once");
 
   // 6. top-up: webhook and browser verify race, credited once; platform-wide invoice numbers
   const t = oid();

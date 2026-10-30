@@ -37,15 +37,9 @@ function verifyRazorpaySignature(orderId, paymentId, signature) {
   return expectedSignature === signature;
 }
 
-const PAID_PLANS = [
-  "starter",
-  "growth",
-  "pro",
-  "elite",
-  "professional",
-  "business",
-];
-const CYCLES = ["monthly", "quarterly", "half_yearly", "yearly"];
+// Sold plans: three, monthly only. Older plans (elite, professional, business) keep working for existing subscribers.
+const PAID_PLANS = ["starter", "growth", "pro"];
+const CYCLES = ["monthly"];
 const unlimited = (n) => (n === Infinity ? null : n);
 const limitsFor = (plan) => {
   const l = PLAN_LIMITS[plan] || PLAN_LIMITS.trial;
@@ -117,31 +111,6 @@ router.get("/plans", (req, res) => {
           "Peak-hour and churn-risk insights",
         ],
       }),
-      elite: card("elite", "Elite", {
-        members: null,
-        features: [
-          "Unlimited members, up to 10 branches",
-          "Everything in Pro",
-          "Dedicated account manager",
-          "Data migration from your old software",
-          "Phone support",
-        ],
-      }),
-      enterprise: {
-        name: "Enterprise",
-        currency: "INR",
-        priceMonthly: null,
-        priceYearly: null,
-        prices: null,
-        limits: limitsFor("enterprise"),
-        custom: true,
-        features: [
-          "Franchise chains, 10+ branches",
-          "Custom integrations & SLA",
-          "On-premise / private cloud option",
-          "Custom reporting",
-        ],
-      },
     },
   });
 });

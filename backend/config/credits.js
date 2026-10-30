@@ -16,6 +16,6 @@ module.exports = {
   LOW_BALANCE_CREDITS: 50,
   DAILY_CAP: 2000, // messages per gym per day; a loop/bug can't drain a wallet
   BONUS_DAYS: 90,
-  // free credits on a paid plan: 10% of what was paid (rupees), to the nearest 50, between 0 and 1000
-  bonusFor: (amountPaid) => Math.min(1000, Math.floor(((amountPaid || 0) * 0.1) / 50) * 50),
+  // welcome credits: given once per gym, on its first paid plan
+  WELCOME_CREDITS: 1000,
 };

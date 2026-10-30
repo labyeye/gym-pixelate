@@ -25,11 +25,8 @@ const STEPS: { id: Step; label: string }[] = [
 ];
 const CYCLES = [
   { id: "monthly", label: "Monthly", months: 1, off: 0 },
-  { id: "quarterly", label: "Quarterly", months: 3, off: 10 },
-  { id: "half_yearly", label: "6 months", months: 6, off: 20 },
-  { id: "yearly", label: "Yearly", months: 12, off: 30 },
 ];
-const ORDER = ["starter", "growth", "pro", "elite"];
+const ORDER = ["starter", "growth", "pro"];
 const rupees = (paise: number) =>
   "₹" + Math.round(paise / 100).toLocaleString("en-IN");
 
@@ -114,7 +111,7 @@ export default function OnboardingPage() {
   });
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [cycle, setCycle] = useState("yearly");
+  const [cycle, setCycle] = useState("monthly");
   const [planKey, setPlanKey] = useState("growth");
   const [paying, setPaying] = useState(false);
 
@@ -367,11 +364,11 @@ export default function OnboardingPage() {
                 Choose your plan
               </h1>
               <p className="text-gray-500 font-medium text-sm">
-                Longer terms cost less per month. Prices exclude GST.
+                Billed monthly. Prices exclude GST.
               </p>
             </div>
             <div className="flex justify-center mb-6">
-              <div className="flex border-2 border-black bg-white">
+              <div className="hidden">
                 {CYCLES.map((c) => (
                   <button
                     key={c.id}
