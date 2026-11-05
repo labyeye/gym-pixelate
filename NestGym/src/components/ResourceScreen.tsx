@@ -23,7 +23,8 @@ import {
   Select,
   Sheet,
   Tabs,
-  notify, RCard,
+  notify,
+  RCard,
 } from './ui';
 import ExportSheet, { ExportSpec } from './ExportSheet';
 import { Download as ExportIcon } from 'lucide-react-native';
@@ -122,7 +123,9 @@ const blank = (fields: FieldDef[]) =>
 const toLocalDT = (v: any) => {
   const d = new Date(v);
   const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(
+    d.getHours(),
+  )}:${p(d.getMinutes())}`;
 };
 
 export default function ResourceScreen(p: Props) {
@@ -152,7 +155,10 @@ export default function ResourceScreen(p: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [page, dq, filter, JSON.stringify(p.listParams)],
   );
-  const { data, loading, reload } = useFetch(() => p.api.list(params), [params]);
+  const { data, loading, reload } = useFetch(
+    () => p.api.list(params),
+    [params],
+  );
   const rows: any[] = data?.data || [];
 
   // every field of the form becomes a column; all pages of the current search / filters are exported
@@ -168,8 +174,12 @@ export default function ResourceScreen(p: Props) {
   const openExport = () =>
     setExp({
       name: p.title,
-      cols: p.fields.map(f => ({ header: f.label, value: (r: any) => cell(r, f) })),
-      rows: async () => (await p.api.list({ ...params, page: 1, limit: 1000 })).data || [],
+      cols: p.fields.map(f => ({
+        header: f.label,
+        value: (r: any) => cell(r, f),
+      })),
+      rows: async () =>
+        (await p.api.list({ ...params, page: 1, limit: 1000 })).data || [],
     });
 
   const openNew = () => {
@@ -207,7 +217,8 @@ export default function ResourceScreen(p: Props) {
         setPath(body, f.key, idOf(v) || undefined);
         continue;
       }
-      if (f.type === 'number') v = v === '' || v == null ? undefined : Number(v);
+      if (f.type === 'number')
+        v = v === '' || v == null ? undefined : Number(v);
       if (f.type === 'date') v = v ? new Date(v).toISOString() : undefined;
       if (f.type === 'datetime')
         v = v ? new Date(String(v).replace(' ', 'T')).toISOString() : undefined;
@@ -219,7 +230,9 @@ export default function ResourceScreen(p: Props) {
       const payload = p.toPayload ? p.toPayload(body) : body;
       if (editing === 'new') await p.api.create(payload);
       else await p.api.update(editing._id, payload);
-      notify.success(editing === 'new' ? `${p.noun} added` : `${p.noun} updated`);
+      notify.success(
+        editing === 'new' ? `${p.noun} added` : `${p.noun} updated`,
+      );
       setEditing(null);
       reload();
     } catch (e: any) {
@@ -253,19 +266,85 @@ export default function ResourceScreen(p: Props) {
     const v = form[f.key];
     switch (f.type) {
       case 'select':
-        return <Select key={f.key} label={f.label} required={f.required} hint={f.hint} options={f.options || []} value={v} onChange={set(f.key)} allowEmpty={!f.required} />;
+        return (
+          <Select
+            key={f.key}
+            label={f.label}
+            required={f.required}
+            hint={f.hint}
+            options={f.options || []}
+            value={v}
+            onChange={set(f.key)}
+            allowEmpty={!f.required}
+          />
+        );
       case 'trainer':
-        return <Select key={f.key} label={f.label} required={f.required} options={trainers} value={idOf(v)} onChange={set(f.key)} allowEmpty />;
+        return (
+          <Select
+            key={f.key}
+            label={f.label}
+            required={f.required}
+            options={trainers}
+            value={idOf(v)}
+            onChange={set(f.key)}
+            allowEmpty
+          />
+        );
       case 'plan':
-        return <Select key={f.key} label={f.label} required={f.required} options={plans.map((x: any) => ({ value: x._id, label: x.name }))} value={idOf(v)} onChange={set(f.key)} allowEmpty />;
+        return (
+          <Select
+            key={f.key}
+            label={f.label}
+            required={f.required}
+            options={plans.map((x: any) => ({ value: x._id, label: x.name }))}
+            value={idOf(v)}
+            onChange={set(f.key)}
+            allowEmpty
+          />
+        );
       case 'class':
-        return <Select key={f.key} label={f.label} required={f.required} options={classes} value={idOf(v)} onChange={set(f.key)} allowEmpty />;
+        return (
+          <Select
+            key={f.key}
+            label={f.label}
+            required={f.required}
+            options={classes}
+            value={idOf(v)}
+            onChange={set(f.key)}
+            allowEmpty
+          />
+        );
       case 'member':
-        return <MemberPicker key={f.key} label={f.label} required={f.required} value={typeof v === 'object' ? v : null} onChange={set(f.key)} />;
+        return (
+          <MemberPicker
+            key={f.key}
+            label={f.label}
+            required={f.required}
+            value={typeof v === 'object' ? v : null}
+            onChange={set(f.key)}
+          />
+        );
       case 'tel':
-        return <PhoneInput key={f.key} label={f.label} required={f.required} hint={f.hint} value={v == null ? '' : String(v)} onChange={set(f.key)} />;
+        return (
+          <PhoneInput
+            key={f.key}
+            label={f.label}
+            required={f.required}
+            hint={f.hint}
+            value={v == null ? '' : String(v)}
+            onChange={set(f.key)}
+          />
+        );
       case 'checkbox':
-        return <CheckField key={f.key} label={f.label} hint={f.hint} value={!!v} onChange={set(f.key)} />;
+        return (
+          <CheckField
+            key={f.key}
+            label={f.label}
+            hint={f.hint}
+            value={!!v}
+            onChange={set(f.key)}
+          />
+        );
       default:
         return (
           <Input
@@ -274,9 +353,22 @@ export default function ResourceScreen(p: Props) {
             required={f.required}
             hint={f.hint}
             multiline={f.type === 'textarea'}
-            keyboardType={f.type === 'number' ? 'decimal-pad' : f.type === 'email' ? 'email-address' : 'default'}
+            keyboardType={
+              f.type === 'number'
+                ? 'decimal-pad'
+                : f.type === 'email'
+                ? 'email-address'
+                : 'default'
+            }
             autoCapitalize={f.type === 'email' ? 'none' : undefined}
-            placeholder={f.placeholder || (f.type === 'date' ? 'YYYY-MM-DD' : f.type === 'datetime' ? 'YYYY-MM-DD HH:mm' : undefined)}
+            placeholder={
+              f.placeholder ||
+              (f.type === 'date'
+                ? 'YYYY-MM-DD'
+                : f.type === 'datetime'
+                ? 'YYYY-MM-DD HH:mm'
+                : undefined)
+            }
             value={v == null ? '' : String(v)}
             onChangeText={set(f.key)}
           />
@@ -290,18 +382,48 @@ export default function ResourceScreen(p: Props) {
       back={p.back}
       refreshing={loading && !!data}
       onRefresh={reload}
-      right={<><Btn small label="Export" icon={<ExportIcon />} onPress={openExport} />{canWrite && <Btn small label="Add" icon={<Plus size={14} color="#fff" />} onPress={openNew} />}</>}
+      right={
+        <>
+          <Btn
+            small
+            label="Export"
+            icon={<ExportIcon />}
+            onPress={openExport}
+          />
+          {canWrite && (
+            <Btn
+              small
+              label="Add"
+              icon={<Plus size={14} color="#fff" />}
+              onPress={openNew}
+            />
+          )}
+        </>
+      }
     >
       {p.stats?.(rows, data?.total ?? rows.length)}
       {p.searchable !== false && (
-        <SearchBox value={q} onChange={v => { setQ(v); setPage(1); }} placeholder={`Search ${p.noun}s…`} />
+        <SearchBox
+          value={q}
+          onChange={v => {
+            setQ(v);
+            setPage(1);
+          }}
+          placeholder={`Search ${p.noun}s…`}
+        />
       )}
       {p.filters?.map(f => (
         <Tabs
           key={f.key}
           value={filter[f.key] || ''}
-          onChange={v => { setFilter(s => ({ ...s, [f.key]: v })); setPage(1); }}
-          tabs={[{ id: '', label: `All ${f.label}` }, ...f.options.map(o => ({ id: o, label: o.replace(/_/g, ' ') }))]}
+          onChange={v => {
+            setFilter(s => ({ ...s, [f.key]: v }));
+            setPage(1);
+          }}
+          tabs={[
+            { id: '', label: `All ${f.label}` },
+            ...f.options.map(o => ({ id: o, label: o.replace(/_/g, ' ') })),
+          ]}
         />
       ))}
 
@@ -314,21 +436,64 @@ export default function ResourceScreen(p: Props) {
           const c = p.card(r);
           const acts = [
             ...(p.rowActions?.(r, reload) || []),
-            ...(canWrite ? [{ label: 'Edit', icon: Pencil, onPress: () => openEdit(r) } as RowAction] : []),
-            ...(owner && p.canDelete !== false ? [{ label: 'Delete', icon: Trash2, tone: 'danger', onPress: () => remove(r) } as RowAction] : []),
+            ...(canWrite
+              ? [
+                  {
+                    label: 'Edit',
+                    icon: Pencil,
+                    onPress: () => openEdit(r),
+                  } as RowAction,
+                ]
+              : []),
+            ...(owner && p.canDelete !== false
+              ? [
+                  {
+                    label: 'Delete',
+                    icon: Trash2,
+                    tone: 'danger',
+                    onPress: () => remove(r),
+                  } as RowAction,
+                ]
+              : []),
           ].filter(a => !a.hidden);
           const actions = acts.length > 0 && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <View
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            >
               {acts.map(a =>
                 a.icon ? (
-                  <IconBtn key={a.label} icon={a.icon} label={a.label} color={a.tone === 'danger' ? C.danger : a.tone === 'primary' ? C.primary : C.black} onPress={a.onPress} />
+                  <IconBtn
+                    key={a.label}
+                    icon={a.icon}
+                    label={a.label}
+                    color={
+                      a.tone === 'danger'
+                        ? C.danger
+                        : a.tone === 'primary'
+                        ? C.primary
+                        : C.black
+                    }
+                    onPress={a.onPress}
+                  />
                 ) : (
-                  <Btn key={a.label} small label={a.label} light={a.tone !== 'primary' && a.tone !== 'danger'} danger={a.tone === 'danger'} onPress={a.onPress} />
+                  <Btn
+                    key={a.label}
+                    small
+                    label={a.label}
+                    light={a.tone !== 'primary' && a.tone !== 'danger'}
+                    danger={a.tone === 'danger'}
+                    onPress={a.onPress}
+                  />
                 ),
               )}
             </View>
           );
-          if (p.renderCard) return <RCard key={r._id} style={S.card}>{p.renderCard(r, actions)}</RCard>;
+          if (p.renderCard)
+            return (
+              <RCard key={r._id} style={S.card}>
+                {p.renderCard(r, actions)}
+              </RCard>
+            );
           return (
             <RCard key={r._id} style={S.card}>
               <View style={[S.rowBetween, { alignItems: 'flex-start' }]}>
@@ -344,10 +509,21 @@ export default function ResourceScreen(p: Props) {
               {c.lines?.map(([k, v]) => (
                 <View key={k} style={[S.rowBetween, { marginTop: 4 }]}>
                   <Text style={S.small}>{k}</Text>
-                  <Text style={[S.body, { fontSize: 13, flexShrink: 1, textAlign: 'right' }]}>{v ?? '—'}</Text>
+                  <Text
+                    style={[
+                      S.body,
+                      { fontSize: 13, flexShrink: 1, textAlign: 'right' },
+                    ]}
+                  >
+                    {v ?? '—'}
+                  </Text>
                 </View>
               ))}
-              {!!actions && <View style={{ alignItems: 'flex-end', marginTop: 8 }}>{actions}</View>}
+              {!!actions && (
+                <View style={{ alignItems: 'flex-end', marginTop: 8 }}>
+                  {actions}
+                </View>
+              )}
             </RCard>
           );
         })
@@ -366,8 +542,13 @@ export default function ResourceScreen(p: Props) {
           </>
         }
       >
-        {pairUp(p.fields.filter(f => !(f.createOnly && editing !== 'new'))).map((g, i) =>
-          g.length === 2 ? <Pair key={i}>{g.map(renderField)}</Pair> : renderField(g[0]),
+        {pairUp(p.fields.filter(f => !(f.createOnly && editing !== 'new'))).map(
+          (g, i) =>
+            g.length === 2 ? (
+              <Pair key={i}>{g.map(renderField)}</Pair>
+            ) : (
+              renderField(g[0])
+            ),
         )}
       </Sheet>
       <ExportSheet spec={exp} onClose={() => setExp(null)} />

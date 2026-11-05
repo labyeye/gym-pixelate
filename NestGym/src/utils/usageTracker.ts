@@ -1,7 +1,12 @@
 // Sends screen views and crashes to the product backend (/api/telemetry) for the Pixelate Nest CRM dashboard,
 // and tags every API call from this app with "X-Client: app" so the dashboard can split app vs web traffic.
 // Never throws and never blocks the UI. Call initUsageTracker(API_BASE_URL) once at startup.
-type Ev = { type: 'page' | 'crash' | 'error'; path: string; message?: string; stack?: string };
+type Ev = {
+  type: 'page' | 'crash' | 'error';
+  path: string;
+  message?: string;
+  stack?: string;
+};
 
 let base = '';
 let identity: { userId?: string; role?: string } = {};
@@ -43,7 +48,10 @@ export function initUsageTracker(apiBase: string, appVersion?: string) {
     try {
       const url = typeof input === 'string' ? input : input?.url;
       if (url && url.startsWith(base)) {
-        const h = new Headers(init.headers || (typeof input !== 'string' ? input.headers : undefined));
+        const h = new Headers(
+          init.headers ||
+            (typeof input !== 'string' ? input.headers : undefined),
+        );
         h.set('X-Client', 'app');
         init = { ...init, headers: h };
       }
@@ -55,12 +63,22 @@ export function initUsageTracker(apiBase: string, appVersion?: string) {
   const EU = (globalThis as any).ErrorUtils;
   const prev = EU?.getGlobalHandler?.();
   EU?.setGlobalHandler?.((error: any, isFatal?: boolean) => {
-    push({ type: isFatal ? 'crash' : 'error', path: lastScreen, message: error?.message, stack: error?.stack }, true);
+    push(
+      {
+        type: isFatal ? 'crash' : 'error',
+        path: lastScreen,
+        message: error?.message,
+        stack: error?.stack,
+      },
+      true,
+    );
     prev?.(error, isFatal);
   });
 }
 
-export function setUsageIdentity(user?: { id?: string; _id?: string; role?: string } | null) {
+export function setUsageIdentity(
+  user?: { id?: string; _id?: string; role?: string } | null,
+) {
   identity = { userId: user?._id ?? user?.id, role: user?.role };
 }
 
@@ -68,7 +86,9 @@ let lastScreen = '/';
 function routeName(state: any): string | undefined {
   const r = state?.routes?.[state.index ?? 0];
   if (!r) return undefined;
-  return r.state ? `${r.name}/${routeName(r.state) ?? ''}`.replace(/\/$/, '') : r.name;
+  return r.state
+    ? `${r.name}/${routeName(r.state) ?? ''}`.replace(/\/$/, '')
+    : r.name;
 }
 // Pass as <NavigationContainer onStateChange={trackNavState}>.
 export function trackNavState(state: any) {

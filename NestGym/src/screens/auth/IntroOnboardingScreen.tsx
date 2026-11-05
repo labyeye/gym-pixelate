@@ -16,7 +16,7 @@ import { C, FONT } from '../../theme';
 const illustration1 = require('../../assets/images/Onboarding/1.png');
 const illustration2 = require('../../assets/images/Onboarding/2.png');
 const illustration3 = require('../../assets/images/Onboarding/3.png');
-const nestgymlogo = require("../../assets/logo_long.png")
+const nestgymlogo = require('../../assets/logo_long.png');
 const { width } = Dimensions.get('window');
 const ONBOARDING_KEY = '@nestgym/onboarding-complete';
 
@@ -97,7 +97,9 @@ export default function IntroOnboardingScreen({ navigation }: any) {
       >
         {slides.map(slide => (
           <View style={styles.slide} key={slide.number}>
-            <View style={[styles.illustration, { backgroundColor: slide.color }]}>
+            <View
+              style={[styles.illustration, { backgroundColor: slide.color }]}
+            >
               <Image
                 source={slide.image}
                 style={styles.illustrationImage}
@@ -122,7 +124,9 @@ export default function IntroOnboardingScreen({ navigation }: any) {
           style={styles.button}
           onPress={next}
           accessibilityRole="button"
-          accessibilityLabel={current === slides.length - 1 ? 'Get started' : 'Next'}
+          accessibilityLabel={
+            current === slides.length - 1 ? 'Get started' : 'Next'
+          }
         >
           <Text style={styles.buttonText}>
             {current === slides.length - 1 ? 'Get started' : 'Next'}
@@ -166,10 +170,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   nestlogostyle: {
-      width: 138,
-      height: 56,
-      resizeMode: 'contain',
-    },
+    width: 138,
+    height: 56,
+    resizeMode: 'contain',
+  },
   illustrationCard: {
     width: '68%',
     height: 145,

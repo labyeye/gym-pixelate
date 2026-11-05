@@ -95,7 +95,7 @@ export function ProfileMenu() {
               {!!credits?.bonus && (
                 <p className="text-[11px] text-gray-500">
                   incl. {fmtCredits(credits.bonus)} bonus
-                  {credits.bonusExpiresAt ? ` (till ${new Date(credits.bonusExpiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })})` : ""}
+                  {credits.bonusExpiresAt ? ` (till ${new Date(credits.bonusExpiresAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")})` : ""}
                 </p>
               )}
               {credits?.zero ? (

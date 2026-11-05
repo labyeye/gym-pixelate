@@ -11,6 +11,7 @@ const {
   changePassword,
 } = require("../controllers/authController");
 const sec = require("../controllers/securityController");
+const { deleteAccount } = require("../controllers/accountController");
 const pk = require("../controllers/passkeyController");
 const captcha = require("../middleware/captcha");
 const { protect } = require("../middleware/auth");
@@ -39,6 +40,7 @@ router.post("/onboarding", protect, saveOnboarding);
 router.get("/me", protect, getMe);
 router.put("/me", protect, updateProfile);
 router.put("/change-password", protect, limiter(10), changePassword);
+router.post("/delete-account", protect, limiter(5), deleteAccount);
 
 // forgot / reset password (every method ends in a strong-password check)
 router.get("/forgot-password/methods", limiter(10), sec.forgotPasswordMethods);

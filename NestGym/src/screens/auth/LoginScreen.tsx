@@ -115,7 +115,10 @@ export default function LoginScreen({ navigation }: any) {
 
   const signInWithPasskey = async () => {
     if (!Passkey.isSupported()) {
-      return Alert.alert('Not supported', 'Passkeys are not supported on this device.');
+      return Alert.alert(
+        'Not supported',
+        'Passkeys are not supported on this device.',
+      );
     }
     setPasskeyBusy(true);
     try {
@@ -143,8 +146,13 @@ export default function LoginScreen({ navigation }: any) {
       const r = await completeLogin(res);
       if (!r.success) Alert.alert('Error', r.error || 'Sign in failed');
     } catch (e: any) {
-      const cancelled = e?.error === 'UserCancelled' || e?.name === 'NotAllowedError';
-      if (!cancelled) Alert.alert('Passkey sign-in failed', e?.message || 'Try another sign-in method.');
+      const cancelled =
+        e?.error === 'UserCancelled' || e?.name === 'NotAllowedError';
+      if (!cancelled)
+        Alert.alert(
+          'Passkey sign-in failed',
+          e?.message || 'Try another sign-in method.',
+        );
     } finally {
       setPasskeyBusy(false);
     }
@@ -154,7 +162,10 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleSendOtp = async () => {
     if (viaEmail ? !email.trim() : !phone.trim()) {
-      Alert.alert('Validation', viaEmail ? 'Email is required' : 'Phone number is required');
+      Alert.alert(
+        'Validation',
+        viaEmail ? 'Email is required' : 'Phone number is required',
+      );
       return;
     }
     setOtpLoading(true);
@@ -166,7 +177,10 @@ export default function LoginScreen({ navigation }: any) {
       }
       setOtpSent(true);
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to send OTP. Please try again.');
+      Alert.alert(
+        'Error',
+        e.message || 'Failed to send OTP. Please try again.',
+      );
     } finally {
       setOtpLoading(false);
     }
@@ -181,7 +195,9 @@ export default function LoginScreen({ navigation }: any) {
     let r: { success: boolean; error?: string };
     try {
       r = viaEmail
-        ? await completeLogin(await authAPI.emailOtpVerify(email.trim().toLowerCase(), otp))
+        ? await completeLogin(
+            await authAPI.emailOtpVerify(email.trim().toLowerCase(), otp),
+          )
         : await loginWithOtp(phone, otp);
     } catch (e: any) {
       r = { success: false, error: e.message };
@@ -214,7 +230,9 @@ export default function LoginScreen({ navigation }: any) {
               style={mode === 'phone' ? styles.lottieOtp : styles.lottieLogin}
             />
           </Animated.View>
-          <Text style={styles.cardTitle}>{pendingToken !== null ? 'Two-Step Check' : 'Login'}</Text>
+          <Text style={styles.cardTitle}>
+            {pendingToken !== null ? 'Two-Step Check' : 'Login'}
+          </Text>
           {pendingToken !== null ? (
             /* ── 2FA code step ────────────────────────────────── */
             <>
@@ -265,7 +283,11 @@ export default function LoginScreen({ navigation }: any) {
                     <View style={styles.field}>
                       <Text style={styles.label}>Email Address</Text>
                       <View style={styles.inputRow}>
-                        <Mail size={16} color={C.textMuted} style={styles.inputIcon} />
+                        <Mail
+                          size={16}
+                          color={C.textMuted}
+                          style={styles.inputIcon}
+                        />
                         <TextInput
                           style={styles.input}
                           value={email}
@@ -288,32 +310,48 @@ export default function LoginScreen({ navigation }: any) {
                   <TouchableOpacity
                     style={styles.btnPrimary}
                     onPress={handleSendOtp}
-                    disabled={otpLoading || (viaEmail ? !email.trim() : !phone.trim())}
+                    disabled={
+                      otpLoading || (viaEmail ? !email.trim() : !phone.trim())
+                    }
                   >
                     {otpLoading ? (
                       <ActivityIndicator color={C.white} />
                     ) : (
                       <>
-                        {viaEmail ? <ArrowRight size={16} color={C.white} /> : <WhatsAppIcon size={20} />}
+                        {viaEmail ? (
+                          <ArrowRight size={16} color={C.white} />
+                        ) : (
+                          <WhatsAppIcon size={20} />
+                        )}
                         <Text style={styles.btnPrimaryText}>
-                          {viaEmail ? 'Send OTP to Email' : 'Send OTP on WhatsApp'}
+                          {viaEmail
+                            ? 'Send OTP to Email'
+                            : 'Send OTP on WhatsApp'}
                         </Text>
                       </>
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.forgotBtn}
-                    onPress={() => setChannel(c => (c === 'email' ? 'whatsapp' : 'email'))}
+                    onPress={() =>
+                      setChannel(c => (c === 'email' ? 'whatsapp' : 'email'))
+                    }
                   >
                     <Text style={styles.forgotText}>
-                      {viaEmail ? 'Use WhatsApp OTP instead' : 'Use email OTP instead'}
+                      {viaEmail
+                        ? 'Use WhatsApp OTP instead'
+                        : 'Use email OTP instead'}
                     </Text>
                   </TouchableOpacity>
                 </>
               ) : (
                 <>
                   <View style={styles.field}>
-                    <Text style={styles.label}>{viaEmail ? 'Enter OTP (from email)' : 'Enter OTP (from WhatsApp)'}</Text>
+                    <Text style={styles.label}>
+                      {viaEmail
+                        ? 'Enter OTP (from email)'
+                        : 'Enter OTP (from WhatsApp)'}
+                    </Text>
                     <TextInput
                       style={[styles.inputRow, styles.otpInput]}
                       value={otp}
@@ -447,61 +485,69 @@ export default function LoginScreen({ navigation }: any) {
 
           {pendingToken === null && (
             <>
-          <View style={styles.orRow}>
-            <View style={styles.orLine} />
-            <Text style={styles.orText}>Or login with</Text>
-            <View style={styles.orLine} />
-          </View>
+              <View style={styles.orRow}>
+                <View style={styles.orLine} />
+                <Text style={styles.orText}>Or login with</Text>
+                <View style={styles.orLine} />
+              </View>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-            <View style={{ alignItems: 'center' }}>
-              <TouchableOpacity
-                style={styles.altBtn}
-                onPress={() => {
-                  if (mode === 'phone') {
-                    setMode('email');
-                    setOtpSent(false);
-                    setPhone('');
-                    setOtp('');
-                  } else {
-                    setMode('phone');
-                  }
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  mode === 'phone' ? 'Sign in with email' : 'Sign in with phone OTP'
-                }
-              >
-                {mode === 'phone' ? (
-                  <Mail size={24} color={C.white} />
-                ) : (
-                  <Phone size={24} color={C.white} />
-                )}
-              </TouchableOpacity>
-              <Text style={styles.altLabel}>
-                {mode === 'phone' ? 'Email' : 'Phone'}
-              </Text>
-            </View>
-            <View style={{ alignItems: 'center', marginLeft: 24 }}>
-              <TouchableOpacity
-                style={styles.altBtn}
-                onPress={signInWithPasskey}
-                disabled={passkeyBusy}
-                accessibilityRole="button"
-                accessibilityLabel="Sign in with a passkey"
-              >
-                {passkeyBusy ? <ActivityIndicator color={C.white} /> : <KeyRound size={24} color={C.white} />}
-              </TouchableOpacity>
-              <Text style={styles.altLabel}>Passkey</Text>
-            </View>
-          </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+                <View style={{ alignItems: 'center' }}>
+                  <TouchableOpacity
+                    style={styles.altBtn}
+                    onPress={() => {
+                      if (mode === 'phone') {
+                        setMode('email');
+                        setOtpSent(false);
+                        setPhone('');
+                        setOtp('');
+                      } else {
+                        setMode('phone');
+                      }
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      mode === 'phone'
+                        ? 'Sign in with email'
+                        : 'Sign in with phone OTP'
+                    }
+                  >
+                    {mode === 'phone' ? (
+                      <Mail size={24} color={C.white} />
+                    ) : (
+                      <Phone size={24} color={C.white} />
+                    )}
+                  </TouchableOpacity>
+                  <Text style={styles.altLabel}>
+                    {mode === 'phone' ? 'Email' : 'Phone'}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'center', marginLeft: 24 }}>
+                  <TouchableOpacity
+                    style={styles.altBtn}
+                    onPress={signInWithPasskey}
+                    disabled={passkeyBusy}
+                    accessibilityRole="button"
+                    accessibilityLabel="Sign in with a passkey"
+                  >
+                    {passkeyBusy ? (
+                      <ActivityIndicator color={C.white} />
+                    ) : (
+                      <KeyRound size={24} color={C.white} />
+                    )}
+                  </TouchableOpacity>
+                  <Text style={styles.altLabel}>Passkey</Text>
+                </View>
+              </View>
 
-          <TouchableOpacity
-            style={styles.forgotBtn}
-            onPress={() => navigation.navigate('Register')}
-          >
-            <Text style={styles.forgotText}>New to NestGym? Create an account</Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.forgotBtn}
+                onPress={() => navigation.navigate('Register')}
+              >
+                <Text style={styles.forgotText}>
+                  New to NestGym? Create an account
+                </Text>
+              </TouchableOpacity>
             </>
           )}
         </>
@@ -522,7 +568,7 @@ const styles = StyleSheet.create({
   lottieOtp: { width: '100%', height: 300, marginTop: -204, marginBottom: 24 },
   cardTitle: {
     fontSize: 36,
-    fontWeight: '600',
+    fontWeight: '400',
     color: '#000',
     marginBottom: 18,
     textAlign: 'left',
@@ -530,7 +576,7 @@ const styles = StyleSheet.create({
   field: { marginBottom: 16 },
   label: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     textTransform: 'uppercase',
     color: C.black,
     marginBottom: 6,
@@ -554,7 +600,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingRight: 12,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '400',
     color: C.black,
   },
   eyeBtn: { padding: 12 },
@@ -576,13 +622,13 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: {
     color: C.white,
-    fontWeight: '700',
+    fontWeight: '400',
     fontSize: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   forgotBtn: { alignItems: 'center', paddingVertical: 10 },
-  forgotText: { fontSize: 13, fontWeight: '700', color: C.primary },
+  forgotText: { fontSize: 13, fontWeight: '400', color: C.primary },
   orRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -591,7 +637,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   orLine: { flex: 1, height: 1, backgroundColor: '#E5E7EB' },
-  orText: { fontSize: 12, fontWeight: '600', color: C.textMuted },
+  orText: { fontSize: 12, fontWeight: '400', color: C.textMuted },
   altBtn: {
     alignSelf: 'center',
     width: 50,
@@ -605,14 +651,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '400',
     color: C.textMuted,
   },
   otpInput: {
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '400',
     letterSpacing: 10,
     textAlign: 'center',
     color: C.black,

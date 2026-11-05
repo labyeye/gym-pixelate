@@ -119,6 +119,7 @@ const userSchema = new mongoose.Schema(
 );
 userSchema.add({
   passwordChangedAt: { type: Date },
+  deletionRequestedAt: { type: Date },
   // Authenticator-app 2FA (TOTP). Recovery codes live in backupCodes (hashes only).
   twoFactorSecret: { type: String, select: false },
   twoFactorEnabled: { type: Boolean, default: false },

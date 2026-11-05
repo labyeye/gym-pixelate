@@ -26,7 +26,7 @@ export default function TrashSettings() {
       {all.map((r) => (
         <div key={r._id} className="flex items-center justify-between border-t border-black/10 pt-2 text-sm">
           <span>
-            <b>{r.name}</b> <span className="text-xs text-gray-600">{LABEL[r.kind]} · deleted {new Date(r.deletedAt).toLocaleDateString("en-IN")}</span>
+            <b>{r.name}</b> <span className="text-xs text-gray-600">{LABEL[r.kind]} · deleted {new Date(r.deletedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}</span>
           </span>
           <button className="border-2 border-black px-3 py-1 text-xs font-bold uppercase" onClick={() => restore(r.kind, r._id)}>
             Restore

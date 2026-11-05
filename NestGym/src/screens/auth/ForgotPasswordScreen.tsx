@@ -27,11 +27,26 @@ type CodeMethod = 'whatsapp' | 'totp' | 'backup' | 'passkey';
 
 // Only methods the account has actually set up are offered (the server decides, see /forgot-password/methods).
 const METHOD_INFO: Record<string, { label: string; desc: string }> = {
-  email: { label: 'Email link', desc: 'Get a password reset link in your inbox' },
-  whatsapp: { label: 'WhatsApp code', desc: 'Get a 6-digit code on your verified WhatsApp number' },
-  totp: { label: 'Authenticator app', desc: 'Enter the code from your authenticator app' },
-  backup: { label: 'Backup code', desc: 'Use one of your saved one-time backup codes' },
-  passkey: { label: 'Passkey', desc: 'Confirm with your fingerprint, face or screen lock' },
+  email: {
+    label: 'Email link',
+    desc: 'Get a password reset link in your inbox',
+  },
+  whatsapp: {
+    label: 'WhatsApp code',
+    desc: 'Get a 6-digit code on your verified WhatsApp number',
+  },
+  totp: {
+    label: 'Authenticator app',
+    desc: 'Enter the code from your authenticator app',
+  },
+  backup: {
+    label: 'Backup code',
+    desc: 'Use one of your saved one-time backup codes',
+  },
+  passkey: {
+    label: 'Passkey',
+    desc: 'Confirm with your fingerprint, face or screen lock',
+  },
 };
 
 function Field({
@@ -114,7 +129,8 @@ export default function ForgotPasswordScreen({ navigation }: any) {
     if (password !== confirm) return setError("Passwords don't match");
     run(async () => {
       if (method === 'passkey') {
-        if (!Passkey.isSupported()) throw new Error('Passkeys are not supported on this device.');
+        if (!Passkey.isSupported())
+          throw new Error('Passkeys are not supported on this device.');
         const { data: o }: any = await authAPI.resetPasskeyOptions();
         let r: any;
         try {
@@ -146,8 +162,10 @@ export default function ForgotPasswordScreen({ navigation }: any) {
           },
           clientExtensionResults: {},
         });
-      } else if (method === 'backup') await authAPI.resetWithBackupCode(addr, code.trim(), password);
-      else if (method === 'whatsapp') await authAPI.resetPasswordWithOtp(addr, code.trim(), password);
+      } else if (method === 'backup')
+        await authAPI.resetWithBackupCode(addr, code.trim(), password);
+      else if (method === 'whatsapp')
+        await authAPI.resetPasswordWithOtp(addr, code.trim(), password);
       else await authAPI.resetPasswordWithTotp(addr, code.trim(), password);
       setDoneMsg('Your password has been reset. You can now sign in.');
       setStep('done');
@@ -226,7 +244,11 @@ export default function ForgotPasswordScreen({ navigation }: any) {
                   <View style={styles.field}>
                     <Text style={styles.label}>Email Address</Text>
                     <View style={styles.inputRow}>
-                      <Mail size={16} color={C.textMuted} style={styles.inputIcon} />
+                      <Mail
+                        size={16}
+                        color={C.textMuted}
+                        style={styles.inputIcon}
+                      />
                       <TextInput
                         style={styles.input}
                         value={email}
@@ -244,7 +266,11 @@ export default function ForgotPasswordScreen({ navigation }: any) {
                       />
                     </View>
                   </View>
-                  <Primary title="Continue" loading={loading} onPress={onContinue} />
+                  <Primary
+                    title="Continue"
+                    loading={loading}
+                    onPress={onContinue}
+                  />
                 </>
               )}
 
@@ -256,27 +282,39 @@ export default function ForgotPasswordScreen({ navigation }: any) {
                     onPress={() => choose(m)}
                     disabled={loading}
                   >
-                    <Text style={styles.methodLabel}>{METHOD_INFO[m]?.label ?? m}</Text>
-                    <Text style={styles.methodDesc}>{METHOD_INFO[m]?.desc}</Text>
+                    <Text style={styles.methodLabel}>
+                      {METHOD_INFO[m]?.label ?? m}
+                    </Text>
+                    <Text style={styles.methodDesc}>
+                      {METHOD_INFO[m]?.desc}
+                    </Text>
                   </TouchableOpacity>
                 ))}
 
               {step === 'code' && (
                 <>
-                  {method !== 'passkey' && <Field
-                    label={
-                      method === 'whatsapp'
-                        ? 'WhatsApp Code'
-                        : method === 'backup'
-                        ? 'Backup Code'
-                        : 'Authenticator Code'
-                    }
-                    value={code}
-                    onChangeText={setCode}
-                    keyboardType={method === 'whatsapp' ? 'number-pad' : 'default'}
-                    autoCapitalize={method === 'backup' ? 'characters' : 'none'}
-                    placeholder={method === 'backup' ? 'XXXXX-XXXXX' : '123456'}
-                  />}
+                  {method !== 'passkey' && (
+                    <Field
+                      label={
+                        method === 'whatsapp'
+                          ? 'WhatsApp Code'
+                          : method === 'backup'
+                          ? 'Backup Code'
+                          : 'Authenticator Code'
+                      }
+                      value={code}
+                      onChangeText={setCode}
+                      keyboardType={
+                        method === 'whatsapp' ? 'number-pad' : 'default'
+                      }
+                      autoCapitalize={
+                        method === 'backup' ? 'characters' : 'none'
+                      }
+                      placeholder={
+                        method === 'backup' ? 'XXXXX-XXXXX' : '123456'
+                      }
+                    />
+                  )}
                   <Field
                     label="New Password"
                     value={password}
@@ -291,7 +329,11 @@ export default function ForgotPasswordScreen({ navigation }: any) {
                     onChangeText={setConfirm}
                     secureTextEntry
                   />
-                  <Primary title="Reset Password" loading={loading} onPress={onReset} />
+                  <Primary
+                    title="Reset Password"
+                    loading={loading}
+                    onPress={onReset}
+                  />
                 </>
               )}
 
@@ -331,7 +373,11 @@ function Primary({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity style={styles.btnPrimary} onPress={onPress} disabled={loading}>
+    <TouchableOpacity
+      style={styles.btnPrimary}
+      onPress={onPress}
+      disabled={loading}
+    >
       {loading ? (
         <ActivityIndicator color={C.white} />
       ) : (
@@ -346,19 +392,29 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, paddingHorizontal: 24, backgroundColor: '#fff' },
   lottie: { width: '100%', height: 240, alignSelf: 'center' },
   card: { marginTop: 24 },
-  cardTitle: { fontSize: 32, fontWeight: '600', color: C.black, marginBottom: 8 },
+  cardTitle: {
+    fontSize: 32,
+    fontWeight: '400',
+    color: C.black,
+    marginBottom: 8,
+  },
   cardSub: {
     fontSize: 13,
     color: '#6B7280',
-    fontWeight: '500',
+    fontWeight: '400',
     marginBottom: 20,
     lineHeight: 20,
   },
-  errorText: { color: C.danger, fontWeight: '600', fontSize: 13, marginBottom: 12 },
+  errorText: {
+    color: C.danger,
+    fontWeight: '400',
+    fontSize: 13,
+    marginBottom: 12,
+  },
   field: { marginBottom: 16 },
   label: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     textTransform: 'uppercase',
     color: C.black,
     marginBottom: 6,
@@ -382,7 +438,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingRight: 12,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '400',
     color: C.black,
   },
   inputPad: { paddingLeft: 12 },
@@ -402,7 +458,7 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: {
     color: C.white,
-    fontWeight: '700',
+    fontWeight: '400',
     fontSize: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -418,7 +474,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
   },
-  methodLabel: { fontWeight: '700', fontSize: 15, color: C.black },
+  methodLabel: { fontWeight: '400', fontSize: 15, color: C.black },
   methodDesc: { color: '#6B7280', marginTop: 2, fontSize: 12 },
   backLink: {
     flexDirection: 'row',
@@ -427,7 +483,7 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 16,
   },
-  backLinkText: { fontSize: 13, fontWeight: '700', color: C.primary },
+  backLinkText: { fontSize: 13, fontWeight: '400', color: C.primary },
   successBlock: { alignItems: 'center', gap: 12 },
   successIcon: {
     width: 64,

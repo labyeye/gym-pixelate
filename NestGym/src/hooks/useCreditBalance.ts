@@ -17,7 +17,8 @@ export interface CreditBalance {
 }
 
 /** 3203 -> "3,203", 0.4 -> "0.4" */
-export const fmtCredits = (n = 0) => n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+export const fmtCredits = (n = 0) =>
+  n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
 /** WhatsApp wallet for the gym owner / managers. Refetches whenever the screen regains focus (e.g. after topping up on the web). */
 export function useCreditBalance() {

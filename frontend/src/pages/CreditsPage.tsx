@@ -150,7 +150,7 @@ export default function CreditsPage() {
                 {!!credits?.bonus && (
                   <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-[#00A878]">
                     <Gift className="w-3.5 h-3.5" /> includes {fmtCredits(credits.bonus)} bonus credits
-                    {credits.bonusExpiresAt ? ` · valid till ${new Date(credits.bonusExpiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+                    {credits.bonusExpiresAt ? ` · valid till ${new Date(credits.bonusExpiresAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}` : ""}
                   </p>
                 )}
                 {credits?.zero ? (
@@ -225,7 +225,7 @@ export default function CreditsPage() {
                     {rows.map((r) => (
                       <tr key={r._id} className="border-t border-black/10">
                         <td className="px-3 py-2 whitespace-nowrap text-gray-600">
-                          {new Date(r.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
+                          {new Date(r.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(/\//g, "-")}
                         </td>
                         <td className="px-3 py-2 font-medium text-black">
                           {r.type === "topup" ? "Top-up" : r.type === "bonus" ? "Bonus credits" : EVENT_LABEL[r.event] || r.event || r.type}
@@ -256,7 +256,7 @@ export default function CreditsPage() {
                   {topups.map((t) => (
                     <div key={t._id} className="flex items-center justify-between px-3 py-2 text-xs">
                       <span className="font-bold text-black">{t.invoiceNumber}</span>
-                      <span className="text-gray-600">{new Date(t.paidAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+                      <span className="text-gray-600">{new Date(t.paidAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}</span>
                       <span className="text-gray-600">{fmtCredits(t.credits)} credits</span>
                       <span className="font-bold text-black">{inr(t.total)} <span className="font-normal text-gray-500">(GST {inr(t.gst)})</span></span>
                     </div>

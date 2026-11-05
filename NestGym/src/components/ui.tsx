@@ -52,7 +52,12 @@ export function Rise({
   if (autoRef.current === null) autoRef.current = burstDelay(); // once per mount, not per render
   const auto = autoRef.current;
   return (
-    <FadeInUp delay={index === undefined ? auto : Math.min(index, 10) * 55} distance={14} duration={520} style={style}>
+    <FadeInUp
+      delay={index === undefined ? auto : Math.min(index, 10) * 55}
+      distance={14}
+      duration={520}
+      style={style}
+    >
       {children}
     </FadeInUp>
   );
@@ -73,7 +78,12 @@ export const brut = (extra: ViewStyle = {}): ViewStyle => ({
 
 /* ------------------------------------------------------------------ toast */
 
-type ToastMsg = { id: number; kind: 'ok' | 'err'; title: string; text?: string };
+type ToastMsg = {
+  id: number;
+  kind: 'ok' | 'err';
+  title: string;
+  text?: string;
+};
 const toastSubs = new Set<(t: ToastMsg) => void>();
 const emitToast = (t: ToastMsg) => toastSubs.forEach(f => f(t));
 let toastId = 0;
@@ -143,12 +153,18 @@ export function Screen({
   footer,
 }: ScreenProps) {
   const nav = useNavigation<any>();
-  const goBack = () => (nav.canGoBack() ? nav.goBack() : nav.navigate('Dashboard'));
+  const goBack = () =>
+    nav.canGoBack() ? nav.goBack() : nav.navigate('Dashboard');
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={goBack} hitSlop={10} style={{ marginRight: 10 }} accessibilityLabel="Back">
+          <TouchableOpacity
+            onPress={goBack}
+            hitSlop={10}
+            style={{ marginRight: 10 }}
+            accessibilityLabel="Back"
+          >
             <ArrowLeft size={24} color={C.black} />
           </TouchableOpacity>
           <Text style={styles.title} numberOfLines={1}>
@@ -157,7 +173,11 @@ export function Screen({
         </View>
         {!!right && (
           <BareCtx.Provider value>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>{right}</View>
+            <View
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            >
+              {right}
+            </View>
           </BareCtx.Provider>
         )}
       </View>
@@ -189,7 +209,11 @@ export function Screen({
 }
 
 /** A bordered card that rises in on mount - use for rows/cards in lists. */
-export function RCard({ style, children, ...rest }: { style?: any; children?: React.ReactNode } & Record<string, any>) {
+export function RCard({
+  style,
+  children,
+  ...rest
+}: { style?: any; children?: React.ReactNode } & Record<string, any>) {
   const delayRef = useRef<number | null>(null);
   if (delayRef.current === null) delayRef.current = burstDelay();
   const delay = delayRef.current;
@@ -227,15 +251,15 @@ export function Panel({
 }) {
   return (
     <FadeInUp distance={12} duration={480}>
-    <View style={[S.card, style]}>
-      {(title || right) && (
-        <View style={[S.rowBetween, { marginBottom: 10 }]}>
-          <Text style={S.h3}>{title}</Text>
-          {right}
-        </View>
-      )}
-      {children}
-    </View>
+      <View style={[S.card, style]}>
+        {(title || right) && (
+          <View style={[S.rowBetween, { marginBottom: 10 }]}>
+            <Text style={S.h3}>{title}</Text>
+            {right}
+          </View>
+        )}
+        {children}
+      </View>
     </FadeInUp>
   );
 }
@@ -246,9 +270,27 @@ export function Panel({
 const BareCtx = React.createContext(false);
 
 /** Icon-only action: no background, no border. */
-export function IconBtn({ icon: Icon, onPress, color = C.black, size = 20, label }: { icon: any; onPress?: () => void; color?: string; size?: number; label?: string }) {
+export function IconBtn({
+  icon: Icon,
+  onPress,
+  color = C.black,
+  size = 20,
+  label,
+}: {
+  icon: any;
+  onPress?: () => void;
+  color?: string;
+  size?: number;
+  label?: string;
+}) {
   return (
-    <TouchableOpacity onPress={onPress} hitSlop={8} style={{ padding: 6 }} accessibilityRole="button" accessibilityLabel={label}>
+    <TouchableOpacity
+      onPress={onPress}
+      hitSlop={8}
+      style={{ padding: 6 }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
       <Icon size={size} color={color} />
     </TouchableOpacity>
   );
@@ -283,14 +325,52 @@ export function Btn({
   const scale = useRef(new Animated.Value(1)).current;
   const reduce = useReduceMotion();
   const press = (to: number) =>
-    !reduce && Animated.spring(scale, { toValue: to, friction: 5, tension: 220, useNativeDriver: true }).start();
+    !reduce &&
+    Animated.spring(scale, {
+      toValue: to,
+      friction: 5,
+      tension: 220,
+      useNativeDriver: true,
+    }).start();
   // small / header buttons are bare: no background, no border (icon only in the header)
   if (small || inHeader) {
     const tone = danger ? C.danger : light ? C.black : color;
     return (
-      <TouchableOpacity disabled={disabled || busy} onPress={onPress} hitSlop={8} activeOpacity={0.6} style={{ padding: inHeader ? 6 : 4, opacity: disabled ? 0.45 : 1, flexDirection: 'row', alignItems: 'center', gap: 5 }} accessibilityRole="button" accessibilityLabel={label}>
-        {busy ? <ActivityIndicator size="small" color={tone} /> : icon ? React.cloneElement(icon as React.ReactElement<any>, { color: tone, size: inHeader ? 22 : 15 }) : null}
-        {(!inHeader || !icon) && <Text style={{ fontFamily: FONT.bold, fontSize: 12, color: tone, textTransform: 'uppercase' }}>{label}</Text>}
+      <TouchableOpacity
+        disabled={disabled || busy}
+        onPress={onPress}
+        hitSlop={8}
+        activeOpacity={0.6}
+        style={{
+          padding: inHeader ? 6 : 4,
+          opacity: disabled ? 0.45 : 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 5,
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        {busy ? (
+          <ActivityIndicator size="small" color={tone} />
+        ) : icon ? (
+          React.cloneElement(icon as React.ReactElement<any>, {
+            color: tone,
+            size: inHeader ? 22 : 15,
+          })
+        ) : null}
+        {(!inHeader || !icon) && (
+          <Text
+            style={{
+              fontFamily: FONT.bold,
+              fontSize: 12,
+              color: tone,
+              textTransform: 'uppercase',
+            }}
+          >
+            {label}
+          </Text>
+        )}
       </TouchableOpacity>
     );
   }
@@ -301,34 +381,34 @@ export function Btn({
       onPressIn={() => press(0.95)}
       onPressOut={() => press(1)}
     >
-    <Animated.View
-      style={[
-        brut({
-          backgroundColor: bg,
-          paddingHorizontal: small ? 10 : 16,
-          paddingVertical: small ? 6 : 10,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 6,
-          opacity: disabled ? 0.45 : 1,
-        }),
-        { transform: [{ scale }] },
-        style,
-      ]}
-    >
-      {busy ? <ActivityIndicator size="small" color={fg} /> : icon}
-      <Text
-        style={{
-          fontFamily: FONT.bold,
-          fontSize: small ? 11 : 13,
-          color: fg,
-          textTransform: 'uppercase',
-        }}
+      <Animated.View
+        style={[
+          brut({
+            backgroundColor: bg,
+            paddingHorizontal: small ? 10 : 16,
+            paddingVertical: small ? 6 : 10,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            opacity: disabled ? 0.45 : 1,
+          }),
+          { transform: [{ scale }] },
+          style,
+        ]}
       >
-        {label}
-      </Text>
-    </Animated.View>
+        {busy ? <ActivityIndicator size="small" color={fg} /> : icon}
+        <Text
+          style={{
+            fontFamily: FONT.bold,
+            fontSize: small ? 11 : 13,
+            color: fg,
+            textTransform: 'uppercase',
+          }}
+        >
+          {label}
+        </Text>
+      </Animated.View>
     </Pressable>
   );
 }
@@ -343,40 +423,67 @@ const PILL: Record<string, [string, string]> = {
   white: ['#FFFFFF', '#000000'],
 };
 const PILL_OF: Record<string, string> = {
-  active: 'green', paid: 'green', completed: 'green', converted: 'green', available: 'green', working: 'green', attended: 'green', booked: 'green', present: 'green',
-  partial: 'orange', pending: 'orange', negotiating: 'orange', waitlisted: 'orange', under_maintenance: 'orange', maintenance: 'orange',
-  upcoming: 'blue', scheduled: 'blue', contacted: 'blue', assigned: 'blue',
-  frozen: 'teal', trial_booked: 'teal', trial_done: 'teal',
-  new: 'purple', upgraded: 'purple',
-  expired: 'red', cancelled: 'red', lost: 'red', refunded: 'red', missed: 'red', no_show: 'red', out_of_order: 'red', blacklisted: 'red', absent: 'red',
+  active: 'green',
+  paid: 'green',
+  completed: 'green',
+  converted: 'green',
+  available: 'green',
+  working: 'green',
+  attended: 'green',
+  booked: 'green',
+  present: 'green',
+  partial: 'orange',
+  pending: 'orange',
+  negotiating: 'orange',
+  waitlisted: 'orange',
+  under_maintenance: 'orange',
+  maintenance: 'orange',
+  upcoming: 'blue',
+  scheduled: 'blue',
+  contacted: 'blue',
+  assigned: 'blue',
+  frozen: 'teal',
+  trial_booked: 'teal',
+  trial_done: 'teal',
+  new: 'purple',
+  upgraded: 'purple',
+  expired: 'red',
+  cancelled: 'red',
+  lost: 'red',
+  refunded: 'red',
+  missed: 'red',
+  no_show: 'red',
+  out_of_order: 'red',
+  blacklisted: 'red',
+  absent: 'red',
 };
 export function Pill({ value, tone }: { value?: string; tone?: string }) {
   if (!value) return null;
   const [bg, fg] = PILL[tone || PILL_OF[value] || 'white'];
   return (
     <Pop style={{ alignSelf: 'flex-start' }}>
-    <View
-      style={{
-        backgroundColor: bg,
-        borderWidth: 2,
-        borderColor: C.black,
-        borderRadius: 8,
-        paddingHorizontal: 7,
-        paddingVertical: 1,
-        alignSelf: 'flex-start',
-      }}
-    >
-      <Text
+      <View
         style={{
-          fontFamily: FONT.bold,
-          fontSize: 10,
-          color: fg,
-          textTransform: 'uppercase',
+          backgroundColor: bg,
+          borderWidth: 2,
+          borderColor: C.black,
+          borderRadius: 8,
+          paddingHorizontal: 7,
+          paddingVertical: 1,
+          alignSelf: 'flex-start',
         }}
       >
-        {value.replace(/_/g, ' ')}
-      </Text>
-    </View>
+        <Text
+          style={{
+            fontFamily: FONT.bold,
+            fontSize: 10,
+            color: fg,
+            textTransform: 'uppercase',
+          }}
+        >
+          {value.replace(/_/g, ' ')}
+        </Text>
+      </View>
     </Pop>
   );
 }
@@ -402,48 +509,164 @@ export function StatCard({
   index?: number;
 }) {
   const v = typeof value === 'number' || typeof value === 'string' ? value : '';
-  return <MiniStat label={label} value={v} sub={sub} color={color} icon={icon} onPress={onPress} index={index} />;
+  return (
+    <MiniStat
+      label={label}
+      value={v}
+      sub={sub}
+      color={color}
+      icon={icon}
+      onPress={onPress}
+      index={index}
+    />
+  );
 }
 
 // each card in a grid gets its own index, so they rise one after another
 export const StatGrid = ({ children }: { children: React.ReactNode }) => (
-  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+  <View
+    style={{
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginBottom: 14,
+    }}
+  >
     {React.Children.toArray(children).map((c, i) =>
-      React.isValidElement(c) && (c.props as any).index === undefined ? React.cloneElement(c as any, { index: i }) : c,
+      React.isValidElement(c) && (c.props as any).index === undefined
+        ? React.cloneElement(c as any, { index: i })
+        : c,
     )}
   </View>
 );
 
 /** Compact KPI card, same look as the dashboard summary cards. Up to four share a row, more wrap. */
-export function MiniStat({ label, value, sub, icon, color = C.primary, onPress, index = 0 }: { label: string; value: number | string; sub?: string; icon?: any; color?: string; onPress?: () => void; index?: number }) {
+export function MiniStat({
+  label,
+  value,
+  sub,
+  icon,
+  color = C.primary,
+  onPress,
+  index = 0,
+}: {
+  label: string;
+  value: number | string;
+  sub?: string;
+  icon?: any;
+  color?: string;
+  onPress?: () => void;
+  index?: number;
+}) {
   const Icon = icon;
-  const glyph = !Icon ? null : React.isValidElement(Icon) ? React.cloneElement(Icon as React.ReactElement<any>, { size: 14, color }) : <Icon size={14} color={color} />;
+  const glyph = !Icon ? null : React.isValidElement(Icon) ? (
+    React.cloneElement(Icon as React.ReactElement<any>, { size: 14, color })
+  ) : (
+    <Icon size={14} color={color} />
+  );
   return (
-    <FadeInUp delay={Math.min(index, 10) * 70} style={{ flexGrow: 1, flexBasis: '22%', minWidth: 0 }}>
+    <FadeInUp
+      delay={Math.min(index, 10) * 70}
+      style={{ flexGrow: 1, flexBasis: '22%', minWidth: 0 }}
+    >
       <TouchableOpacity
         activeOpacity={onPress ? 0.8 : 1}
         onPress={onPress}
-        style={brut({ flex: 1, backgroundColor: C.white, padding: 10, alignItems: 'center', gap: 8 })}
+        style={brut({
+          flex: 1,
+          backgroundColor: C.white,
+          padding: 10,
+          alignItems: 'center',
+          gap: 8,
+        })}
       >
-        <View style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderRadius: 14, borderColor: color, backgroundColor: color + '1A' }}>
-          {glyph || <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />}
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 2,
+            borderRadius: 14,
+            borderColor: color,
+            backgroundColor: color + '1A',
+          }}
+        >
+          {glyph || (
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: color,
+              }}
+            />
+          )}
         </View>
         <View style={{ alignItems: 'center', minWidth: 0, width: '100%' }}>
-          <Text style={{ fontFamily: FONT.bold, fontSize: 8, color: C.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, textAlign: 'center' }} numberOfLines={2}>{label}</Text>
+          <Text
+            style={{
+              fontFamily: FONT.bold,
+              fontSize: 8,
+              color: C.textMuted,
+              textTransform: 'uppercase',
+              letterSpacing: 0.6,
+              textAlign: 'center',
+            }}
+            numberOfLines={2}
+          >
+            {label}
+          </Text>
           {typeof value === 'number' ? (
-            <AnimatedNumber style={{ fontFamily: FONT.bold, fontSize: 19, color: C.black }} value={value} />
+            <AnimatedNumber
+              style={{ fontFamily: FONT.bold, fontSize: 19, color: C.black }}
+              value={value}
+            />
           ) : (
-            <Text style={{ fontFamily: FONT.bold, fontSize: 15, color: C.black, marginTop: 2 }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+            <Text
+              style={{
+                fontFamily: FONT.bold,
+                fontSize: 15,
+                color: C.black,
+                marginTop: 2,
+              }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {value}
+            </Text>
           )}
-          {!!sub && <Text style={{ fontFamily: FONT.medium, fontSize: 9, color: C.textMuted, marginTop: 1, textAlign: 'center' }} numberOfLines={1}>{sub}</Text>}
+          {!!sub && (
+            <Text
+              style={{
+                fontFamily: FONT.medium,
+                fontSize: 9,
+                color: C.textMuted,
+                marginTop: 1,
+                textAlign: 'center',
+              }}
+              numberOfLines={1}
+            >
+              {sub}
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
     </FadeInUp>
   );
 }
 export const MiniStatRow = ({ children }: { children: React.ReactNode }) => (
-  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
-    {React.Children.toArray(children).map((c, i) => (React.isValidElement(c) ? React.cloneElement(c as any, { index: i }) : c))}
+  <View
+    style={{
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginBottom: 14,
+    }}
+  >
+    {React.Children.toArray(children).map((c, i) =>
+      React.isValidElement(c) ? React.cloneElement(c as any, { index: i }) : c,
+    )}
   </View>
 );
 
@@ -451,7 +674,9 @@ export const MiniStatRow = ({ children }: { children: React.ReactNode }) => (
 export const Pair = ({ children }: { children: React.ReactNode }) => (
   <View style={{ flexDirection: 'row', gap: 10 }}>
     {React.Children.toArray(children).map((c, i) => (
-      <View key={i} style={{ flex: 1, minWidth: 0 }}>{c}</View>
+      <View key={i} style={{ flex: 1, minWidth: 0 }}>
+        {c}
+      </View>
     ))}
   </View>
 );
@@ -472,7 +697,14 @@ export function Field({
   return (
     <View style={{ marginBottom: 14 }}>
       {!!label && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            marginBottom: 5,
+          }}
+        >
           {React.createElement(iconFor(label), { size: 13, color: C.primary })}
           <Text style={[S.label, { fontSize: 11 }]}>
             {label}
@@ -481,7 +713,11 @@ export function Field({
         </View>
       )}
       {children}
-      {!!hint && <Text style={[S.small, { marginTop: 4, color: '#6B7280' }]}>{hint}</Text>}
+      {!!hint && (
+        <Text style={[S.small, { marginTop: 4, color: '#6B7280' }]}>
+          {hint}
+        </Text>
+      )}
     </View>
   );
 }
@@ -500,7 +736,11 @@ export function Input({
         placeholder={label ? `Enter ${plain(label)}` : undefined}
         multiline={multiline}
         {...rest}
-        style={[S.input, multiline && { minHeight: 70, textAlignVertical: 'top' }, rest.style]}
+        style={[
+          S.input,
+          multiline && { minHeight: 70, textAlignVertical: 'top' },
+          rest.style,
+        ]}
       />
     </Field>
   );
@@ -536,14 +776,35 @@ export function Select({
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={() => setOpen(true)}
-        style={[S.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+        style={[
+          S.input,
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          },
+        ]}
       >
-        <Text style={{ fontFamily: FONT.medium, fontSize: 14, color: cur ? C.black : '#9CA3AF', flex: 1 }} numberOfLines={1}>
-          {cur ? optLabel(cur) : placeholder ?? (label ? `Select ${plain(label)}` : 'Select…')}
+        <Text
+          style={{
+            fontFamily: FONT.medium,
+            fontSize: 14,
+            color: cur ? C.black : '#9CA3AF',
+            flex: 1,
+          }}
+          numberOfLines={1}
+        >
+          {cur
+            ? optLabel(cur)
+            : placeholder ?? (label ? `Select ${plain(label)}` : 'Select…')}
         </Text>
         <ChevronDown size={18} color={C.black} />
       </TouchableOpacity>
-      <Sheet visible={open} title={label || 'Select'} onClose={() => setOpen(false)}>
+      <Sheet
+        visible={open}
+        title={label || 'Select'}
+        onClose={() => setOpen(false)}
+      >
         {allowEmpty && (
           <OptionRow
             label="— None —"
@@ -613,7 +874,10 @@ export function CheckField({
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={() => onChange(!value)}
-        style={[S.input, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}
+        style={[
+          S.input,
+          { flexDirection: 'row', alignItems: 'center', gap: 10 },
+        ]}
       >
         <View
           style={{
@@ -645,7 +909,18 @@ export function SearchBox({
   placeholder?: string;
 }) {
   return (
-    <View style={[S.input, { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2, marginBottom: 12 }]}>
+    <View
+      style={[
+        S.input,
+        {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          paddingVertical: 2,
+          marginBottom: 12,
+        },
+      ]}
+    >
       <Search size={16} color={C.black} />
       <TextInput
         value={value}
@@ -653,7 +928,13 @@ export function SearchBox({
         placeholder={placeholder}
         placeholderTextColor="#9CA3AF"
         autoCapitalize="none"
-        style={{ flex: 1, fontFamily: FONT.medium, fontSize: 14, color: C.black, paddingVertical: 8 }}
+        style={{
+          flex: 1,
+          fontFamily: FONT.medium,
+          fontSize: 14,
+          color: C.black,
+          paddingVertical: 8,
+        }}
       />
       {!!value && (
         <TouchableOpacity onPress={() => onChange('')} hitSlop={8}>
@@ -696,7 +977,15 @@ export function Tabs({
                 borderBottomWidth: on ? 2 : 4,
               })}
             >
-              <Text numberOfLines={1} style={{ fontFamily: FONT.bold, fontSize: 10, textTransform: 'uppercase', color: on ? C.white : C.black }}>
+              <Text
+                numberOfLines={1}
+                style={{
+                  fontFamily: FONT.bold,
+                  fontSize: 10,
+                  textTransform: 'uppercase',
+                  color: on ? C.white : C.black,
+                }}
+              >
                 {t.label}
               </Text>
             </TouchableOpacity>
@@ -706,7 +995,12 @@ export function Tabs({
     );
   }
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 14 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={{ flexGrow: 0, marginBottom: 14 }}
+      contentContainerStyle={{ gap: 8, paddingRight: 8 }}
+    >
       {tabs.map(t => {
         const on = t.id === value;
         return (
@@ -721,7 +1015,14 @@ export function Tabs({
               borderBottomWidth: on ? 2 : 4,
             })}
           >
-            <Text style={{ fontFamily: FONT.bold, fontSize: 12, textTransform: 'uppercase', color: on ? C.white : C.black }}>
+            <Text
+              style={{
+                fontFamily: FONT.bold,
+                fontSize: 12,
+                textTransform: 'uppercase',
+                color: on ? C.white : C.black,
+              }}
+            >
               {t.label}
               {t.count != null ? ` · ${t.count}` : ''}
             </Text>
@@ -750,20 +1051,52 @@ export function Sheet({
   footer?: React.ReactNode;
 }) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.backdrop}
       >
-        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          activeOpacity={1}
+          onPress={onClose}
+        />
         <View style={styles.sheet}>
           <View style={[S.rowBetween, styles.sheetHead]}>
-            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={{ width: 34, height: 34, borderWidth: 2, borderColor: C.black, borderRadius: 8, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' }}>
-                {React.createElement(iconFor(title), { size: 16, color: '#fff' })}
+            <View
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <View
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderWidth: 2,
+                  borderColor: C.black,
+                  borderRadius: 8,
+                  backgroundColor: C.primary,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {React.createElement(iconFor(title), {
+                  size: 16,
+                  color: '#fff',
+                })}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={S.h2} numberOfLines={1}>{title}</Text>
+                <Text style={S.h2} numberOfLines={1}>
+                  {title}
+                </Text>
                 {!!subtitle && <Text style={S.small}>{subtitle}</Text>}
               </View>
             </View>
@@ -771,7 +1104,10 @@ export function Sheet({
               <X size={22} color={C.black} />
             </TouchableOpacity>
           </View>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16 }}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ padding: 16 }}
+          >
             {children}
           </ScrollView>
           {!!footer && <View style={styles.sheetFoot}>{footer}</View>}
@@ -795,27 +1131,65 @@ export const Row = ({
   bold?: boolean;
   color?: string;
 }) => (
-  <View style={[S.rowBetween, { paddingVertical: 4, gap: 12, alignItems: 'flex-start' }]}>
+  <View
+    style={[
+      S.rowBetween,
+      { paddingVertical: 4, gap: 12, alignItems: 'flex-start' },
+    ]}
+  >
     <Text style={[S.small, { flexShrink: 0 }]}>{k}</Text>
-    <Text style={[S.body, { flex: 1, textAlign: 'right', color: color || C.black }, bold && { fontFamily: FONT.bold }]}>
+    <Text
+      style={[
+        S.body,
+        { flex: 1, textAlign: 'right', color: color || C.black },
+        bold && { fontFamily: FONT.bold },
+      ]}
+    >
       {v ?? '—'}
     </Text>
   </View>
 );
 
-export const Totals = ({ rows }: { rows: [string, string, ('bold' | 'green')?][] }) => (
-  <View style={brut({ backgroundColor: '#EFF6FF', padding: 12, marginBottom: 14 })}>
+export const Totals = ({
+  rows,
+}: {
+  rows: [string, string, ('bold' | 'green')?][];
+}) => (
+  <View
+    style={brut({ backgroundColor: '#EFF6FF', padding: 12, marginBottom: 14 })}
+  >
     {rows.map(([k, v, t]) => (
       <View
         key={k}
         style={[
           S.rowBetween,
           { paddingVertical: 2 },
-          t === 'bold' && { borderTopWidth: 2, borderTopColor: C.black, marginTop: 4, paddingTop: 6 },
+          t === 'bold' && {
+            borderTopWidth: 2,
+            borderTopColor: C.black,
+            marginTop: 4,
+            paddingTop: 6,
+          },
         ]}
       >
-        <Text style={[S.body, t === 'bold' && S.h3, t === 'green' && { color: '#15803D' }]}>{k}</Text>
-        <Text style={[S.body, t === 'bold' && S.h3, t === 'green' && { color: '#15803D' }]}>{v}</Text>
+        <Text
+          style={[
+            S.body,
+            t === 'bold' && S.h3,
+            t === 'green' && { color: '#15803D' },
+          ]}
+        >
+          {k}
+        </Text>
+        <Text
+          style={[
+            S.body,
+            t === 'bold' && S.h3,
+            t === 'green' && { color: '#15803D' },
+          ]}
+        >
+          {v}
+        </Text>
       </View>
     ))}
   </View>
@@ -832,11 +1206,23 @@ export const Pager = ({
 }) =>
   pages > 1 ? (
     <View style={[S.rowBetween, { marginTop: 4, marginBottom: 12 }]}>
-      <Btn small light label="Prev" disabled={page <= 1} onPress={() => onPage(page - 1)} />
+      <Btn
+        small
+        light
+        label="Prev"
+        disabled={page <= 1}
+        onPress={() => onPage(page - 1)}
+      />
       <Text style={S.label}>
         Page {page} / {pages}
       </Text>
-      <Btn small light label="Next" disabled={page >= pages} onPress={() => onPage(page + 1)} />
+      <Btn
+        small
+        light
+        label="Next"
+        disabled={page >= pages}
+        onPress={() => onPage(page + 1)}
+      />
     </View>
   ) : null;
 
@@ -850,9 +1236,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: C.white,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
   title: { fontFamily: FONT.bold, fontSize: 22, color: C.black, flexShrink: 1 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
   sheet: {
     backgroundColor: C.white,
     borderTopWidth: 2,
@@ -873,7 +1268,19 @@ const styles = StyleSheet.create({
     borderTopColor: C.black,
     backgroundColor: C.white,
   },
-  toast: { position: 'absolute', top: 60, left: 16, right: 16, padding: 12, zIndex: 99 },
+  toast: {
+    position: 'absolute',
+    top: 60,
+    left: 16,
+    right: 16,
+    padding: 12,
+    zIndex: 99,
+  },
   toastTitle: { fontFamily: FONT.bold, color: C.white, fontSize: 14 },
-  toastText: { fontFamily: FONT.medium, color: C.white, fontSize: 12, marginTop: 2 },
+  toastText: {
+    fontFamily: FONT.medium,
+    color: C.white,
+    fontSize: 12,
+    marginTop: 2,
+  },
 });

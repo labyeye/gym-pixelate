@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { API_BASE_URL as TRACK_BASE } from '../config/env';
-import { initUsageTracker, setUsageIdentity, trackNavState } from '../utils/usageTracker';
+import {
+  initUsageTracker,
+  setUsageIdentity,
+  trackNavState,
+} from '../utils/usageTracker';
 import { Image, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -31,10 +35,19 @@ import CreditsScreen from '../screens/CreditsScreen';
 import MemberPortalScreen from '../screens/MemberPortalScreen';
 import MoreScreen from '../screens/MoreScreen';
 import {
-  AnnouncementsScreen, CouponsScreen, EquipmentScreen, ExpensesScreen, LockersScreen, MeasurementsScreen, PlansScreen,
+  AnnouncementsScreen,
+  CouponsScreen,
+  EquipmentScreen,
+  ExpensesScreen,
+  LockersScreen,
+  MeasurementsScreen,
+  PlansScreen,
 } from '../screens/gym/Resources';
 import { StaffScreen, TrainersScreen } from '../screens/gym/TeamScreens';
-import { ClassesScreen, PersonalTrainingScreen } from '../screens/gym/TrainingScreens';
+import {
+  ClassesScreen,
+  PersonalTrainingScreen,
+} from '../screens/gym/TrainingScreens';
 import WorkoutDietScreen from '../screens/gym/WorkoutDietScreen';
 import PosScreen from '../screens/gym/PosScreen';
 
@@ -71,16 +84,33 @@ function Tabs() {
   const role = user!.role;
   const tabs: [string, string, React.ComponentType<any>][] = [
     ['Dashboard', 'Home', DashboardScreen],
-    ...(canOpen(role, 'Members', modules) ? [['Members', 'Members', MembersScreen] as any] : []),
-    ...(canOpen(role, 'Invoices', modules) ? [['Invoices', 'Billing', InvoicesScreen] as any] : []),
+    ...(canOpen(role, 'Members', modules)
+      ? [['Members', 'Members', MembersScreen] as any]
+      : []),
+    ...(canOpen(role, 'Invoices', modules)
+      ? [['Invoices', 'Billing', InvoicesScreen] as any]
+      : []),
     ['More', 'More', MoreScreen],
   ];
   // Membership status sits in the raised centre button (needs 5 tabs for the notch); Plans live in More
-  if (canOpen(role, 'Memberships', modules)) tabs.splice(Math.min(2, tabs.length - 1), 0, ['Memberships', 'Status', MembershipsScreen]);
+  if (canOpen(role, 'Memberships', modules))
+    tabs.splice(Math.min(2, tabs.length - 1), 0, [
+      'Memberships',
+      'Status',
+      MembershipsScreen,
+    ]);
   return (
-    <Tab.Navigator tabBar={props => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
+    <Tab.Navigator
+      tabBar={props => <CustomTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
+    >
       {tabs.map(([name, label, comp]) => (
-        <Tab.Screen key={name} name={name} component={comp} options={{ tabBarLabel: label }} />
+        <Tab.Screen
+          key={name}
+          name={name}
+          component={comp}
+          options={{ tabBarLabel: label }}
+        />
       ))}
     </Tab.Navigator>
   );
@@ -91,7 +121,11 @@ export default function RootNavigator() {
   setUsageIdentity(user);
   // new owners finish the onboarding wizard (gym details -> plan -> pay or trial) before anything else,
   // then see the welcome page once
-  const needsOnboarding = isAuthenticated && user?.role === 'gym_owner' && !!tenant && tenant.onboarded === false;
+  const needsOnboarding =
+    isAuthenticated &&
+    user?.role === 'gym_owner' &&
+    !!tenant &&
+    tenant.onboarded === false;
   const wasOnboarding = useRef(false);
   const [welcome, setWelcome] = useState(false);
   useEffect(() => {
@@ -103,12 +137,33 @@ export default function RootNavigator() {
   }, [needsOnboarding, isAuthenticated]);
   if (isLoading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0F6FF' }}>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#F0F6FF',
+        }}
+      >
         <Pop>
-          <Image source={require('../assets/logo_long.png')} style={{ width: 220, height: 80 }} resizeMode="contain" />
+          <Image
+            source={require('../assets/logo_long.png')}
+            style={{ width: 220, height: 80 }}
+            resizeMode="contain"
+          />
         </Pop>
         <FadeInUp delay={300} distance={10}>
-          <Text style={{ fontFamily: FONT.bold, marginTop: 6, color: C.black, fontSize: 12, textTransform: 'uppercase' }}>Loading…</Text>
+          <Text
+            style={{
+              fontFamily: FONT.bold,
+              marginTop: 6,
+              color: C.black,
+              fontSize: 12,
+              textTransform: 'uppercase',
+            }}
+          >
+            Loading…
+          </Text>
         </FadeInUp>
       </View>
     );
@@ -118,27 +173,46 @@ export default function RootNavigator() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <>
-            <Stack.Screen name="IntroOnboarding" component={IntroOnboardingScreen} />
+            <Stack.Screen
+              name="IntroOnboarding"
+              component={IntroOnboardingScreen}
+            />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen
+              name="ForgotPassword"
+              component={ForgotPasswordScreen}
+            />
           </>
         ) : needsOnboarding ? (
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         ) : welcome ? (
-          <Stack.Screen name="Welcome">{() => <WelcomeScreen onDone={() => setWelcome(false)} />}</Stack.Screen>
+          <Stack.Screen name="Welcome">
+            {() => <WelcomeScreen onDone={() => setWelcome(false)} />}
+          </Stack.Screen>
         ) : user!.role === 'member' ? (
           <Stack.Screen name="Portal" component={MemberPortalScreen} />
         ) : (
           <>
             <Stack.Screen name="Main" component={Tabs} />
             {Object.entries(MORE_SCREENS)
-              .filter(([route]) => route === 'Settings' || route === 'Security' || canOpen(user!.role, route, modules))
+              .filter(
+                ([route]) =>
+                  route === 'Settings' ||
+                  route === 'Security' ||
+                  canOpen(user!.role, route, modules),
+              )
               .map(([route, comp]) => (
                 <Stack.Screen key={route} name={route} component={comp} />
               ))}
-            <Stack.Screen name="MemberProfile" component={MemberProfileScreen} />
-            <Stack.Screen name="InvoiceDetail" component={InvoiceDetailScreen} />
+            <Stack.Screen
+              name="MemberProfile"
+              component={MemberProfileScreen}
+            />
+            <Stack.Screen
+              name="InvoiceDetail"
+              component={InvoiceDetailScreen}
+            />
           </>
         )}
       </Stack.Navigator>

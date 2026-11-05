@@ -37,7 +37,10 @@ export async function disableLock() {
 
 const unlock = async () => {
   try {
-    return !!(await Keychain.getGenericPassword({ service: SERVICE, authenticationPrompt: { title: 'Unlock NestGym' } }));
+    return !!(await Keychain.getGenericPassword({
+      service: SERVICE,
+      authenticationPrompt: { title: 'Unlock NestGym' },
+    }));
   } catch {
     return false;
   }
@@ -63,7 +66,12 @@ export function LockGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const sub = AppState.addEventListener('change', async s => {
       if (s !== 'active') left.current = Date.now();
-      else if (left.current && Date.now() - left.current > GRACE_MS && (await lockEnabled())) setLocked(true);
+      else if (
+        left.current &&
+        Date.now() - left.current > GRACE_MS &&
+        (await lockEnabled())
+      )
+        setLocked(true);
     });
     return () => sub.remove();
   }, []);
@@ -77,7 +85,19 @@ export function LockGate({ children }: { children: React.ReactNode }) {
     <>
       {children}
       {show && (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.white, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: C.white,
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
           <Text style={[S.h2, { marginBottom: 16 }]}>NestGym is locked</Text>
           <Btn label="Unlock" onPress={ask} />
         </View>

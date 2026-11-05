@@ -18,11 +18,7 @@ const inr = (n: number) =>
   });
 const d = (x: any) =>
   x
-    ? new Date(x).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
+    ? new Date(x).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")
     : "";
 
 /** Fallback: plain HTML invoice in a print window (Save as PDF from the browser). Pulls company details from /invoices/:id. */

@@ -73,7 +73,7 @@ const BLOOD = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const ID_TYPES = ["aadhaar", "pan", "driving_license", "passport", "voter_id", "other"];
 const dateOnly = (d?: string) => (d ? String(d).slice(0, 10) : "");
 const fmtD = (d?: string) =>
-  d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "";
+  d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-") : "";
 
 const list = (s: string) =>
   s

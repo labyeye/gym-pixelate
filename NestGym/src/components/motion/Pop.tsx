@@ -32,10 +32,23 @@ export default function Pop({
       style={[
         style,
         {
-          opacity: v.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] }),
+          opacity: v.interpolate({
+            inputRange: [0, 0.4, 1],
+            outputRange: [0, 1, 1],
+          }),
           transform: [
-            { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) },
-            { rotate: v.interpolate({ inputRange: [0, 1], outputRange: ['-8deg', '0deg'] }) },
+            {
+              scale: v.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.5, 1],
+              }),
+            },
+            {
+              rotate: v.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['-8deg', '0deg'],
+              }),
+            },
           ],
         },
       ]}

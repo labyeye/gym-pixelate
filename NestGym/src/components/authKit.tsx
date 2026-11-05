@@ -32,19 +32,50 @@ export function AuthScreen({
   children: React.ReactNode;
 }) {
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.white }} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: C.white }}
+      edges={['top', 'bottom']}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <AuthBanner />
           <View style={{ paddingHorizontal: 20, marginTop: -44 }}>
-            <FadeInUp delay={50} distance={24} duration={650} style={{ alignItems: 'center' }}>
-              <View style={brut({ backgroundColor: C.white, paddingHorizontal: 18, paddingVertical: 6, borderRightWidth: 3, borderBottomWidth: 3 })}>
-                <Image source={logoLong} style={{ width: 170, height: 52 }} resizeMode="contain" />
+            <FadeInUp
+              delay={50}
+              distance={24}
+              duration={650}
+              style={{ alignItems: 'center' }}
+            >
+              <View
+                style={brut({
+                  backgroundColor: C.white,
+                  paddingHorizontal: 18,
+                  paddingVertical: 6,
+                  borderRightWidth: 3,
+                  borderBottomWidth: 3,
+                })}
+              >
+                <Image
+                  source={logoLong}
+                  style={{ width: 170, height: 52 }}
+                  resizeMode="contain"
+                />
               </View>
             </FadeInUp>
             <FadeInUp delay={150} distance={20} duration={650}>
-              <Text style={[S.h1, { fontSize: 26, marginTop: 18 }]}>{title}</Text>
-              <Text style={[S.small, { marginTop: 2, marginBottom: 18 }]}>{subtitle}</Text>
+              <Text style={[S.h1, { fontSize: 26, marginTop: 18 }]}>
+                {title}
+              </Text>
+              <Text style={[S.small, { marginTop: 2, marginBottom: 18 }]}>
+                {subtitle}
+              </Text>
             </FadeInUp>
             <FadeInUp delay={250} distance={26} duration={700}>
               {children}
@@ -59,9 +90,24 @@ export function AuthScreen({
 
 export const ErrorBox = ({ text }: { text: string }) =>
   text ? (
-    <View style={[S.rowCenter, { gap: 8, backgroundColor: '#FEF2F2', borderWidth: 2, borderColor: C.danger, borderRadius: 8, padding: 10, marginBottom: 14 }]}>
+    <View
+      style={[
+        S.rowCenter,
+        {
+          gap: 8,
+          backgroundColor: '#FEF2F2',
+          borderWidth: 2,
+          borderColor: C.danger,
+          borderRadius: 8,
+          padding: 10,
+          marginBottom: 14,
+        },
+      ]}
+    >
       <AlertCircle size={16} color={C.danger} />
-      <Text style={[S.body, { color: C.danger, flex: 1, fontSize: 13 }]}>{text}</Text>
+      <Text style={[S.body, { color: C.danger, flex: 1, fontSize: 13 }]}>
+        {text}
+      </Text>
     </View>
   ) : null;
 
@@ -76,18 +122,39 @@ export function IconInput({
   return (
     <View style={{ marginBottom: 14 }}>
       <Text style={[S.label, { fontSize: 11, marginBottom: 5 }]}>{label}</Text>
-      <View style={[S.input, { flexDirection: 'row', alignItems: 'center', paddingVertical: 0, paddingHorizontal: 12, gap: 10 }]}>
+      <View
+        style={[
+          S.input,
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: 0,
+            paddingHorizontal: 12,
+            gap: 10,
+          },
+        ]}
+      >
         <Icon size={16} color={C.primary} />
         <TextInput
           placeholder={`Enter ${label.toLowerCase()}`}
           placeholderTextColor="#9CA3AF"
           {...rest}
           secureTextEntry={secure && !show}
-          style={{ flex: 1, fontFamily: FONT.medium, fontSize: 14, color: C.black, paddingVertical: 11 }}
+          style={{
+            flex: 1,
+            fontFamily: FONT.medium,
+            fontSize: 14,
+            color: C.black,
+            paddingVertical: 11,
+          }}
         />
         {secure && (
           <TouchableOpacity onPress={() => setShow(v => !v)} hitSlop={10}>
-            {show ? <EyeOff size={16} color={C.black} /> : <Eye size={16} color={C.black} />}
+            {show ? (
+              <EyeOff size={16} color={C.black} />
+            ) : (
+              <Eye size={16} color={C.black} />
+            )}
           </TouchableOpacity>
         )}
       </View>
@@ -104,13 +171,37 @@ export const OrDivider = ({ text }: { text: string }) => (
 );
 
 export const Legal = () => (
-  <Text style={[S.small, { textAlign: 'center', marginTop: 22, marginBottom: 18, color: '#6B7280' }]}>
+  <Text
+    style={[
+      S.small,
+      {
+        textAlign: 'center',
+        marginTop: 22,
+        marginBottom: 18,
+        color: '#6B7280',
+      },
+    ]}
+  >
     © 2026 Pixelate Nest.{' '}
-    <Text style={{ color: C.primary, fontFamily: FONT.bold }} onPress={() => Linking.openURL('https://www.pixelatenest.com/legal/privacy-policy.html')}>
+    <Text
+      style={{ color: C.primary, fontFamily: FONT.bold }}
+      onPress={() =>
+        Linking.openURL(
+          'https://www.pixelatenest.com/legal/privacy-policy.html',
+        )
+      }
+    >
       Privacy Policy
     </Text>
     {' · '}
-    <Text style={{ color: C.primary, fontFamily: FONT.bold }} onPress={() => Linking.openURL('https://www.pixelatenest.com/legal/terms-of-service.html')}>
+    <Text
+      style={{ color: C.primary, fontFamily: FONT.bold }}
+      onPress={() =>
+        Linking.openURL(
+          'https://www.pixelatenest.com/legal/terms-of-service.html',
+        )
+      }
+    >
       Terms of Service
     </Text>
   </Text>

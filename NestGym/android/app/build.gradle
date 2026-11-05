@@ -92,15 +92,22 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            // Upload key: path + passwords live in ~/.gradle/gradle.properties (never in the repo).
+            if (project.hasProperty('NESTGYM_UPLOAD_STORE_FILE')) {
+                storeFile file(NESTGYM_UPLOAD_STORE_FILE)
+                storePassword NESTGYM_UPLOAD_STORE_PASSWORD
+                keyAlias NESTGYM_UPLOAD_KEY_ALIAS
+                keyPassword NESTGYM_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig project.hasProperty('NESTGYM_UPLOAD_STORE_FILE') ? signingConfigs.release : signingConfigs.debug // debug fallback only when the upload key is missing
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }

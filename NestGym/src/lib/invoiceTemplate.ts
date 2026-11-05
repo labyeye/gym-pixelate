@@ -4,7 +4,19 @@
 // The backend (utils/invoiceTemplate.js) validates this shape before storing it.
 
 export type FontKey = 'Helvetica' | 'Times' | 'Courier';
-export type BlockType = 'title' | 'header' | 'parties' | 'items' | 'words' | 'summary' | 'taxSummary' | 'footer' | 'note' | 'image' | 'spacer' | 'divider';
+export type BlockType =
+  | 'title'
+  | 'header'
+  | 'parties'
+  | 'items'
+  | 'words'
+  | 'summary'
+  | 'taxSummary'
+  | 'footer'
+  | 'note'
+  | 'image'
+  | 'spacer'
+  | 'divider';
 
 export interface Theme {
   primary: string;
@@ -46,15 +58,71 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
 };
 
 const BLOCK_DEFAULTS: Record<BlockType, Record<string, any>> = {
-  title: { text: '', align: 'center', filled: false, subtitle: 'Original for Recipient' },
-  header: { layout: 'split', swap: false, logoAlign: 'left', logoWidth: 150, logoHeight: 50, logoSrc: '', showLogo: true, showAddress: true, showContact: true, showTaxIds: true, showMeta: true, showPlace: true },
-  parties: { label: 'Bill To', showEmail: true, showPhone: true, showGst: true },
-  items: { sno: true, hsn: true, qty: false, rate: true, discount: true, amount: true, details: true, zebra: true, minRows: 6, accentHeader: false, descLabel: 'Description of Services / Goods' },
+  title: {
+    text: '',
+    align: 'center',
+    filled: false,
+    subtitle: 'Original for Recipient',
+  },
+  header: {
+    layout: 'split',
+    swap: false,
+    logoAlign: 'left',
+    logoWidth: 150,
+    logoHeight: 50,
+    logoSrc: '',
+    showLogo: true,
+    showAddress: true,
+    showContact: true,
+    showTaxIds: true,
+    showMeta: true,
+    showPlace: true,
+  },
+  parties: {
+    label: 'Bill To',
+    showEmail: true,
+    showPhone: true,
+    showGst: true,
+  },
+  items: {
+    sno: true,
+    hsn: true,
+    qty: false,
+    rate: true,
+    discount: true,
+    amount: true,
+    details: true,
+    zebra: true,
+    minRows: 6,
+    accentHeader: false,
+    descLabel: 'Description of Services / Goods',
+  },
   words: { label: 'Amount in Words:', tint: true },
-  summary: { showBank: true, showTerms: true, showTotals: true, totalsSide: 'right', termsLabel: 'Terms & Notes' },
+  summary: {
+    showBank: true,
+    showTerms: true,
+    showTotals: true,
+    totalsSide: 'right',
+    termsLabel: 'Terms & Notes',
+  },
   taxSummary: {},
-  footer: { showDeclaration: true, declaration: '', showSignature: true, signatoryLabel: 'Authorised Signatory', signatureSrc: '', signatureWidth: 120, signatureHeight: 40 },
-  note: { text: 'This is a computer-generated invoice and does not require a physical signature.', size: 7.5, align: 'center', bold: false, color: '', fill: '' },
+  footer: {
+    showDeclaration: true,
+    declaration: '',
+    showSignature: true,
+    signatoryLabel: 'Authorised Signatory',
+    signatureSrc: '',
+    signatureWidth: 120,
+    signatureHeight: 40,
+  },
+  note: {
+    text: 'This is a computer-generated invoice and does not require a physical signature.',
+    size: 7.5,
+    align: 'center',
+    bold: false,
+    color: '',
+    fill: '',
+  },
   image: { src: '', width: 120, height: 60, align: 'left' },
   spacer: { height: 16 },
   divider: { thickness: 1, color: '' },
@@ -73,29 +141,71 @@ export const DEFAULT_THEME: Theme = {
 };
 
 let counter = 0;
-const uid = () => `${Date.now().toString(36)}${(counter++).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
-const newBlock = (type: BlockType): Block => ({ id: uid(), type, visible: true, props: { ...BLOCK_DEFAULTS[type] } });
+const uid = () =>
+  `${Date.now().toString(36)}${(counter++).toString(36)}${Math.random()
+    .toString(36)
+    .slice(2, 5)}`;
+const newBlock = (type: BlockType): Block => ({
+  id: uid(),
+  type,
+  visible: true,
+  props: { ...BLOCK_DEFAULTS[type] },
+});
 
 export const defaultTemplate = (): InvoiceTemplate => ({
   v: 1,
   theme: { ...DEFAULT_THEME },
-  blocks: (['title', 'header', 'parties', 'items', 'words', 'summary', 'taxSummary', 'footer', 'note'] as BlockType[]).map(newBlock),
+  blocks: (
+    [
+      'title',
+      'header',
+      'parties',
+      'items',
+      'words',
+      'summary',
+      'taxSummary',
+      'footer',
+      'note',
+    ] as BlockType[]
+  ).map(newBlock),
   floats: [],
 });
 
-const patchBlocks = (t: InvoiceTemplate, type: BlockType, props: Record<string, any>) => ({
+const patchBlocks = (
+  t: InvoiceTemplate,
+  type: BlockType,
+  props: Record<string, any>,
+) => ({
   ...t,
-  blocks: t.blocks.map(b => (b.type === type ? { ...b, props: { ...b.props, ...props } } : b)),
+  blocks: t.blocks.map(b =>
+    b.type === type ? { ...b, props: { ...b.props, ...props } } : b,
+  ),
 });
 
-export const PRESETS: Record<string, { label: string; build: () => InvoiceTemplate }> = {
+export const PRESETS: Record<
+  string,
+  { label: string; build: () => InvoiceTemplate }
+> = {
   classic: { label: 'Classic', build: defaultTemplate },
   modern: {
     label: 'Modern',
     build: () => {
       let t = defaultTemplate();
-      t = { ...t, theme: { ...t.theme, borders: 'lines', border: '#d1d5db', headerBg: '#eef2ff', muted: '#6b7280' } };
-      t = patchBlocks(t, 'title', { filled: true, align: 'left', subtitle: '' });
+      t = {
+        ...t,
+        theme: {
+          ...t.theme,
+          borders: 'lines',
+          border: '#d1d5db',
+          headerBg: '#eef2ff',
+          muted: '#6b7280',
+        },
+      };
+      t = patchBlocks(t, 'title', {
+        filled: true,
+        align: 'left',
+        subtitle: '',
+      });
       return patchBlocks(t, 'items', { accentHeader: true });
     },
   },
@@ -119,10 +229,22 @@ export function normalizeTemplate(raw: any): InvoiceTemplate {
     theme: { ...DEFAULT_THEME, ...(raw.theme || {}) },
     blocks: raw.blocks
       .filter((b: any) => b && BLOCK_DEFAULTS[b.type as BlockType])
-      .map((b: any) => ({ id: String(b.id || uid()), type: b.type, visible: b.visible !== false, props: { ...BLOCK_DEFAULTS[b.type as BlockType], ...(b.props || {}) } })),
+      .map((b: any) => ({
+        id: String(b.id || uid()),
+        type: b.type,
+        visible: b.visible !== false,
+        props: { ...BLOCK_DEFAULTS[b.type as BlockType], ...(b.props || {}) },
+      })),
     floats: Array.isArray(raw.floats) ? raw.floats : [],
   };
 }
 
-export const ACCENTS = ['#024BAB', '#FA731C', '#0D9488', '#7C3AED', '#DC2626', '#111111'];
+export const ACCENTS = [
+  '#024BAB',
+  '#FA731C',
+  '#0D9488',
+  '#7C3AED',
+  '#DC2626',
+  '#111111',
+];
 export const FONTS: FontKey[] = ['Helvetica', 'Times', 'Courier'];

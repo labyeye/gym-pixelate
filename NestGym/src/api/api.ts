@@ -3,6 +3,7 @@ import * as Keychain from 'react-native-keychain';
 import { createAsyncStorage } from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../config/env';
 import { announceRefund, isRefundMessage } from '../utils/refundNotice';
+import { announceTerms } from '../utils/termsGate';
 
 const storage = createAsyncStorage('nestgym');
 const TOKEN_KEY = 'nestgym_token'; // old AsyncStorage location, migrated into the keychain on first read
@@ -34,7 +35,8 @@ const load = async (): Promise<Creds> => {
   return mem!;
 };
 
-export const getToken = async (): Promise<string | null> => (await load()).t || null;
+export const getToken = async (): Promise<string | null> =>
+  (await load()).t || null;
 export const setToken = async (t: string) => {
   mem = { ...(await load()), t };
   await persist();
@@ -57,7 +59,10 @@ const refreshSession = (): Promise<boolean> => {
       if (!rt) return false;
       const r = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-device-platform': Platform.OS },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-platform': Platform.OS,
+        },
         body: JSON.stringify({ refreshToken: rt }),
       });
       const j = r.ok ? await r.json() : null;
@@ -117,7 +122,9 @@ export async function request<T = any>(
       signal: controller.signal,
       headers: {
         // multipart bodies (photo upload) need the boundary RN sets itself
-        ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(options.body instanceof FormData
+          ? {}
+          : { 'Content-Type': 'application/json' }),
         'X-Requested-With': 'XMLHttpRequest',
         'x-device-platform': Platform.OS,
         'Cache-Control': 'no-cache, no-store',
@@ -132,13 +139,20 @@ export async function request<T = any>(
       data = text ? JSON.parse(text) : {};
     } catch {} // gateway HTML page — fall through to statusMsg
     if (!res.ok) {
-      if (res.status === 401 && token && !retried && !endpoint.startsWith('/auth/login') && (await refreshSession())) {
+      if (
+        res.status === 401 &&
+        token &&
+        !retried &&
+        !endpoint.startsWith('/auth/login') &&
+        (await refreshSession())
+      ) {
         return request<T>(endpoint, options, true);
       }
       if (res.status === 401 && token) {
         await removeToken();
         onUnauthorized?.();
       }
+      if (res.status === 403 && data.code === 'TERMS_REQUIRED') announceTerms();
       if (isRefundMessage(data.message)) announceRefund(data.message);
       const err: any = new Error(data.message || statusMsg(res.status));
       err.status = res.status;
@@ -156,10 +170,21 @@ export async function request<T = any>(
 }
 
 /** Uploads a photo to our server; resolves to the stored URL. */
-export async function uploadPhoto(uri: string, fileName?: string | null, type?: string | null): Promise<string> {
+export async function uploadPhoto(
+  uri: string,
+  fileName?: string | null,
+  type?: string | null,
+): Promise<string> {
   const fd = new FormData();
-  fd.append('file', { uri, name: fileName || `photo-${Date.now()}.jpg`, type: type || 'image/jpeg' } as any);
-  const r = await request<{ url: string }>('/upload', { method: 'POST', body: fd });
+  fd.append('file', {
+    uri,
+    name: fileName || `photo-${Date.now()}.jpg`,
+    type: type || 'image/jpeg',
+  } as any);
+  const r = await request<{ url: string }>('/upload', {
+    method: 'POST',
+    body: fd,
+  });
   return r.url;
 }
 
@@ -183,56 +208,121 @@ export const authAPI = {
   forgotPasswordMethods: (email: string) =>
     request('/auth/forgot-password/methods?email=' + encodeURIComponent(email)),
   forgotPassword: (email: string) =>
-    request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
   forgotPasswordWhatsapp: (email: string) =>
-    request('/auth/forgot-password/whatsapp', { method: 'POST', body: JSON.stringify({ email }) }),
+    request('/auth/forgot-password/whatsapp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
   resetPasswordWithOtp: (email: string, otp: string, password: string) =>
-    request('/auth/reset-password/otp', { method: 'POST', body: JSON.stringify({ email, otp, password }) }),
+    request('/auth/reset-password/otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp, password }),
+    }),
   resetPasswordWithTotp: (email: string, token: string, password: string) =>
-    request('/auth/reset-password/otp/totp', { method: 'POST', body: JSON.stringify({ email, token, password }) }),
+    request('/auth/reset-password/otp/totp', {
+      method: 'POST',
+      body: JSON.stringify({ email, token, password }),
+    }),
   resetWithBackupCode: (email: string, code: string, password: string) =>
-    request('/auth/reset/backup', { method: 'POST', body: JSON.stringify({ email, code, password }) }),
+    request('/auth/reset/backup', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, password }),
+    }),
   // ── two-factor, recovery codes, other sign-in methods ──
   verify2FA: (pendingToken: string, token: string) =>
-    request('/auth/2fa/verify', { method: 'POST', body: JSON.stringify({ pendingToken, token }) }),
+    request('/auth/2fa/verify', {
+      method: 'POST',
+      body: JSON.stringify({ pendingToken, token }),
+    }),
   emailOtpSend: (email: string) =>
-    request('/auth/login/email-otp/send', { method: 'POST', body: JSON.stringify({ email }) }),
+    request('/auth/login/email-otp/send', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
   emailOtpVerify: (email: string, otp: string) =>
-    request('/auth/login/email-otp/verify', { method: 'POST', body: JSON.stringify({ email, otp }) }),
+    request('/auth/login/email-otp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    }),
   setup2FA: () => request('/auth/2fa/setup', { method: 'POST' }),
   confirm2FA: (token: string) =>
-    request('/auth/2fa/confirm', { method: 'POST', body: JSON.stringify({ token }) }),
+    request('/auth/2fa/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
   disable2FA: (password: string, token: string) =>
-    request('/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ password, token }) }),
+    request('/auth/2fa/disable', {
+      method: 'POST',
+      body: JSON.stringify({ password, token }),
+    }),
   backupCodesStatus: () => request('/auth/backup-codes'),
   generateBackupCodes: (password: string) =>
-    request('/auth/backup-codes', { method: 'POST', body: JSON.stringify({ password }) }),
+    request('/auth/backup-codes', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
   // ── passkeys ──
   passkeyLoginOptions: () => request('/auth/passkey/login-options'),
   passkeyLogin: (payload: any) =>
-    request('/auth/passkey/login', { method: 'POST', body: JSON.stringify(payload) }),
-  passkeyRegisterOptions: () => request('/auth/passkey/register-options', { method: 'POST' }),
+    request('/auth/passkey/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  passkeyRegisterOptions: () =>
+    request('/auth/passkey/register-options', { method: 'POST' }),
   passkeyRegister: (payload: any) =>
-    request('/auth/passkey/register', { method: 'POST', body: JSON.stringify(payload) }),
+    request('/auth/passkey/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   passkeyList: () => request('/auth/passkey'),
-  passkeyDelete: (id: string) => request('/auth/passkey/' + id, { method: 'DELETE' }),
+  passkeyDelete: (id: string) =>
+    request('/auth/passkey/' + id, { method: 'DELETE' }),
   resetPasskeyOptions: () => request('/auth/reset/passkey-options'),
   resetWithPasskey: (payload: any) =>
-    request('/auth/reset/passkey', { method: 'POST', body: JSON.stringify(payload) }),
+    request('/auth/reset/passkey', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   // ── verify email / phone ──
   sendEmailVerifyOtp: (email: string) =>
-    request('/auth/contact/email/send-otp', { method: 'POST', body: JSON.stringify({ email }) }),
+    request('/auth/contact/email/send-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
   verifyEmailOtp: (otp: string) =>
-    request('/auth/contact/email/verify-otp', { method: 'POST', body: JSON.stringify({ otp }) }),
+    request('/auth/contact/email/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ otp }),
+    }),
   sendPhoneVerifyOtp: () => request('/auth/phone/send-otp', { method: 'POST' }),
   verifyPhoneOtp: (otp: string) =>
-    request('/auth/phone/verify-otp', { method: 'POST', body: JSON.stringify({ otp }) }),
+    request('/auth/phone/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ otp }),
+    }),
   // ── signed-in devices ──
   sessions: () => request('/auth/sessions'),
-  removeSession: (id: string) => request('/auth/sessions/' + id, { method: 'DELETE' }),
-  removeOtherSessions: () => request('/auth/sessions/others', { method: 'DELETE' }),
-  register: (b: { name: string; email: string; password: string; phone?: string; companyName?: string }) =>
-    request('/auth/register', { method: 'POST', body: JSON.stringify(b) }),
+  deleteAccount: (password: string) =>
+    request('/auth/delete-account', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
+  removeSession: (id: string) =>
+    request('/auth/sessions/' + id, { method: 'DELETE' }),
+  removeOtherSessions: () =>
+    request('/auth/sessions/others', { method: 'DELETE' }),
+  register: (b: {
+    name: string;
+    email: string;
+    password: string;
+    phone?: string;
+    companyName?: string;
+  }) => request('/auth/register', { method: 'POST', body: JSON.stringify(b) }),
   /** onboarding wizard: saves the gym's details; { complete: true } unlocks the app */
   onboarding: (b: Record<string, unknown>) =>
     request('/auth/onboarding', { method: 'POST', body: JSON.stringify(b) }),

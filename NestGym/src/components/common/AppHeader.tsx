@@ -118,14 +118,14 @@ const s = StyleSheet.create({
   },
   pillLow: { backgroundColor: C.secondary },
   pillZero: { backgroundColor: C.danger },
-  pillText: { color: C.white, fontSize: 12, fontWeight: '800' },
+  pillText: { color: C.white, fontSize: 12, fontWeight: '400' },
   avatar: { width: 38, height: 38, borderRadius: 19 },
   avatarFb: {
     backgroundColor: C.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: C.white, fontSize: 16, fontWeight: '700' },
-  greet: { marginTop: 14, fontSize: 13, color: '#475569', fontWeight: '500' },
-  title: { fontSize: 28, fontWeight: '700', color: C.black, marginTop: 2 },
+  avatarText: { color: C.white, fontSize: 16, fontWeight: '400' },
+  greet: { marginTop: 14, fontSize: 13, color: '#475569', fontWeight: '400' },
+  title: { fontSize: 28, fontWeight: '400', color: C.black, marginTop: 2 },
 });

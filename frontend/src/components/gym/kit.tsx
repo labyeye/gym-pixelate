@@ -115,20 +115,11 @@ export const inr = (n?: number | null, decimals = 0) => {
 };
 export const fmtDate = (d?: string | Date | null) =>
   d
-    ? new Date(d).toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
+    ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")
     : "—";
 export const fmtDateTime = (d?: string | Date | null) =>
   d
-    ? new Date(d).toLocaleString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+    ? new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(/\//g, "-")
     : "—";
 /** today as YYYY-MM-DD in the browser's (gym's) own timezone — toISOString() would give the UTC date */
 export const todayStr = (d: Date = new Date()) => d.toLocaleDateString("en-CA");

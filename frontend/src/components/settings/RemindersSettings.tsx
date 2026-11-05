@@ -136,7 +136,7 @@ export default function RemindersSettings() {
             <tbody>
               {log.data.map((r) => (
                 <tr key={r._id} className="border-t border-black/10">
-                  <td className="py-1.5">{new Date(r.createdAt).toLocaleString("en-IN")}</td>
+                  <td className="py-1.5">{new Date(r.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(/\//g, "-")}</td>
                   <td className="font-bold uppercase">{r.kind}</td>
                   <td>{r.memberId?.name || "-"}</td>
                   <td className={r.status === "failed" ? "text-red-600 font-bold" : ""}>{r.status}</td>

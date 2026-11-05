@@ -21,13 +21,41 @@ export function BarChart({
   const peak = data.reduce((a, b) => (b.value > a.value ? b : a));
   return (
     <View>
-      <Text style={[S.small, { marginBottom: 6 }]}>Peak: {fmt(peak.value)} ({peak.label})</Text>
+      <Text style={[S.small, { marginBottom: 6 }]}>
+        Peak: {fmt(peak.value)} ({peak.label})
+      </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: height + 18, gap: 4, borderBottomWidth: 2, borderBottomColor: C.black }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            height: height + 18,
+            gap: 4,
+            borderBottomWidth: 2,
+            borderBottomColor: C.black,
+          }}
+        >
           {data.map((d, i) => (
             <View key={i} style={{ alignItems: 'center', width: 18 }}>
-              <View style={{ width: 16, height: Math.max(2, (d.value / max) * height), backgroundColor: color, borderWidth: 2, borderColor: C.black }} />
-              <Text style={{ fontFamily: FONT.bold, fontSize: 8, color: C.black, height: 14 }}>{d.label}</Text>
+              <View
+                style={{
+                  width: 16,
+                  height: Math.max(2, (d.value / max) * height),
+                  backgroundColor: color,
+                  borderWidth: 2,
+                  borderColor: C.black,
+                }}
+              />
+              <Text
+                style={{
+                  fontFamily: FONT.bold,
+                  fontSize: 8,
+                  color: C.black,
+                  height: 14,
+                }}
+              >
+                {d.label}
+              </Text>
             </View>
           ))}
         </View>
@@ -54,10 +82,25 @@ export function HBars({
         <View key={r.label}>
           <View style={S.rowBetween}>
             <Text style={[S.body, { fontSize: 12 }]}>{r.label}</Text>
-            <Text style={[S.body, { fontSize: 12, fontFamily: FONT.bold }]}>{fmt(r.value)}</Text>
+            <Text style={[S.body, { fontSize: 12, fontFamily: FONT.bold }]}>
+              {fmt(r.value)}
+            </Text>
           </View>
-          <View style={{ height: 12, borderWidth: 2, borderColor: C.black, backgroundColor: C.white }}>
-            <View style={{ height: '100%', width: `${(r.value / max) * 100}%`, backgroundColor: color }} />
+          <View
+            style={{
+              height: 12,
+              borderWidth: 2,
+              borderColor: C.black,
+              backgroundColor: C.white,
+            }}
+          >
+            <View
+              style={{
+                height: '100%',
+                width: `${(r.value / max) * 100}%`,
+                backgroundColor: color,
+              }}
+            />
           </View>
         </View>
       ))}
@@ -66,14 +109,37 @@ export function HBars({
 }
 
 /** Weight-trend sparkline drawn with plain Views (no svg dependency). */
-export function Spark({ points, color = C.primary }: { points: number[]; color?: string }) {
-  if (points.length < 2) return <Text style={S.small}>Log 2+ check-ins to see a trend</Text>;
+export function Spark({
+  points,
+  color = C.primary,
+}: {
+  points: number[];
+  color?: string;
+}) {
+  if (points.length < 2)
+    return <Text style={S.small}>Log 2+ check-ins to see a trend</Text>;
   const min = Math.min(...points);
   const span = Math.max(...points) - min || 1;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 70, gap: 6 }}>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        height: 70,
+        gap: 6,
+      }}
+    >
       {points.map((p, i) => (
-        <View key={i} style={{ flex: 1, height: 10 + ((p - min) / span) * 58, backgroundColor: color, borderWidth: 2, borderColor: C.black }} />
+        <View
+          key={i}
+          style={{
+            flex: 1,
+            height: 10 + ((p - min) / span) * 58,
+            backgroundColor: color,
+            borderWidth: 2,
+            borderColor: C.black,
+          }}
+        />
       ))}
     </View>
   );

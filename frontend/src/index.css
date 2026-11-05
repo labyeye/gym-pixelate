@@ -1081,3 +1081,10 @@ main
   }
 }
 
+
+/* App-wide cap: no text heavier than regular (400), whatever Tailwind weight class or inline style is used. */
+*,
+*::before,
+*::after {
+  font-weight: 400 !important;
+}

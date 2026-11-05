@@ -72,7 +72,6 @@ export default function AnimatedSplashScreen({ onDone }: Props) {
         duration: FADE_OUT_DURATION,
         useNativeDriver: true,
       }),
-
     ]).start(() => onDone());
   }, []);
 
@@ -116,7 +115,6 @@ export default function AnimatedSplashScreen({ onDone }: Props) {
           <Text style={styles.iconLabel}>Billing</Text>
         </Animated.View>
       </Animated.View>
-
     </View>
   );
 }
@@ -148,7 +146,7 @@ const styles = StyleSheet.create({
   iconLabel: {
     color: '#024bab',
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '400',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
@@ -168,7 +166,7 @@ const styles = StyleSheet.create({
   },
   logoTagline: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '400',
     color: '#000000',
     letterSpacing: 2,
     textTransform: 'uppercase',

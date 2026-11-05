@@ -10,23 +10,19 @@ export const inr = (n?: number | null, decimals = 0) => {
     })
   );
 };
-export const fmtDate = (d?: string | Date | null) =>
-  d
-    ? new Date(d).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      })
-    : '—';
-export const fmtDateTime = (d?: string | Date | null) =>
-  d
-    ? new Date(d).toLocaleString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '—';
+const p2 = (n: number) => String(n).padStart(2, '0');
+/** DD-MM-YYYY */
+export const fmtDate = (d?: string | Date | null) => {
+  if (!d) return '—';
+  const x = new Date(d);
+  return isNaN(+x) ? '—' : `${p2(x.getDate())}-${p2(x.getMonth() + 1)}-${x.getFullYear()}`;
+};
+/** DD-MM-YYYY, HH:MM */
+export const fmtDateTime = (d?: string | Date | null) => {
+  if (!d) return '—';
+  const x = new Date(d);
+  return isNaN(+x) ? '—' : `${fmtDate(x)}, ${p2(x.getHours())}:${p2(x.getMinutes())}`;
+};
 export const fmtTime = (d?: string | Date | null) =>
   d
     ? new Date(d).toLocaleTimeString('en-IN', {
@@ -49,9 +45,7 @@ export const titleCase = (s?: string) =>
 export const waLink = (phone?: string, text = '') => {
   const d = waDigits(phone);
   return d
-    ? `https://wa.me/${d}${
-        text ? `?text=${encodeURIComponent(text)}` : ''
-      }`
+    ? `https://wa.me/${d}${text ? `?text=${encodeURIComponent(text)}` : ''}`
     : null;
 };
 export const r2 = (n: number) => Math.round(n * 100) / 100;

@@ -2,9 +2,9 @@ import { StyleSheet } from 'react-native';
 
 export const FONT = {
   regular: 'DMSans-Regular',
-  medium: 'DMSans-Medium',
-  semiBold: 'DMSans-SemiBold',
-  bold: 'DMSans-Bold',
+  medium: 'DMSans-Regular',
+  semiBold: 'DMSans-Regular',
+  bold: 'DMSans-Regular',
 };
 
 export const C = {
@@ -53,25 +53,25 @@ export const S = StyleSheet.create({
   h1: {
     fontFamily: FONT.bold,
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '400',
     color: C.black,
   },
   h2: {
     fontFamily: FONT.bold,
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '400',
     color: C.black,
   },
   h3: {
     fontFamily: FONT.bold,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '400',
     color: C.black,
   },
   label: {
     fontFamily: FONT.bold,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     color: C.black,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -79,13 +79,13 @@ export const S = StyleSheet.create({
   body: {
     fontFamily: FONT.medium,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '400',
     color: C.black,
   },
   small: {
     fontFamily: FONT.medium,
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '400',
     color: C.textMuted,
   },
   mono: { fontFamily: 'monospace', fontSize: 12 },
@@ -110,7 +110,7 @@ export const S = StyleSheet.create({
   btnPrimaryText: {
     fontFamily: FONT.bold,
     color: C.white,
-    fontWeight: '700',
+    fontWeight: '400',
     fontSize: 13,
     textTransform: 'uppercase',
   },
@@ -133,7 +133,7 @@ export const S = StyleSheet.create({
   btnSecondaryText: {
     fontFamily: FONT.bold,
     color: C.black,
-    fontWeight: '700',
+    fontWeight: '400',
     fontSize: 13,
     textTransform: 'uppercase',
   },
@@ -163,7 +163,7 @@ export const S = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '400',
     color: C.black,
     backgroundColor: C.white,
   },
@@ -212,7 +212,7 @@ export const S = StyleSheet.create({
   badgeText: {
     fontFamily: FONT.bold,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     textTransform: 'uppercase',
   },
 
@@ -237,7 +237,7 @@ export const S = StyleSheet.create({
   emptyText: {
     fontFamily: FONT.bold,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '400',
     color: C.textMuted,
     textAlign: 'center',
     marginTop: 12,

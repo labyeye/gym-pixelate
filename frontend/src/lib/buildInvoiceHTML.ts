@@ -81,11 +81,7 @@ function fmt(n: number): string {
 function fmtDate(v: any): string {
   if (!v) return "—";
   try {
-    return new Date(v).toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    return new Date(v).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-");
   } catch {
     return String(v);
   }

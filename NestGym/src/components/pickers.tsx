@@ -40,15 +40,36 @@ export function MemberPicker({
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={() => setOpen(true)}
-        style={[S.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+        style={[
+          S.input,
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          },
+        ]}
       >
-        <Text style={{ fontFamily: FONT.medium, fontSize: 14, flex: 1, color: value ? C.black : '#9CA3AF' }} numberOfLines={1}>
-          {value ? `${value.name} · ${value.memberCode || value.phone}` : 'Find member by name or phone…'}
+        <Text
+          style={{
+            fontFamily: FONT.medium,
+            fontSize: 14,
+            flex: 1,
+            color: value ? C.black : '#9CA3AF',
+          }}
+          numberOfLines={1}
+        >
+          {value
+            ? `${value.name} · ${value.memberCode || value.phone}`
+            : 'Find member by name or phone…'}
         </Text>
         <ChevronDown size={18} color={C.black} />
       </TouchableOpacity>
       <Sheet visible={open} title="Find member" onClose={() => setOpen(false)}>
-        <SearchBox value={q} onChange={setQ} placeholder="Name, phone or member code…" />
+        <SearchBox
+          value={q}
+          onChange={setQ}
+          placeholder="Name, phone or member code…"
+        />
         {rows.length === 0 && <Empty text="No members found" />}
         {rows.map(m => (
           <TouchableOpacity
@@ -57,7 +78,11 @@ export function MemberPicker({
               onChange(m);
               setOpen(false);
             }}
-            style={{ paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}
+            style={{
+              paddingVertical: 11,
+              borderBottomWidth: 1,
+              borderBottomColor: '#E5E7EB',
+            }}
           >
             <Text style={S.h3}>{m.name}</Text>
             <Text style={S.small}>
@@ -73,7 +98,9 @@ export function MemberPicker({
                 setOpen(false);
               }}
             >
-              <Text style={[S.label, { color: C.danger }]}>Clear selection</Text>
+              <Text style={[S.label, { color: C.danger }]}>
+                Clear selection
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -104,7 +131,11 @@ export const useTrainers = () =>
   );
 export const usePlans = (activeOnly = true) =>
   useList<any>(
-    () => gym.plans.list({ limit: 100, ...(activeOnly ? { isActive: 'true' } : {}) }),
+    () =>
+      gym.plans.list({
+        limit: 100,
+        ...(activeOnly ? { isActive: 'true' } : {}),
+      }),
     r => r.data || [],
   );
 export const useClasses = () =>

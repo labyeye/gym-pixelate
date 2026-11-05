@@ -29,11 +29,19 @@ function Counting({
       return;
     }
     const id = anim.addListener(({ value }) => setV(value));
-    Animated.timing(anim, { toValue: num, duration: 800, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    Animated.timing(anim, {
+      toValue: num,
+      duration: 800,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
     return () => anim.removeListener(id);
   }, [num, reduce, anim]);
   const shown = grouped
-    ? v.toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+    ? v.toLocaleString('en-IN', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      })
     : v.toFixed(decimals);
   return (
     <Text style={style} numberOfLines={1} adjustsFontSizeToFit>
@@ -48,9 +56,24 @@ function Counting({
  * Counts up numeric card values (12, "₹4,500", "3 days"). Non-numeric content renders unchanged,
  * so it is safe to wrap any StatCard value.
  */
-export default function AnimatedValue({ value, style }: { value: React.ReactNode; style?: StyleProp<TextStyle> }) {
+export default function AnimatedValue({
+  value,
+  style,
+}: {
+  value: React.ReactNode;
+  style?: StyleProp<TextStyle>;
+}) {
   if (typeof value === 'number' && Number.isFinite(value)) {
-    return <Counting prefix="" num={value} suffix="" decimals={Number.isInteger(value) ? 0 : 1} grouped style={style} />;
+    return (
+      <Counting
+        prefix=""
+        num={value}
+        suffix=""
+        decimals={Number.isInteger(value) ? 0 : 1}
+        grouped
+        style={style}
+      />
+    );
   }
   if (typeof value === 'string') {
     const m = SPLIT.exec(value.trim());
@@ -58,7 +81,16 @@ export default function AnimatedValue({ value, style }: { value: React.ReactNode
       const n = Number(m[2].replace(/,/g, ''));
       if (Number.isFinite(n)) {
         const dot = m[2].split('.')[1];
-        return <Counting prefix={m[1]} num={n} suffix={m[3]} decimals={dot ? dot.length : 0} grouped={m[2].includes(',')} style={style} />;
+        return (
+          <Counting
+            prefix={m[1]}
+            num={n}
+            suffix={m[3]}
+            decimals={dot ? dot.length : 0}
+            grouped={m[2].includes(',')}
+            style={style}
+          />
+        );
       }
     }
   }

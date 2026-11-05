@@ -50,7 +50,10 @@ export default function RegisterScreen({ navigation }: any) {
       return;
     }
     if (!passwordOk(password)) {
-      Alert.alert('Validation', 'Please meet every point in the password checklist');
+      Alert.alert(
+        'Validation',
+        'Please meet every point in the password checklist',
+      );
       return;
     }
     setLoading(true);
@@ -108,22 +111,45 @@ export default function RegisterScreen({ navigation }: any) {
         <Text style={styles.title}>Create Account</Text>
 
         <View>
-          {field('Full Name', <User size={16} color={C.textMuted} />, name, setName, {
-            placeholder: 'Rahul Sharma',
-            autoCapitalize: 'words',
-          })}
-          {field('Email', <Mail size={16} color={C.textMuted} />, email, setEmail, {
-            placeholder: 'Enter Email Address',
-            keyboardType: 'email-address',
-            autoCapitalize: 'none',
-            autoCorrect: false,
-          })}
-          <PhoneInput label="WhatsApp Number" required value={phone} onChange={setPhone} />
-          {field('Password', <Lock size={16} color={C.textMuted} />, password, setPassword, {
-            placeholder: 'Create a strong password',
-            secureTextEntry: true,
-            autoCapitalize: 'none',
-          })}
+          {field(
+            'Full Name',
+            <User size={16} color={C.textMuted} />,
+            name,
+            setName,
+            {
+              placeholder: 'Rahul Sharma',
+              autoCapitalize: 'words',
+            },
+          )}
+          {field(
+            'Email',
+            <Mail size={16} color={C.textMuted} />,
+            email,
+            setEmail,
+            {
+              placeholder: 'Enter Email Address',
+              keyboardType: 'email-address',
+              autoCapitalize: 'none',
+              autoCorrect: false,
+            },
+          )}
+          <PhoneInput
+            label="WhatsApp Number"
+            required
+            value={phone}
+            onChange={setPhone}
+          />
+          {field(
+            'Password',
+            <Lock size={16} color={C.textMuted} />,
+            password,
+            setPassword,
+            {
+              placeholder: 'Create a strong password',
+              secureTextEntry: true,
+              autoCapitalize: 'none',
+            },
+          )}
           {!!password && <PasswordChecklist password={password} />}
 
           <TouchableOpacity
@@ -157,7 +183,7 @@ const styles = StyleSheet.create({
   lottie: { width: '100%', height: 220, alignSelf: 'center' },
   title: {
     fontSize: 36,
-    fontWeight: '600',
+    fontWeight: '400',
     color: C.black,
     marginTop: 12,
     marginBottom: 18,
@@ -165,7 +191,7 @@ const styles = StyleSheet.create({
   field: { marginBottom: 16 },
   label: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '400',
     textTransform: 'uppercase',
     color: C.black,
     marginBottom: 6,
@@ -188,7 +214,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingRight: 12,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '400',
     color: C.black,
   },
   btnPrimary: {
@@ -206,7 +232,7 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: {
     color: C.white,
-    fontWeight: '700',
+    fontWeight: '400',
     fontSize: 14,
     textTransform: 'uppercase',
   },
@@ -217,5 +243,5 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 20,
   },
-  backLinkText: { fontSize: 13, color: C.primary, fontWeight: '700' },
+  backLinkText: { fontSize: 13, color: C.primary, fontWeight: '400' },
 });

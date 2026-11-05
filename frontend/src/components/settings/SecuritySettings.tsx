@@ -254,7 +254,7 @@ export default function SecuritySettings() {
               <div className="min-w-0">
                 <p className="text-sm font-bold truncate">{p.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  Added {new Date(p.createdAt).toLocaleDateString()} · {p.lastUsedAt ? `used ${new Date(p.lastUsedAt).toLocaleDateString()}` : "never used"}
+                  Added {new Date(p.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")} · {p.lastUsedAt ? `used ${new Date(p.lastUsedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")}` : "never used"}
                 </p>
               </div>
               <button className={ghost} onClick={() => act("pk" + p._id, async () => { await authAPI.passkeyDelete(p._id); passkeys.refetch(); }, "Passkey removed")}>
@@ -339,7 +339,7 @@ export default function SecuritySettings() {
                 <p className="text-sm font-bold truncate">
                   {s.deviceName} {s.current && <span className="text-[10px] text-green-700 border border-green-600 px-1 ml-1 uppercase">This device</span>}
                 </p>
-                <p className="text-xs text-muted-foreground">{s.platform} · {s.ip || "unknown IP"} · active {new Date(s.lastActiveAt).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">{s.platform} · {s.ip || "unknown IP"} · active {new Date(s.lastActiveAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(/\//g, "-")}</p>
               </div>
               {!s.current && (
                 <button className={ghost} onClick={() => act("s" + s._id, async () => { await authAPI.removeSession(s._id); sessions.refetch(); }, "Device signed out")}>

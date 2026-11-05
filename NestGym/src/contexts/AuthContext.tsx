@@ -49,9 +49,17 @@ interface AuthCtx {
   /** optional modules the owner switched on/off in Settings (missing key = on) */
   modules: Record<string, boolean> | null;
   setModules: (m: Record<string, boolean>) => void;
-  register: (b: { name: string; email: string; password: string; phone?: string }) => Promise<Result>;
+  register: (b: {
+    name: string;
+    email: string;
+    password: string;
+    phone?: string;
+  }) => Promise<Result>;
   completeOnboarding: () => Promise<Result>;
-  login: (email: string, password: string) => Promise<Result & { requires2FA?: boolean; pendingToken?: string }>;
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<Result & { requires2FA?: boolean; pendingToken?: string }>;
   /** Finish a sign-in that returned { data: { token, tenant, ...user } } (2FA, email code). */
   completeLogin: (res: any) => Promise<Result>;
   otpSend: (phone: string) => Promise<Result>;
@@ -110,7 +118,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     try {
       const res: any = await authAPI.login(email.trim(), password);
-      if (res.data?.requires2FA) return { success: false, requires2FA: true, pendingToken: res.data.pendingToken };
+      if (res.data?.requires2FA)
+        return {
+          success: false,
+          requires2FA: true,
+          pendingToken: res.data.pendingToken,
+        };
       return await finish(res);
     } catch (e: any) {
       return { success: false, error: e.message || 'Login failed.' };
@@ -142,13 +155,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (b: { name: string; email: string; password: string; phone?: string }) => {
-    try {
-      return await finish(await authAPI.register({ ...b, email: b.email.trim().toLowerCase() }));
-    } catch (e: any) {
-      return { success: false, error: e.message || 'Registration failed.' };
-    }
-  }, []);
+  const register = useCallback(
+    async (b: {
+      name: string;
+      email: string;
+      password: string;
+      phone?: string;
+    }) => {
+      try {
+        return await finish(
+          await authAPI.register({ ...b, email: b.email.trim().toLowerCase() }),
+        );
+      } catch (e: any) {
+        return { success: false, error: e.message || 'Registration failed.' };
+      }
+    },
+    [],
+  );
 
   const completeOnboarding = useCallback(async () => {
     try {

@@ -15,10 +15,18 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 // lucide ships ESM-only (.mjs); icons are irrelevant to a smoke test.
-jest.mock('react-native-razorpay', () => ({ __esModule: true, default: { open: async () => ({}) } }));
-jest.mock('react-native-image-picker', () => ({ launchCamera: jest.fn(), launchImageLibrary: jest.fn() }));
-jest.mock('lucide-react-native', () =>
-  new Proxy({}, { get: (_t, k) => (k === '__esModule' ? true : () => null) }),
+jest.mock('react-native-razorpay', () => ({
+  __esModule: true,
+  default: { open: async () => ({}) },
+}));
+jest.mock('react-native-image-picker', () => ({
+  launchCamera: jest.fn(),
+  launchImageLibrary: jest.fn(),
+}));
+jest.mock(
+  'lucide-react-native',
+  () =>
+    new Proxy({}, { get: (_t, k) => (k === '__esModule' ? true : () => null) }),
 );
 
 test('renders correctly (splash first)', async () => {
