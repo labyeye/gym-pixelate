@@ -34,6 +34,94 @@ const NotificationContext = createContext<NotificationContextValue | null>(
   null,
 );
 
+export interface AskOpts {
+  title: string;
+  message?: string;
+  confirmText?: string;
+  cancelText?: string;
+  tone?: "danger" | "primary"; // danger = red confirm button (deletes)
+}
+interface Ask extends AskOpts {
+  variant?: NotifVariant;
+  info?: boolean; // message-only: a single OK button
+  resolve: (ok: boolean) => void;
+}
+const AskContext = createContext<{
+  confirm: (o: AskOpts) => Promise<boolean>;
+  message: (
+    title: string,
+    message?: string,
+    variant?: NotifVariant,
+  ) => Promise<void>;
+} | null>(null);
+
+/** Modal dialogs: `await confirm({title, message, tone})` -> true/false, `await message(title, text, "error")` -> OK. */
+export function useConfirm() {
+  const ctx = useContext(AskContext);
+  if (!ctx)
+    throw new Error("useConfirm must be used inside NotificationProvider");
+  return ctx;
+}
+
+function AskModal({ ask }: { ask: Ask }) {
+  const cfg =
+    CONFIG[ask.variant || (ask.tone === "danger" ? "warning" : "info")];
+  const Icon = cfg.icon;
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => e.key === "Escape" && ask.resolve(false);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [ask]);
+  return (
+    <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/50"
+      onClick={() => ask.resolve(false)}
+    >
+      <div
+        className="w-full max-w-md border-2 border-black bg-white shadow-[6px_6px_0px_#000]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-3 p-5">
+          <Icon className={cn("w-6 h-6 shrink-0 mt-0.5", cfg.iconColor)} />
+          <div className="min-w-0">
+            <p className="text-base font-black uppercase tracking-wide">
+              {ask.title}
+            </p>
+            {ask.message && (
+              <p className="text-sm text-gray-600 mt-1 whitespace-pre-line">
+                {ask.message}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 px-5 py-3 border-t-2 border-black bg-gray-50">
+          {!ask.info && (
+            <button
+              autoFocus
+              className="border-2 border-black px-4 py-2 text-sm font-bold bg-white hover:bg-gray-100"
+              onClick={() => ask.resolve(false)}
+            >
+              {ask.cancelText || "Cancel"}
+            </button>
+          )}
+          <button
+            autoFocus={ask.info}
+            className={cn(
+              "border-2 border-black px-4 py-2 text-sm font-bold text-white",
+              ask.tone === "danger"
+                ? "bg-red-600 hover:bg-red-700"
+                : "bg-[#024BAB] hover:bg-[#033d8c]",
+            )}
+            onClick={() => ask.resolve(true)}
+          >
+            {ask.confirmText || (ask.info ? "OK" : "Confirm")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function useNotify() {
   const ctx = useContext(NotificationContext);
   if (!ctx)
@@ -168,6 +256,27 @@ export function NotificationProvider({
   children: React.ReactNode;
 }) {
   const [items, setItems] = useState<NotifItem[]>([]);
+  const [ask, setAsk] = useState<Ask | null>(null);
+  const askCtx = useRef({
+    confirm: (o: AskOpts) =>
+      new Promise<boolean>((resolve) =>
+        setAsk({ ...o, resolve: (ok) => (setAsk(null), resolve(ok)) }),
+      ),
+    message: (
+      title: string,
+      message?: string,
+      variant: NotifVariant = "info",
+    ) =>
+      new Promise<void>((resolve) =>
+        setAsk({
+          title,
+          message,
+          variant,
+          info: true,
+          resolve: () => (setAsk(null), resolve()),
+        }),
+      ),
+  }).current;
 
   const dismiss = useCallback((id: string) => {
     setItems((prev) =>
@@ -204,15 +313,18 @@ export function NotificationProvider({
 
   return (
     <NotificationContext.Provider value={ctx}>
-      {children}
-      {createPortal(
-        <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2.5 items-end">
-          {items.map((item) => (
-            <NotifCard key={item.id} item={item} onDismiss={dismiss} />
-          ))}
-        </div>,
-        document.body,
-      )}
+      <AskContext.Provider value={askCtx}>
+        {children}
+        {ask && createPortal(<AskModal ask={ask} />, document.body)}
+        {createPortal(
+          <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2.5 items-end">
+            {items.map((item) => (
+              <NotifCard key={item.id} item={item} onDismiss={dismiss} />
+            ))}
+          </div>,
+          document.body,
+        )}
+      </AskContext.Provider>
     </NotificationContext.Provider>
   );
 }

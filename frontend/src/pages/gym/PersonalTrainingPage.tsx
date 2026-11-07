@@ -105,13 +105,23 @@ export default function PersonalTrainingPage() {
   };
   // one sheet row = one package sold (member by Member ID, trainer by name); invoice is raised as for a manual sale
   const importRow = async (r: Record<string, any>) => {
-    const m = (await gym.members.list({ search: String(r["Member ID"] || "").trim(), limit: 5 })).data.find(
-      (x: any) => x.memberCode === String(r["Member ID"]).trim(),
-    );
+    const m = (
+      await gym.members.list({
+        search: String(r["Member ID"] || "").trim(),
+        limit: 5,
+      })
+    ).data.find((x: any) => x.memberCode === String(r["Member ID"]).trim());
     if (!m) throw new Error(`Member ${r["Member ID"]} not found`);
-    const t = trainers.find((x: any) => x.label.toLowerCase() === String(r.Trainer || "").trim().toLowerCase());
+    const t = trainers.find(
+      (x: any) =>
+        x.label.toLowerCase() ===
+        String(r.Trainer || "")
+          .trim()
+          .toLowerCase(),
+    );
     if (!t) throw new Error(`Trainer ${r.Trainer} not found`);
-    const sessions = Number(r.Sessions), price = Number(r["Price per session"]);
+    const sessions = Number(r.Sessions),
+      price = Number(r["Price per session"]);
     return gym.pt.create({
       memberId: m._id,
       trainerId: t.value,
@@ -200,22 +210,50 @@ export default function PersonalTrainingPage() {
               name="personal_training"
               rows={pkgs}
               cols={[
-                { header: "Member ID", value: (p: any) => p.memberId?.memberCode },
+                {
+                  header: "Member ID",
+                  value: (p: any) => p.memberId?.memberCode,
+                },
                 { header: "Member", value: (p: any) => p.memberId?.name },
                 { header: "Trainer", value: (p: any) => p.trainerId?.name },
                 { header: "Package", value: (p: any) => p.name },
-                { header: "Total sessions", value: (p: any) => p.totalSessions },
-                { header: "Sessions left", value: (p: any) => p.remainingSessions },
-                { header: "Valid till", value: (p: any) => (p.validTill || "").slice(0, 10) },
+                {
+                  header: "Total sessions",
+                  value: (p: any) => p.totalSessions,
+                },
+                {
+                  header: "Sessions left",
+                  value: (p: any) => p.remainingSessions,
+                },
+                {
+                  header: "Valid till",
+                  value: (p: any) => (p.validTill || "").slice(0, 10),
+                },
                 { header: "Paid", value: (p: any) => p.paidAmount },
                 { header: "Total", value: (p: any) => p.totalAmount },
                 { header: "Status", value: (p: any) => p.status },
               ]}
               importTemplate={{
-                headers: ["Member ID", "Trainer", "Package", "Sessions", "Price per session", "Commission %"],
-                example: ["GYM-00001", "Trainer name", "Personal Training", 12, 500, 30],
+                headers: [
+                  "Member ID",
+                  "Trainer",
+                  "Package",
+                  "Sessions",
+                  "Price per session",
+                  "Commission %",
+                ],
+                example: [
+                  "GYM-00001",
+                  "Trainer name",
+                  "Personal Training",
+                  12,
+                  500,
+                  30,
+                ],
               }}
-              onImportRow={can("PersonalTraining", "create") ? importRow : undefined}
+              onImportRow={
+                can("PersonalTraining", "create") ? importRow : undefined
+              }
               onImported={refresh}
             />
             {can("PersonalTraining", "create") && (
@@ -249,7 +287,10 @@ export default function PersonalTrainingPage() {
                 {p.memberId?.memberCode}
               </Td>
               <Td>
-                <Thumb photo={p.memberId?.photo} name={p.memberId?.name || "—"} />
+                <Thumb
+                  photo={p.memberId?.photo}
+                  name={p.memberId?.name || "—"}
+                />
               </Td>
               <Td className="font-medium">{p.trainerId?.name}</Td>
               <Td className="font-medium">{p.name}</Td>

@@ -11,7 +11,10 @@ export default function PrivacyPanel({ member }: { member: any }) {
   const { user } = useAuth();
   const isOwner = user?.role === "gym_owner" || user?.role === "super_admin";
   const base = `/privacy/members/${member._id}`;
-  const w = useQuery({ queryKey: ["waiver", member._id], queryFn: async () => (await request<any>(`${base}/waivers`)).data });
+  const w = useQuery({
+    queryKey: ["waiver", member._id],
+    queryFn: async () => (await request<any>(`${base}/waivers`)).data,
+  });
   const done = () => qc.invalidateQueries({ queryKey: ["waiver", member._id] });
   const run = async (fn: () => Promise<unknown>, ok: string) => {
     try {
@@ -41,8 +44,18 @@ export default function PrivacyPanel({ member }: { member: any }) {
           {w.data?.template && !w.data.upToDate && (
             <Btn
               onClick={() => {
-                const name = window.prompt(`Member types their full name to accept the waiver:\n\n${w.data.template.body}`);
-                if (name) run(() => request(`${base}/waivers`, { method: "POST", body: JSON.stringify({ signedName: name }) }), "Waiver signed");
+                const name = window.prompt(
+                  `Member types their full name to accept the waiver:\n\n${w.data.template.body}`,
+                );
+                if (name)
+                  run(
+                    () =>
+                      request(`${base}/waivers`, {
+                        method: "POST",
+                        body: JSON.stringify({ signedName: name }),
+                      }),
+                    "Waiver signed",
+                  );
               }}
             >
               Sign waiver
@@ -52,12 +65,21 @@ export default function PrivacyPanel({ member }: { member: any }) {
             light
             onClick={() =>
               run(
-                () => request(`${base}/consents`, { method: "POST", body: JSON.stringify({ purpose: "marketing", granted: member.whatsappOptIn === false }) }),
+                () =>
+                  request(`${base}/consents`, {
+                    method: "POST",
+                    body: JSON.stringify({
+                      purpose: "marketing",
+                      granted: member.whatsappOptIn === false,
+                    }),
+                  }),
                 "Consent saved",
               )
             }
           >
-            {member.whatsappOptIn === false ? "Record marketing opt-in" : "Record marketing opt-out"}
+            {member.whatsappOptIn === false
+              ? "Record marketing opt-in"
+              : "Record marketing opt-out"}
           </Btn>
           {isOwner && (
             <>
@@ -67,7 +89,11 @@ export default function PrivacyPanel({ member }: { member: any }) {
                   run(async () => {
                     const r = await request<any>(`${base}/export`);
                     const a = document.createElement("a");
-                    a.href = URL.createObjectURL(new Blob([JSON.stringify(r, null, 2)], { type: "application/json" }));
+                    a.href = URL.createObjectURL(
+                      new Blob([JSON.stringify(r, null, 2)], {
+                        type: "application/json",
+                      }),
+                    );
                     a.download = `member-${member.memberCode || member._id}.json`;
                     a.click();
                     URL.revokeObjectURL(a.href);
@@ -79,8 +105,22 @@ export default function PrivacyPanel({ member }: { member: any }) {
               <Btn
                 color="#EF4444"
                 onClick={() => {
-                  const p = window.prompt("This permanently erases this member's personal data (invoices are kept). Type their phone number to confirm:");
-                  if (p) run(() => request(`${base}/erase`, { method: "POST", body: JSON.stringify({ confirmPhone: p }) }), "Personal data erased").then(() => qc.invalidateQueries({ queryKey: ["member-overview", member._id] }));
+                  const p = window.prompt(
+                    "This permanently erases this member's personal data (invoices are kept). Type their phone number to confirm:",
+                  );
+                  if (p)
+                    run(
+                      () =>
+                        request(`${base}/erase`, {
+                          method: "POST",
+                          body: JSON.stringify({ confirmPhone: p }),
+                        }),
+                      "Personal data erased",
+                    ).then(() =>
+                      qc.invalidateQueries({
+                        queryKey: ["member-overview", member._id],
+                      }),
+                    );
                 }}
               >
                 Erase data

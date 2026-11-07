@@ -10,6 +10,7 @@ import {
   Wrench,
   Megaphone,
   UserCog,
+  UserCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -27,26 +28,108 @@ export interface GymModule {
 }
 
 export const MODULES: GymModule[] = [
-  { key: "pos", label: "Shop / POS", desc: "Sell supplements, merchandise and day passes at the desk.", icon: ShoppingBag, paths: ["/shop"] },
-  { key: "personalTraining", label: "Personal training", desc: "PT packages, sessions and trainer commission.", icon: Dumbbell, paths: ["/personal-training", "/trainers"] },
-  { key: "classes", label: "Group classes", desc: "Class schedule, bookings and waitlist.", icon: CalendarDays, paths: ["/classes"] },
-  { key: "workoutDiet", label: "Workout & diet plans", desc: "Workout and diet templates for members.", icon: Apple, paths: ["/workout-diet"] },
-  { key: "lockers", label: "Lockers", desc: "Locker allotment and rent.", icon: LockKeyhole, paths: ["/lockers"] },
-  { key: "coupons", label: "Coupons & offers", desc: "Discount codes and offers.", icon: Tag, paths: ["/coupons"] },
-  { key: "expenses", label: "Expenses", desc: "Track gym expenses.", icon: Wallet, paths: ["/expenses"] },
-  { key: "equipment", label: "Equipment", desc: "Equipment list and maintenance tracker.", icon: Wrench, paths: ["/equipment"] },
-  { key: "announcements", label: "Announcements", desc: "Broadcast notices to members.", icon: Megaphone, paths: ["/announcements"] },
+  {
+    key: "pos",
+    label: "Shop / POS",
+    desc: "Sell supplements, merchandise and day passes at the desk.",
+    icon: ShoppingBag,
+    paths: ["/shop"],
+  },
+  {
+    key: "personalTraining",
+    label: "Personal training",
+    desc: "PT packages, sessions and trainer commission.",
+    icon: Dumbbell,
+    paths: ["/personal-training", "/trainers"],
+  },
+  {
+    key: "classes",
+    label: "Group classes",
+    desc: "Class schedule, bookings and waitlist.",
+    icon: CalendarDays,
+    paths: ["/classes"],
+  },
+  {
+    key: "workoutDiet",
+    label: "Workout & diet plans",
+    desc: "Workout and diet templates for members.",
+    icon: Apple,
+    paths: ["/workout-diet"],
+  },
+  {
+    key: "lockers",
+    label: "Lockers",
+    desc: "Locker allotment and rent.",
+    icon: LockKeyhole,
+    paths: ["/lockers"],
+  },
+  {
+    key: "coupons",
+    label: "Coupons & offers",
+    desc: "Discount codes and offers.",
+    icon: Tag,
+    paths: ["/coupons"],
+  },
+  {
+    key: "expenses",
+    label: "Expenses",
+    desc: "Track gym expenses.",
+    icon: Wallet,
+    paths: ["/expenses"],
+  },
+  {
+    key: "equipment",
+    label: "Equipment",
+    desc: "Equipment list and maintenance tracker.",
+    icon: Wrench,
+    paths: ["/equipment"],
+  },
+  {
+    key: "announcements",
+    label: "Announcements",
+    desc: "Broadcast notices to members.",
+    icon: Megaphone,
+    paths: ["/announcements"],
+  },
+  {
+    key: "trainerAttendance",
+    label: "Trainer attendance & leave",
+    desc: "Trainers check in / out and request leave; owner approves.",
+    icon: UserCheck,
+    paths: [],
+  },
+  {
+    key: "staffAttendance",
+    label: "Staff attendance & leave",
+    desc: "Front desk and other staff check in / out and request leave; owner approves.",
+    icon: UserCheck,
+    paths: [],
+  },
+  {
+    key: "memberAttendance",
+    label: "Member attendance",
+    desc: "Check members in and out at the desk, with an optional WhatsApp message.",
+    icon: UserCheck,
+    paths: [],
+  },
 ];
 
 export type ModuleFlags = Record<string, boolean> | null | undefined;
 
-export const moduleOn = (flags: ModuleFlags, key: string) => flags?.[key] !== false;
+export const moduleOn = (flags: ModuleFlags, key: string) =>
+  flags?.[key] !== false;
 
 export function moduleOfPath(path: string): GymModule | undefined {
-  return MODULES.find((m) => m.paths.some((p) => path === p || path.startsWith(p + "/")));
+  return MODULES.find((m) =>
+    m.paths.some((p) => path === p || path.startsWith(p + "/")),
+  );
 }
 
+// the attendance page is open while any of its three groups is on
+const ATTENDANCE = ["trainerAttendance", "staffAttendance", "memberAttendance"];
 export const pathEnabled = (flags: ModuleFlags, path: string) => {
+  if (path === "/staff-attendance")
+    return ATTENDANCE.some((k) => moduleOn(flags, k));
   const m = moduleOfPath(path);
   return !m || moduleOn(flags, m.key);
 };

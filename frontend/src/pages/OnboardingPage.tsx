@@ -23,9 +23,7 @@ const STEPS: { id: Step; label: string }[] = [
   { id: "plan", label: "Plan" },
   { id: "payment", label: "Payment" },
 ];
-const CYCLES = [
-  { id: "monthly", label: "Monthly", months: 1, off: 0 },
-];
+const CYCLES = [{ id: "monthly", label: "Monthly", months: 1, off: 0 }];
 const ORDER = ["starter", "growth", "pro"];
 const rupees = (paise: number) =>
   "₹" + Math.round(paise / 100).toLocaleString("en-IN");

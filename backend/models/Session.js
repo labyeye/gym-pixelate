@@ -23,7 +23,10 @@ const sessionSchema = new mongoose.Schema(
 );
 
 // Drop sessions nobody has used for 90 days.
-sessionSchema.index({ lastActiveAt: 1 }, { expireAfterSeconds: 90 * 24 * 3600 });
+sessionSchema.index(
+  { lastActiveAt: 1 },
+  { expireAfterSeconds: 90 * 24 * 3600 },
+);
 
 module.exports =
   mongoose.models.Session || mongoose.model("Session", sessionSchema);

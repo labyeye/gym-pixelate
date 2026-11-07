@@ -81,7 +81,13 @@ function fmt(n: number): string {
 function fmtDate(v: any): string {
   if (!v) return "—";
   try {
-    return new Date(v).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-");
+    return new Date(v)
+      .toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+      .replace(/\//g, "-");
   } catch {
     return String(v);
   }
@@ -104,17 +110,23 @@ export function buildInvoiceHTML(inv: any): string {
   const taxAmt = cgst + sgst + igst;
 
   const planName = inv.plan
-    ? String(inv.plan).charAt(0).toUpperCase() + String(inv.plan).slice(1).replace(/_/g, " ") + " Plan"
+    ? String(inv.plan).charAt(0).toUpperCase() +
+      String(inv.plan).slice(1).replace(/_/g, " ") +
+      " Plan"
     : "Subscription Plan";
   const cycle =
-    { monthly: "Monthly", quarterly: "Quarterly", half_yearly: "Half-yearly", yearly: "Annual" }[
-      inv.billingCycle as string
-    ] || "Monthly";
+    {
+      monthly: "Monthly",
+      quarterly: "Quarterly",
+      half_yearly: "Half-yearly",
+      yearly: "Annual",
+    }[inv.billingCycle as string] || "Monthly";
   const description = `${inv.product ? esc(inv.product) + " " : ""}${esc(planName)} — ${cycle} Subscription`;
 
   const invoiceDate = fmtDate(inv.paidAt || inv.createdAt);
-  const invoiceNumber =
-    esc(inv.invoiceNumber || inv._id?.toString().slice(-8).toUpperCase() || "—");
+  const invoiceNumber = esc(
+    inv.invoiceNumber || inv._id?.toString().slice(-8).toUpperCase() || "—",
+  );
 
   const clientName = esc(company.name || "—");
   const clientAddress = [

@@ -2,7 +2,8 @@
 // memberships: [{ memberId, startDate, endDate, status }]
 const DAY = 86400000;
 const ym = (d) => new Date(d).toISOString().slice(0, 7);
-const monthStart = (d, plus = 0) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + plus, 1));
+const monthStart = (d, plus = 0) =>
+  new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + plus, 1));
 const counts = (m) => !["cancelled", "upgraded"].includes(m.status);
 
 function byMember(memberships) {
@@ -26,14 +27,26 @@ function churn(memberships, now = new Date(), months = 6) {
     let ended = 0;
     let lost = 0;
     for (const list of map.values()) {
-      const last = list.filter((x) => x.e >= from && x.e < to).sort((a, b) => b.e - a.e)[0];
+      const last = list
+        .filter((x) => x.e >= from && x.e < to)
+        .sort((a, b) => b.e - a.e)[0];
       if (!last) continue;
       ended++;
-      const back = list.some((x) => x.s > last.s && x.e > last.e && x.s.getTime() <= last.e.getTime() + 30 * DAY);
+      const back = list.some(
+        (x) =>
+          x.s > last.s &&
+          x.e > last.e &&
+          x.s.getTime() <= last.e.getTime() + 30 * DAY,
+      );
       if (!back && last.e.getTime() + 30 * DAY <= now.getTime()) lost++;
       else if (!back) ended--; // still inside the 30-day grace window, undecided
     }
-    rows.push({ month: ym(from), ended, lost, churnPct: ended ? Math.round((lost / ended) * 1000) / 10 : 0 });
+    rows.push({
+      month: ym(from),
+      ended,
+      lost,
+      churnPct: ended ? Math.round((lost / ended) * 1000) / 10 : 0,
+    });
   }
   return rows;
 }
@@ -51,8 +64,18 @@ function cohorts(memberships, now = new Date(), months = 6) {
     });
     const retained = [];
     for (let k = 0; k <= i; k++) {
-      const probe = new Date(Math.min(monthStart(now, -i + k + 1).getTime(), now.getTime())); // start of the month after month k
-      retained.push(members.length ? Math.round((members.filter((l) => activeAt(l, probe)).length / members.length) * 100) : 0);
+      const probe = new Date(
+        Math.min(monthStart(now, -i + k + 1).getTime(), now.getTime()),
+      ); // start of the month after month k
+      retained.push(
+        members.length
+          ? Math.round(
+              (members.filter((l) => activeAt(l, probe)).length /
+                members.length) *
+                100,
+            )
+          : 0,
+      );
     }
     rows.push({ cohort: ym(from), size: members.length, retained });
   }
@@ -63,7 +86,8 @@ function cohorts(memberships, now = new Date(), months = 6) {
 function ltv(memberships, collected, payingMembers) {
   const map = byMember(memberships);
   let months = 0;
-  for (const list of map.values()) months += list.reduce((n, x) => n + (x.e - x.s) / DAY / 30, 0);
+  for (const list of map.values())
+    months += list.reduce((n, x) => n + (x.e - x.s) / DAY / 30, 0);
   const avgMonths = map.size ? months / map.size : 0;
   const perMemberMonth = months ? collected / months : 0;
   return {

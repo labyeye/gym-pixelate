@@ -1,6 +1,10 @@
 const mongoose = require("mongoose");
 const { uploadedPhoto } = require("../utils/uploadedPhoto");
-const { FIELD, encryptOnSave, SENSITIVE_MEMBER_PATHS } = require("../utils/fieldCrypt");
+const {
+  FIELD,
+  encryptOnSave,
+  SENSITIVE_MEMBER_PATHS,
+} = require("../utils/fieldCrypt");
 
 const memberSchema = new mongoose.Schema(
   {
@@ -29,7 +33,13 @@ const memberSchema = new mongoose.Schema(
     },
     altPhone: { type: String, trim: true },
     whatsappOptIn: { type: Boolean, default: true },
-    photo: { type: String, validate: [uploadedPhoto, "Photos must be uploaded, not linked"] },
+    // attendance: 128-number face embedding (never sent to the browser) and the PIN used on a biometric device
+    faceDescriptor: { type: [Number], select: false },
+    biometricId: { type: String, trim: true },
+    photo: {
+      type: String,
+      validate: [uploadedPhoto, "Photos must be uploaded, not linked"],
+    },
     gender: { type: String, enum: ["male", "female", "other"] },
     dob: { type: Date },
     anniversary: { type: Date },
@@ -138,7 +148,11 @@ const memberSchema = new mongoose.Schema(
     erasedAt: { type: Date }, // personal data wiped on request / retention (invoices kept for tax law)
     deletedAt: { type: Date }, // soft delete: hidden from lists, restorable
   },
-  { timestamps: true, toJSON: { getters: true, virtuals: false }, toObject: { getters: true, virtuals: false } },
+  {
+    timestamps: true,
+    toJSON: { getters: true, virtuals: false },
+    toObject: { getters: true, virtuals: false },
+  },
 );
 
 memberSchema.index({ tenantId: 1, branchId: 1 });

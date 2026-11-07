@@ -4,9 +4,17 @@ const User = require("../models/User");
 const Tenant = require("../models/Tenant");
 const generateToken = require("../utils/generateToken");
 const { generatePendingToken } = generateToken;
-const { issueRefresh, startSession, signInPayload, completeSignIn } = require("../utils/signIn");
+const {
+  issueRefresh,
+  startSession,
+  signInPayload,
+  completeSignIn,
+} = require("../utils/signIn");
 const Session = require("../models/Session");
-const { STRONG_PASSWORD_RE, STRONG_PASSWORD_MSG } = require("../utils/otpTools");
+const {
+  STRONG_PASSWORD_RE,
+  STRONG_PASSWORD_MSG,
+} = require("../utils/otpTools");
 const { sendSecurityAlertEmail } = require("../utils/emailService");
 const logActivity = require("../utils/activityLogger");
 const crypto = require("crypto");
@@ -362,7 +370,11 @@ const changePassword = asyncHandler(async (req, res) => {
   // every other device is signed out; this one gets a fresh session
   await Session.deleteMany({ userId: user._id });
   const sid = await startSession(req, user);
-  sendSecurityAlertEmail({ to: user.email, name: user.name, what: "Your NestGym password was just changed." });
+  sendSecurityAlertEmail({
+    to: user.email,
+    name: user.name,
+    what: "Your NestGym password was just changed.",
+  });
 
   logActivity({
     user: req.user,
@@ -376,7 +388,10 @@ const changePassword = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: "Password updated successfully",
-    data: { token: generateToken(user._id, sid), refreshToken: await issueRefresh(req, res, sid) },
+    data: {
+      token: generateToken(user._id, sid),
+      refreshToken: await issueRefresh(req, res, sid),
+    },
   });
 });
 

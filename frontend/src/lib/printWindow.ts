@@ -3,11 +3,17 @@
 // read it, so every generated document gets a Content-Security-Policy that forbids scripts, plugins and forms.
 // Printing is therefore triggered from here (the opener), never from an inline <script>.
 const CSP =
-  '<meta http-equiv="Content-Security-Policy" content="script-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">';
+  "<meta http-equiv=\"Content-Security-Policy\" content=\"script-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'\">";
 
 /** Writes `html` into an already-opened window with the CSP injected first. */
-export function writePrintDocument(win: Window, html: string, print = false): void {
-  const withCsp = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + CSP) : CSP + html;
+export function writePrintDocument(
+  win: Window,
+  html: string,
+  print = false,
+): void {
+  const withCsp = /<head[^>]*>/i.test(html)
+    ? html.replace(/<head[^>]*>/i, (m) => m + CSP)
+    : CSP + html;
   win.document.write(withCsp);
   win.document.close();
   if (print) setTimeout(() => win.print(), 500);

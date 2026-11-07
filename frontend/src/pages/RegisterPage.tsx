@@ -45,13 +45,7 @@ export default function RegisterPage() {
 
   return (
     <AuthShell
-      headline={
-        <>
-          Run your gym
-          
-          in minutes.
-        </>
-      }
+      headline={<>Run your gym in minutes.</>}
       points={[
         "Add members, plans and trainers",
         "Class bookings and personal training",
@@ -120,15 +114,30 @@ export default function RegisterPage() {
             minLength={8}
             autoComplete="new-password"
           />
-        {form.password && <PasswordChecklist password={form.password} />}
+          {form.password && <PasswordChecklist password={form.password} />}
         </div>
         <label className="flex items-start gap-2 text-xs text-gray-600">
           <input type="checkbox" required className="mt-0.5 accent-[#024BAB]" />
           <span>
             I agree to the{" "}
-            <a href="https://www.pixelatenest.com/legal/terms-of-service.html" target="_blank" rel="noopener noreferrer" className="font-bold text-[#024BAB] hover:underline">Terms of Service</a>{" "}
+            <a
+              href="https://www.pixelatenest.com/legal/terms-of-service.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-[#024BAB] hover:underline"
+            >
+              Terms of Service
+            </a>{" "}
             and{" "}
-            <a href="https://www.pixelatenest.com/legal/privacy-policy.html" target="_blank" rel="noopener noreferrer" className="font-bold text-[#024BAB] hover:underline">Privacy Policy</a>.
+            <a
+              href="https://www.pixelatenest.com/legal/privacy-policy.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-[#024BAB] hover:underline"
+            >
+              Privacy Policy
+            </a>
+            .
           </span>
         </label>
         <Turnstile />

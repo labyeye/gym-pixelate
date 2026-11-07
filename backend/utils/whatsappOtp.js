@@ -51,23 +51,40 @@ async function sendWhatsAppOtp(phone, code) {
 // Sends any approved text-only template from the platform number (e.g. fee payment links).
 // `charge` = { tenantId, kind }: the message is paid for with the gym's WhatsApp credits (utils/credits.js), taken before
 // sending and given back if Meta rejects it. Without `charge` it is a platform message and free.
-async function sendPlatformTemplate(phone, templateName, params, languageCode = "en", charge = null) {
+async function sendPlatformTemplate(
+  phone,
+  templateName,
+  params,
+  languageCode = "en",
+  charge = null,
+) {
   const accessToken = process.env.WHATSAPP_PLATFORM_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PLATFORM_PHONE_NUMBER_ID;
   if (!accessToken || !phoneNumberId) {
     throw new Error("WhatsApp platform number is not configured");
   }
   const credits = charge ? require("./credits") : null;
-  const hold = charge ? await credits.reserve(charge.tenantId, { kind: charge.kind, phone }) : null;
+  const hold = charge
+    ? await credits.reserve(charge.tenantId, { kind: charge.kind, phone })
+    : null;
   if (hold && !hold.ok) {
     throw Object.assign(
-      new Error(`WhatsApp not sent: ${hold.reason === "daily_cap" ? "daily message limit reached" : "not enough credits"}`),
+      new Error(
+        `WhatsApp not sent: ${hold.reason === "daily_cap" ? "daily message limit reached" : "not enough credits"}`,
+      ),
       { code: "NO_CREDITS" },
     );
   }
   let data;
   try {
-    data = await postTemplate(phone, templateName, params, languageCode, accessToken, phoneNumberId);
+    data = await postTemplate(
+      phone,
+      templateName,
+      params,
+      languageCode,
+      accessToken,
+      phoneNumberId,
+    );
   } catch (err) {
     if (hold) await credits.refund(hold);
     throw err;
@@ -76,10 +93,20 @@ async function sendPlatformTemplate(phone, templateName, params, languageCode = 
   return data;
 }
 
-async function postTemplate(phone, templateName, params, languageCode, accessToken, phoneNumberId) {
+async function postTemplate(
+  phone,
+  templateName,
+  params,
+  languageCode,
+  accessToken,
+  phoneNumberId,
+) {
   const res = await fetch(`${WA_API}/${phoneNumberId}/messages`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
     body: JSON.stringify({
       messaging_product: "whatsapp",
       to: phone,
@@ -87,7 +114,15 @@ async function postTemplate(phone, templateName, params, languageCode, accessTok
       template: {
         name: templateName,
         language: { code: languageCode },
-        components: [{ type: "body", parameters: params.map((text) => ({ type: "text", text: String(text) })) }],
+        components: [
+          {
+            type: "body",
+            parameters: params.map((text) => ({
+              type: "text",
+              text: String(text),
+            })),
+          },
+        ],
       },
     }),
   });

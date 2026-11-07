@@ -41,12 +41,18 @@ export function AppSidebar({ mobileOpen, onClose }: AppSidebarProps) {
           <img
             src={logoLong}
             alt="NestGym"
-            className={cn("h-12 w-auto max-w-[11rem] object-contain", collapsed && "lg:hidden")}
+            className={cn(
+              "h-12 w-auto max-w-[11rem] object-contain",
+              collapsed && "lg:hidden",
+            )}
           />
           <img
             src={logoShort}
             alt="NestGym"
-            className={cn("hidden w-10 h-10 object-contain shrink-0", collapsed && "lg:block")}
+            className={cn(
+              "hidden w-10 h-10 object-contain shrink-0",
+              collapsed && "lg:block",
+            )}
           />
 
           <button

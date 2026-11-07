@@ -1,7 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useUsageTracker } from "@/hooks/useUsageTracker";
 import TermsGate from "@/components/TermsGate";
-import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Route,
+  Routes,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { TopLoader } from "@/components/ui/TopLoader";
 import { pathEnabled } from "@/config/modules";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -28,10 +34,13 @@ import WelcomePage from "./pages/WelcomePage";
 import NotFound from "./pages/NotFound";
 import PlansPage from "./pages/gym/PlansPage";
 import MembershipsPage from "./pages/MembershipsPage";
+import VaultPage from "./pages/VaultPage";
 import ClassesPage from "./pages/gym/ClassesPage";
 import PersonalTrainingPage from "./pages/gym/PersonalTrainingPage";
 import WorkoutDietPage from "./pages/gym/WorkoutDietPage";
 import TrainersTeamPage from "./pages/gym/TrainersTeamPage";
+import SupportPage from "./pages/gym/SupportPage";
+import StaffAttendancePage from "./pages/gym/StaffAttendancePage";
 import PosPage from "./pages/gym/PosPage";
 import MemberPortal from "./pages/portal/MemberPortal";
 import ReportsPage from "./pages/gym/ReportsPage";
@@ -136,7 +145,11 @@ function AppRoutes() {
       <Route
         path="/forgot-password"
         element={
-          !isAuthenticated ? <ForgotPasswordPage /> : <Navigate to="/" replace />
+          !isAuthenticated ? (
+            <ForgotPasswordPage />
+          ) : (
+            <Navigate to="/" replace />
+          )
         }
       />
       <Route
@@ -180,6 +193,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/vault"
+        element={
+          <ProtectedRoute>
+            <VaultPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/lockers"
         element={
           <ProtectedRoute>
@@ -208,6 +229,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <WorkoutDietPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff-attendance"
+        element={
+          <ProtectedRoute>
+            <StaffAttendancePage />
           </ProtectedRoute>
         }
       />
@@ -300,6 +329,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/support"
+        element={
+          <ProtectedRoute>
+            <SupportPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/billing"
         element={<Navigate to="/subscription" replace />}
       />
@@ -315,15 +352,15 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <CreditsProvider>
-        <BrowserRouter>
-          <TopLoader />
-          <NotificationProvider>
-            <AppRoutes />
-            <TermsGate />
-            <IntroOnboarding />
-            <RefundNotice />
-          </NotificationProvider>
-        </BrowserRouter>
+          <BrowserRouter>
+            <TopLoader />
+            <NotificationProvider>
+              <AppRoutes />
+              <TermsGate />
+              <IntroOnboarding />
+              <RefundNotice />
+            </NotificationProvider>
+          </BrowserRouter>
         </CreditsProvider>
       </AuthProvider>
     </TooltipProvider>

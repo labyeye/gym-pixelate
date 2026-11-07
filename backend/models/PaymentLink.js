@@ -4,11 +4,27 @@ const mongoose = require("mongoose");
 // `token` as its only credential, so it is random, unguessable and expires.
 const paymentLinkSchema = new mongoose.Schema(
   {
-    tenantId: { type: mongoose.Schema.Types.ObjectId, ref: "Tenant", required: true },
-    invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: "Invoice", required: true },
-    memberId: { type: mongoose.Schema.Types.ObjectId, ref: "Member", required: true },
+    tenantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tenant",
+      required: true,
+    },
+    invoiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Invoice",
+      required: true,
+    },
+    memberId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Member",
+      required: true,
+    },
     token: { type: String, required: true, unique: true },
-    status: { type: String, enum: ["pending", "paid", "expired"], default: "pending" },
+    status: {
+      type: String,
+      enum: ["pending", "paid", "expired"],
+      default: "pending",
+    },
     expiresAt: { type: Date, required: true },
     paidAt: { type: Date },
     // Razorpay order for the attempt in progress.

@@ -18,7 +18,10 @@ const owing = (inv) => ["pending", "partial"].includes(inv.status);
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 const sameSig = (secret, raw, given) => {
-  const expected = crypto.createHmac("sha256", secret).update(raw).digest("hex");
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(raw)
+    .digest("hex");
   const a = Buffer.from(expected);
   const b = Buffer.from(String(given || ""));
   return a.length === b.length && crypto.timingSafeEqual(a, b);
@@ -27,17 +30,22 @@ const sameSig = (secret, raw, given) => {
 async function handle(req, res) {
   const { tenantId } = req.params;
   const raw = req.body; // Buffer (express.raw)
-  if (!/^[a-f0-9]{24}$/i.test(tenantId || "") || !Buffer.isBuffer(raw)) return res.status(400).json({ success: false });
+  if (!/^[a-f0-9]{24}$/i.test(tenantId || "") || !Buffer.isBuffer(raw))
+    return res.status(400).json({ success: false });
 
-  const s = await Setting.findOne({ tenantId }).select("+razorpayWebhookSecretEnc");
-  if (!s?.razorpayWebhookSecretEnc) return res.status(404).json({ success: false });
+  const s = await Setting.findOne({ tenantId }).select(
+    "+razorpayWebhookSecretEnc",
+  );
+  if (!s?.razorpayWebhookSecretEnc)
+    return res.status(404).json({ success: false });
   let secret;
   try {
     secret = decrypt(s.razorpayWebhookSecretEnc);
   } catch {
     return res.status(404).json({ success: false });
   }
-  if (!sameSig(secret, raw, req.get("X-Razorpay-Signature"))) return res.status(400).json({ success: false, message: "Bad signature" });
+  if (!sameSig(secret, raw, req.get("X-Razorpay-Signature")))
+    return res.status(400).json({ success: false, message: "Bad signature" });
 
   let evt;
   try {
@@ -45,7 +53,8 @@ async function handle(req, res) {
   } catch {
     return res.status(400).json({ success: false });
   }
-  if (evt.created_at && Date.now() - evt.created_at * 1000 > MAX_AGE_MS * 7) return res.json({ success: true, ignored: "old" });
+  if (evt.created_at && Date.now() - evt.created_at * 1000 > MAX_AGE_MS * 7)
+    return res.json({ success: true, ignored: "old" });
 
   if (String(evt.event).startsWith("subscription.")) {
     const out = await require("./autopay").onEvent(tenantId, evt);
@@ -53,11 +62,16 @@ async function handle(req, res) {
   }
 
   const p = evt?.payload?.payment?.entity;
-  if (!["payment.captured", "order.paid"].includes(evt.event) || !p || p.status !== "captured") {
+  if (
+    !["payment.captured", "order.paid"].includes(evt.event) ||
+    !p ||
+    p.status !== "captured"
+  ) {
     return res.json({ success: true, ignored: evt.event }); // acknowledge, so Razorpay stops retrying
   }
   const invoiceId = p.notes?.invoiceId;
-  if (!invoiceId || !/^[a-f0-9]{24}$/i.test(String(invoiceId))) return res.json({ success: true, ignored: "no-invoice" });
+  if (!invoiceId || !/^[a-f0-9]{24}$/i.test(String(invoiceId)))
+    return res.json({ success: true, ignored: "no-invoice" });
 
   const inv = await Invoice.findOne({ _id: invoiceId, tenantId });
   if (!inv) return res.json({ success: true, ignored: "unknown-invoice" });
@@ -77,7 +91,10 @@ async function handle(req, res) {
     return res.json({ success: true, ignored: "not-booked" });
   }
   if (!owing(updated)) {
-    await PaymentLink.updateOne({ invoiceId: inv._id, tenantId, status: "pending" }, { status: "paid", paidAt: new Date() });
+    await PaymentLink.updateOne(
+      { invoiceId: inv._id, tenantId, status: "pending" },
+      { status: "paid", paidAt: new Date() },
+    );
   }
   res.json({ success: true });
 }

@@ -1,6 +1,11 @@
 import { gym } from "@/services/gymApi";
 import { chequeReceiptHtml, DEFAULT_RECEIPT_DESIGN } from "@/lib/chequeReceipt";
-import { gymInvoiceForPdf, invoiceCompany, openInvoicePDF, resolveLogo } from "@/lib/invoicePdf";
+import {
+  gymInvoiceForPdf,
+  invoiceCompany,
+  openInvoicePDF,
+  resolveLogo,
+} from "@/lib/invoicePdf";
 
 const esc = (s: any) =>
   String(s ?? "").replace(
@@ -18,7 +23,13 @@ const inr = (n: number) =>
   });
 const d = (x: any) =>
   x
-    ? new Date(x).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-")
+    ? new Date(x)
+        .toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })
+        .replace(/\//g, "-")
     : "";
 
 /** Fallback: plain HTML invoice in a print window (Save as PDF from the browser). Pulls company details from /invoices/:id. */
@@ -74,8 +85,12 @@ export async function printInvoice(inv: any, member?: any) {
     const co = full?.company || {};
     const m = (typeof i.memberId === "object" && i.memberId) || member || {};
     if (co.receiptDesign?.style === "cheque" && tab) {
-      const items = (i.items || []).map((x: any) => x.description).filter(Boolean);
-      const lastPay = [...(i.payments || [])].reverse().find((p: any) => p.type !== "refund");
+      const items = (i.items || [])
+        .map((x: any) => x.description)
+        .filter(Boolean);
+      const lastPay = [...(i.payments || [])]
+        .reverse()
+        .find((p: any) => p.type !== "refund");
       tab.document.write(
         chequeReceiptHtml(
           {
@@ -88,7 +103,13 @@ export async function printInvoice(inv: any, member?: any) {
             method: lastPay?.method || i.paymentMethod,
             reference: lastPay?.reference,
             balance: Math.max(0, (i.totalAmount || 0) - (i.paidAmount || 0)),
-            company: { name: co.name, address: co.address, phone: co.phone, gst: co.gst, logoUrl: co.logoUrl },
+            company: {
+              name: co.name,
+              address: co.address,
+              phone: co.phone,
+              gst: co.gst,
+              logoUrl: co.logoUrl,
+            },
           },
           { ...DEFAULT_RECEIPT_DESIGN, ...co.receiptDesign },
           true,
@@ -98,14 +119,19 @@ export async function printInvoice(inv: any, member?: any) {
       return;
     }
     const { invoice, client } = gymInvoiceForPdf(i, m);
+    // "Custom designer" receipts: same data, the owner's Receipt PDF design, receipt wording
+    const designed = co.receiptDesign?.style === "designed";
     await openInvoicePDF(
       {
         invoice,
         client,
         company: invoiceCompany(co),
         logo: await resolveLogo(co.logoUrl),
-        title: "TAX INVOICE",
-        template: co.template || undefined,
+        title: designed ? "PAYMENT RECEIPT" : "TAX INVOICE",
+        labels: designed
+          ? { number: "Receipt No.", date: "Receipt Date", due: "Due Date" }
+          : undefined,
+        template: (designed ? co.receiptTemplate : co.template) || undefined,
       },
       tab,
     );

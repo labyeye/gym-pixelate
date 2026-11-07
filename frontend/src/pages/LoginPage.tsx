@@ -4,7 +4,15 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { authAPI } from "@/services/api";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowRight, Eye, EyeOff, KeyRound, Mail, ShieldCheck, Smartphone } from "lucide-react";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Mail,
+  ShieldCheck,
+  Smartphone,
+} from "lucide-react";
 import { useNotify } from "@/components/ui/Notification";
 import {
   AuthShell,
@@ -14,7 +22,11 @@ import {
   primaryBtnCls,
 } from "@/components/auth/AuthShell";
 
-import { passkeysSupported, serializeAssertion, toRequestOptions } from "@/lib/webauthn";
+import {
+  passkeysSupported,
+  serializeAssertion,
+  toRequestOptions,
+} from "@/lib/webauthn";
 
 type Mode = "password" | "otp";
 type Channel = "whatsapp" | "email";
@@ -43,21 +55,35 @@ export default function LoginPage() {
     setError("");
     setPasskeyBusy(true);
     try {
-      if (!passkeysSupported()) throw new Error("Passkeys are not supported on this browser or device.");
+      if (!passkeysSupported())
+        throw new Error(
+          "Passkeys are not supported on this browser or device.",
+        );
       const { data: options } = await authAPI.passkeyLoginOptions();
-      const credential = (await navigator.credentials.get({ publicKey: toRequestOptions(options) })) as PublicKeyCredential | null;
+      const credential = (await navigator.credentials.get({
+        publicKey: toRequestOptions(options),
+      })) as PublicKeyCredential | null;
       if (!credential) throw new Error("Passkey sign-in was cancelled.");
-      const res = await authAPI.passkeyLogin({ challengeToken: options.challengeToken, ...serializeAssertion(credential) });
+      const res = await authAPI.passkeyLogin({
+        challengeToken: options.challengeToken,
+        ...serializeAssertion(credential),
+      });
       completeLogin(res.data);
       navigate("/");
     } catch (err: any) {
-      setError(err?.name === "NotAllowedError" ? "Passkey sign-in was cancelled." : err.message || "Passkey sign-in failed.");
+      setError(
+        err?.name === "NotAllowedError"
+          ? "Passkey sign-in was cancelled."
+          : err.message || "Passkey sign-in failed.",
+      );
     } finally {
       setPasskeyBusy(false);
     }
   };
 
-  const run = async (fn: () => Promise<{ success: boolean; error?: string } | void>) => {
+  const run = async (
+    fn: () => Promise<{ success: boolean; error?: string } | void>,
+  ) => {
     setError("");
     setLoading(true);
     try {
@@ -88,7 +114,12 @@ export default function LoginPage() {
           setTfaCode("");
           return;
         }
-        return r.success ? r : { success: false, error: r.error || "Login failed. Please check your credentials." };
+        return r.success
+          ? r
+          : {
+              success: false,
+              error: r.error || "Login failed. Please check your credentials.",
+            };
       });
     }
     if (!otpSent) {
@@ -96,7 +127,12 @@ export default function LoginPage() {
         if (channel === "whatsapp") await authAPI.otpSend(phone);
         else await authAPI.emailOtpSend(email.trim().toLowerCase());
         setOtpSent(true);
-        notify.info("Code sent", channel === "whatsapp" ? "Check WhatsApp for your 6-digit code." : "Check your email for your 6-digit code.");
+        notify.info(
+          "Code sent",
+          channel === "whatsapp"
+            ? "Check WhatsApp for your 6-digit code."
+            : "Check your email for your 6-digit code.",
+        );
       });
     }
     return run(async () => {
@@ -152,7 +188,9 @@ export default function LoginPage() {
           ) : mode === "otp" ? (
             <Smartphone className="w-7 h-7 text-[#024BAB]" />
           ) : null}
-          <h2 className="text-2xl sm:text-3xl font-display font-bold text-black">{title}</h2>
+          <h2 className="text-2xl sm:text-3xl font-display font-bold text-black">
+            {title}
+          </h2>
         </div>
         <p className="text-sm text-gray-500 mt-1 font-medium">{subtitle}</p>
       </div>
@@ -178,7 +216,14 @@ export default function LoginPage() {
             {channel === "whatsapp" ? (
               <div>
                 <label className={labelCls}>WhatsApp number</label>
-                <PhoneInput value={phone} onChange={setPhone} inputClassName={inputCls} required disabled={otpSent} autoFocus />
+                <PhoneInput
+                  value={phone}
+                  onChange={setPhone}
+                  inputClassName={inputCls}
+                  required
+                  disabled={otpSent}
+                  autoFocus
+                />
               </div>
             ) : (
               <div>
@@ -233,8 +278,13 @@ export default function LoginPage() {
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold text-black uppercase tracking-wider">Password</label>
-                <Link to="/forgot-password" className="text-xs font-bold text-[#024BAB] hover:underline">
+                <label className="block text-xs font-bold text-black uppercase tracking-wider">
+                  Password
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-bold text-[#024BAB] hover:underline"
+                >
                   Forgot password?
                 </Link>
               </div>
@@ -257,7 +307,11 @@ export default function LoginPage() {
                   className="px-3 border-l-2 border-black hover:bg-gray-50 transition-colors"
                   aria-label={showPw ? "Hide password" : "Show password"}
                 >
-                  {showPw ? <EyeOff className="w-4 h-4 text-black" /> : <Eye className="w-4 h-4 text-black" />}
+                  {showPw ? (
+                    <EyeOff className="w-4 h-4 text-black" />
+                  ) : (
+                    <Eye className="w-4 h-4 text-black" />
+                  )}
                 </button>
               </div>
             </div>
@@ -303,11 +357,23 @@ export default function LoginPage() {
         )}
         {!pendingToken && mode === "otp" && (
           <div className="flex items-center justify-between">
-            <button type="button" onClick={() => reset("password")} className="py-2 text-xs font-bold text-gray-500 hover:text-black transition-colors">
+            <button
+              type="button"
+              onClick={() => reset("password")}
+              className="py-2 text-xs font-bold text-gray-500 hover:text-black transition-colors"
+            >
               ← Sign in with password
             </button>
             {otpSent && (
-              <button type="button" onClick={() => { setOtpSent(false); setOtp(""); setError(""); }} className="py-2 text-xs font-bold text-[#024BAB] hover:underline">
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpSent(false);
+                  setOtp("");
+                  setError("");
+                }}
+                className="py-2 text-xs font-bold text-[#024BAB] hover:underline"
+              >
                 Change / resend
               </button>
             )}
@@ -319,14 +385,18 @@ export default function LoginPage() {
         <div className="mt-6 flex flex-col items-center gap-3">
           <div className="flex items-center gap-3 w-full">
             <div className="flex-1 h-px bg-black/10" />
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Or continue with</span>
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+              Or continue with
+            </span>
             <div className="flex-1 h-px bg-black/10" />
           </div>
           <div className="grid grid-cols-2 gap-3 w-full">
-            {([
-              ["whatsapp", "WhatsApp code", Smartphone],
-              ["email", "Email code", Mail],
-            ] as [Channel, string, typeof Mail][]).map(([c, label, Icon]) => (
+            {(
+              [
+                ["whatsapp", "WhatsApp code", Smartphone],
+                ["email", "Email code", Mail],
+              ] as [Channel, string, typeof Mail][]
+            ).map(([c, label, Icon]) => (
               <button
                 key={c}
                 type="button"
@@ -350,14 +420,19 @@ export default function LoginPage() {
             <KeyRound className="w-4 h-4 text-[#024BAB]" />
             {passkeyBusy ? "Waiting for passkey…" : "Sign in with a passkey"}
           </button>
-          <p className="text-[11px] text-gray-500 text-center">A code also unlocks an account locked after wrong passwords.</p>
+          <p className="text-[11px] text-gray-500 text-center">
+            A code also unlocks an account locked after wrong passwords.
+          </p>
         </div>
       )}
 
       <div className="mt-6 pt-6 border-t-2 border-black/10 text-center">
         <p className="text-xs text-gray-500">
           New to NestGym?{" "}
-          <Link to="/register" className="font-bold text-[#024BAB] hover:underline transition-colors">
+          <Link
+            to="/register"
+            className="font-bold text-[#024BAB] hover:underline transition-colors"
+          >
             Create an account
           </Link>
         </p>

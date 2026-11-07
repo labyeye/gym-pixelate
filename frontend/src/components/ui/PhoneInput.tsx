@@ -106,7 +106,10 @@ export function PhoneInput({
       </div>
 
       {open && (
-        <ul role="listbox" className="absolute left-0 top-full z-50 mt-1.5 max-h-60 w-72 overflow-auto border-2 border-black bg-white shadow-[3px_3px_0px_#0a0a0a]">
+        <ul
+          role="listbox"
+          className="absolute left-0 top-full z-50 mt-1.5 max-h-60 w-72 overflow-auto border-2 border-black bg-white shadow-[3px_3px_0px_#0a0a0a]"
+        >
           {COUNTRIES.map((c) => (
             <li key={c.iso}>
               <button

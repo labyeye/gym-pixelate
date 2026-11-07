@@ -50,7 +50,12 @@ export function ExportImport<T>(p: Props<T>) {
 
   const template = () => {
     if (!p.importTemplate) return;
-    void downloadSheet(`${p.name}_template`, [p.importTemplate.headers, p.importTemplate.example], "xlsx", "Template");
+    void downloadSheet(
+      `${p.name}_template`,
+      [p.importTemplate.headers, p.importTemplate.example],
+      "xlsx",
+      "Template",
+    );
   };
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {

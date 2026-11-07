@@ -92,8 +92,8 @@ export default function WelcomePage() {
               <span className="text-[#FA731C]">{userName}!</span>
             </h1>
             <p className="mt-3 text-white/80 text-sm font-medium max-w-md">
-              Your NestGym workspace is live. Memberships, billing
-              and trainers are all set up for you.
+              Your NestGym workspace is live. Memberships, billing and trainers
+              are all set up for you.
             </p>
           </div>
           <div className="px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-4 border-t-2 border-black bg-white">

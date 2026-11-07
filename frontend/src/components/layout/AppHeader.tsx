@@ -17,13 +17,18 @@ export function AppHeader({ title, onMenuOpen }: AppHeaderProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (user) celebrationsAPI.today().then((r) => setItems(r.data ?? [])).catch(() => {});
+    if (user)
+      celebrationsAPI
+        .today()
+        .then((r) => setItems(r.data ?? []))
+        .catch(() => {});
   }, [user]);
 
   useEffect(() => {
     if (!open) return;
     const h = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
+      if (panelRef.current && !panelRef.current.contains(e.target as Node))
+        setOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -80,16 +85,34 @@ export function AppHeader({ title, onMenuOpen }: AppHeaderProps) {
                 </p>
               ) : (
                 items.map((n) => (
-                  <div key={n.id} className="flex items-center gap-3 px-4 py-3 border-b border-black/10 last:border-0">
+                  <div
+                    key={n.id}
+                    className="flex items-center gap-3 px-4 py-3 border-b border-black/10 last:border-0"
+                  >
                     <div className="w-8 h-8 rounded-full border-2 border-black shrink-0 overflow-hidden bg-[#024BAB] flex items-center justify-center text-xs font-bold text-white">
-                      {n.avatar ? <img src={n.avatar} alt={n.name} className="w-full h-full object-cover" /> : n.name?.[0]?.toUpperCase()}
+                      {n.avatar ? (
+                        <img
+                          src={n.avatar}
+                          alt={n.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        n.name?.[0]?.toUpperCase()
+                      )}
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-black truncate">
-                        {n.name} <span className="font-normal text-muted-foreground">· {n.who}</span>
+                        {n.name}{" "}
+                        <span className="font-normal text-muted-foreground">
+                          · {n.who}
+                        </span>
                       </p>
                       <p className="flex items-center gap-1 text-[11px] text-[#FA731C]">
-                        {n.kind === "birthday" ? <Cake className="w-3 h-3" /> : <PartyPopper className="w-3 h-3" />}
+                        {n.kind === "birthday" ? (
+                          <Cake className="w-3 h-3" />
+                        ) : (
+                          <PartyPopper className="w-3 h-3" />
+                        )}
                         {n.kind === "birthday" ? "🎂" : "🎉"} {n.detail}
                       </p>
                     </div>

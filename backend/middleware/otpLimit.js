@@ -51,12 +51,10 @@ setInterval(
 function otpCountryLimit(req, res, next) {
   const p = parsePhone(req.body?.phone);
   if (!p)
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: "Enter a valid phone number with country code",
-      });
+    return res.status(400).json({
+      success: false,
+      message: "Enter a valid phone number with country code",
+    });
   const deny = (message) => res.status(429).json({ success: false, message });
   if (blocked.has(p.iso))
     return deny(

@@ -86,7 +86,10 @@ export function SellMembershipModal({
     (gym.memberships as any)
       .upgradeQuote(membership._id, planId)
       .then((r: any) => live && setQuote(r.data))
-      .catch((e: any) => live && notify.error("Could not price the change", e.message));
+      .catch(
+        (e: any) =>
+          live && notify.error("Could not price the change", e.message),
+      );
     return () => {
       live = false;
     };
@@ -193,7 +196,11 @@ export function SellMembershipModal({
             <Btn light onClick={onClose}>
               Cancel
             </Btn>
-            <Btn busy={busy} onClick={submit} disabled={!plan || blocked || (mode === "upgrade" && !quote)}>
+            <Btn
+              busy={busy}
+              onClick={submit}
+              disabled={!plan || blocked || (mode === "upgrade" && !quote)}
+            >
               {mode === "upgrade" ? "Upgrade & bill" : "Confirm & bill"}
             </Btn>
           </>
@@ -257,7 +264,14 @@ export function SellMembershipModal({
             }))}
           />
           {mode === "upgrade" && quote && (
-            <div className={"border-2 p-3 text-sm font-bold " + (blocked ? "border-red-600 bg-red-50 text-red-700" : "border-black bg-[#FFF7E6]")}>
+            <div
+              className={
+                "border-2 p-3 text-sm font-bold " +
+                (blocked
+                  ? "border-red-600 bg-red-50 text-red-700"
+                  : "border-black bg-[#FFF7E6]")
+              }
+            >
               {blocked
                 ? "This membership was bought more than 24 hours ago. Only the gym owner or a manager can change the plan."
                 : quote.withinWindow
@@ -325,7 +339,9 @@ export function SellMembershipModal({
               )}
               {calc.disc > 0 && (
                 <p className="flex justify-between font-bold text-[#00A070]">
-                  <span>{mode === "upgrade" ? "Credit & discount" : "Discount"}</span>
+                  <span>
+                    {mode === "upgrade" ? "Credit & discount" : "Discount"}
+                  </span>
                   <span>− {inr(calc.disc, 2)}</span>
                 </p>
               )}

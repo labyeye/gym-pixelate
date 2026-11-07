@@ -10,12 +10,7 @@ const TrainerAssignment = require("../models/TrainerAssignment");
 const User = require("../models/User");
 const Locker = require("../models/Locker");
 const logActivity = require("../utils/activityLogger");
-const {
-  fail,
-  assertCapacity,
-  nextCode,
-  r2,
-} = require("../utils/gym");
+const { fail, assertCapacity, nextCode, r2 } = require("../utils/gym");
 
 // fields a client may never set directly
 const PROTECTED = [
@@ -103,7 +98,11 @@ const getMembers = asyncHandler(async (req, res) => {
 
   const [rows, total] = await Promise.all([
     Member.find(query)
-      .sort(["name", "-name", "createdAt", "-createdAt"].includes(sort) ? sort : "-createdAt")
+      .sort(
+        ["name", "-name", "createdAt", "-createdAt"].includes(sort)
+          ? sort
+          : "-createdAt",
+      )
       .skip(skip)
       .limit(parseInt(limit))
       .lean(),
@@ -204,17 +203,32 @@ const createMember = asyncHandler(async (req, res) => {
   const trainerId = req.body.trainerId || undefined;
   let trainer = null;
   if (trainerId) {
-    trainer = await User.findOne({ _id: trainerId, role: "trainer", status: "active" });
+    trainer = await User.findOne({
+      _id: trainerId,
+      role: "trainer",
+      status: "active",
+    });
     if (!trainer) throw fail(404, "Active trainer not found");
     const max = trainer.trainerProfile?.maxClients;
     if (max) {
-      const load = await TrainerAssignment.countDocuments({ trainerId, isActive: true });
-      if (load >= max) throw fail(409, `${trainer.name} already has ${load} clients (max ${max})`);
+      const load = await TrainerAssignment.countDocuments({
+        trainerId,
+        isActive: true,
+      });
+      if (load >= max)
+        throw fail(
+          409,
+          `${trainer.name} already has ${load} clients (max ${max})`,
+        );
     }
   }
 
   const referredBy = await referrerFrom(req.body.referrerCode);
-  const member = new Member({ ...body, tenantId, ...(referredBy && { referredBy }) });
+  const member = new Member({
+    ...body,
+    tenantId,
+    ...(referredBy && { referredBy }),
+  });
   await member.validate(); // before the code is issued, so a rejected form never burns a number
   member.memberCode = await nextCode(tenantId, "member", "GYM");
   if (
@@ -224,7 +238,12 @@ const createMember = asyncHandler(async (req, res) => {
     member.health.declarationSignedAt = new Date();
   await member.save();
   if (trainer) {
-    await TrainerAssignment.create({ tenantId, branchId: member.branchId, trainerId: trainer._id, memberId: member._id });
+    await TrainerAssignment.create({
+      tenantId,
+      branchId: member.branchId,
+      trainerId: trainer._id,
+      memberId: member._id,
+    });
   }
 
   logActivity({
@@ -242,7 +261,8 @@ const updateMember = asyncHandler(async (req, res) => {
   const member = await Member.findById(req.params.id);
   if (!member) throw fail(404, "Member not found");
   member.set(clean(req.body));
-  if (req.body.referrerCode !== undefined && !member.referredBy) member.referredBy = await referrerFrom(req.body.referrerCode, member._id);
+  if (req.body.referrerCode !== undefined && !member.referredBy)
+    member.referredBy = await referrerFrom(req.body.referrerCode, member._id);
   await member.save();
   logActivity({
     user: req.user,

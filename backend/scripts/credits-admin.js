@@ -14,24 +14,45 @@ const credits = require("../utils/credits");
   await mongoose.connect(process.env.MONGODB_URI || process.env.MONGO_URI);
   if (arg && arg.includes("@")) {
     const email = arg.trim().toLowerCase();
-    const u = await mongoose.model("User").findOne({ email }).select("tenantId");
-    const tenant = (await Tenant.findOne({ email }).select("_id")) || (u && { _id: u.tenantId });
+    const u = await mongoose
+      .model("User")
+      .findOne({ email })
+      .select("tenantId");
+    const tenant =
+      (await Tenant.findOne({ email }).select("_id")) ||
+      (u && { _id: u.tenantId });
     if (!tenant) throw new Error(`No gym found for ${email}`);
     arg = String(tenant._id);
     console.log("gym:", arg);
   }
   if (cmd === "enable" || cmd === "enable-all") {
     const bonus = Number(cmd === "enable" ? bonusArg : arg) || 0;
-    const ids = cmd === "enable" ? [arg] : (await Tenant.find().select("_id")).map((t) => t._id);
+    const ids =
+      cmd === "enable"
+        ? [arg]
+        : (await Tenant.find().select("_id")).map((t) => t._id);
     for (const id of ids) {
       await credits.enable(id);
-      if (bonus) await credits.grantBonus(id, { credits: bonus, refId: `gift:${id}:${Date.now()}`, note: "Gift" });
+      if (bonus)
+        await credits.grantBonus(id, {
+          credits: bonus,
+          refId: `gift:${id}:${Date.now()}`,
+          note: "Gift",
+        });
     }
-    console.log(`credits enabled for ${ids.length} gym(s)` + (bonus ? `, +${bonus} bonus each` : ""));
+    console.log(
+      `credits enabled for ${ids.length} gym(s)` +
+        (bonus ? `, +${bonus} bonus each` : ""),
+    );
   } else if (cmd === "show") {
     console.log(await credits.getBalance(arg));
   } else {
-    console.log("usage: enable <tenantId> [bonus] | enable-all [bonus] | show <tenantId>");
+    console.log(
+      "usage: enable <tenantId> [bonus] | enable-all [bonus] | show <tenantId>",
+    );
   }
   await mongoose.disconnect();
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

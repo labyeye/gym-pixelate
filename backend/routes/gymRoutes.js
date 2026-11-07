@@ -8,6 +8,18 @@ const pt = require("../controllers/ptController");
 const ops = require("../controllers/opsController");
 const { getMemberOverview } = require("../controllers/memberController");
 const staff = require("../controllers/staffController");
+const self = require("../controllers/staffSelfController");
+const memAtt = require("../controllers/memberAttendanceController");
+const face = require("../controllers/attendanceFaceController");
+const leave = require("../controllers/staffLeaveController");
+const multer = require("multer");
+// photos for face checks are read straight from memory and never stored
+const photo = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (req, f, cb) =>
+    cb(null, /^image\/(jpeg|png|webp)$/.test(f.mimetype)),
+}).single("photo");
 
 const GymClass = require("../models/GymClass");
 const WorkoutPlan = require("../models/WorkoutPlan");
@@ -118,7 +130,7 @@ mount(
     search: ["name"],
     filters: ["memberId", "isTemplate", "status", "goal"],
     populate: [
-      ["memberId", "name memberCode photo"],
+      ["memberId", "name memberCode photo phone"],
       ["trainerId", "name"],
     ],
   }),
@@ -138,7 +150,7 @@ mount(
     search: ["name"],
     filters: ["memberId", "isTemplate", "status", "goal"],
     populate: [
-      ["memberId", "name memberCode photo"],
+      ["memberId", "name memberCode photo phone"],
       ["trainerId", "name"],
     ],
   }),
@@ -180,12 +192,32 @@ mount(
 );
 
 const purchases = require("../controllers/purchaseController");
-router.get("/products/sales", protect, can("Products", "read"), purchases.sales);
+router.get(
+  "/products/sales",
+  protect,
+  can("Products", "read"),
+  purchases.sales,
+);
 router.get("/purchases", protect, can("Products", "read"), purchases.list);
 router.post("/purchases", protect, can("Products", "create"), purchases.create);
-router.post("/purchases/:id/receive", protect, can("Products", "update"), purchases.receive);
-router.post("/purchases/:id/cancel", protect, can("Products", "update"), purchases.cancel);
-router.put("/purchases/:id/bill", protect, can("Products", "update"), purchases.setBill);
+router.post(
+  "/purchases/:id/receive",
+  protect,
+  can("Products", "update"),
+  purchases.receive,
+);
+router.post(
+  "/purchases/:id/cancel",
+  protect,
+  can("Products", "update"),
+  purchases.cancel,
+);
+router.put(
+  "/purchases/:id/bill",
+  protect,
+  can("Products", "update"),
+  purchases.setBill,
+);
 router.post("/products/sell", protect, can("Products", "create"), ops.sell);
 router.post(
   "/products/:id/stock",
@@ -202,7 +234,8 @@ mount(
     filters: ["category", "isActive"],
     sort: "name",
     beforeCreate: async (req, body) => {
-      if (!body.sku) body.sku = await nextCode(req.user.tenantId, "product", "PRD", 4);
+      if (!body.sku)
+        body.sku = await nextCode(req.user.tenantId, "product", "PRD", 4);
     },
   }),
 );
@@ -260,7 +293,8 @@ mount(
     filters: ["status", "category"],
     sort: "nextServiceOn name",
     beforeCreate: async (req, body) => {
-      if (!body.code) body.code = await nextCode(req.user.tenantId, "equipment", "EQ", 4);
+      if (!body.code)
+        body.code = await nextCode(req.user.tenantId, "equipment", "EQ", 4);
     },
   }),
 );
@@ -280,8 +314,113 @@ router.delete(
 );
 
 router.get("/staff-attendance", protect, can("Staff", "read"), staff.getMonth);
+router.get(
+  "/staff-attendance/records",
+  protect,
+  can("Staff", "read"),
+  staff.records,
+);
 router.post("/staff-attendance", protect, can("Staff", "update"), staff.mark);
 router.get("/payroll", protect, can("Staff", "read"), staff.payroll);
+
+// Optional staff self check-in/out + leave (gated by Settings.modules.staffAttendance inside the controller)
+router.get("/staff-attendance/me", protect, self.me);
+router.post("/staff-attendance/check-in", protect, photo, self.checkIn);
+router.post("/staff-attendance/check-out", protect, photo, self.checkOut);
+// face enrolment + biometric ID, the face kiosk, and biometric terminals
+router.post(
+  "/staff-attendance/enroll",
+  protect,
+  can("Staff", "update"),
+  photo,
+  face.enrollStaff,
+);
+router.post(
+  "/member-attendance/enroll",
+  protect,
+  can("Members", "update"),
+  photo,
+  face.enrollMember,
+);
+router.post(
+  "/attendance/kiosk-face",
+  protect,
+  can("Members", "update"),
+  photo,
+  face.kiosk,
+);
+router.get(
+  "/attendance-devices",
+  protect,
+  can("Staff", "read"),
+  face.listDevices,
+);
+router.post(
+  "/attendance-devices",
+  protect,
+  can("Staff", "update"),
+  face.addDevice,
+);
+router.delete(
+  "/attendance-devices/:id",
+  protect,
+  can("Staff", "update"),
+  face.removeDevice,
+);
+router.get("/member-attendance", protect, can("Members", "read"), memAtt.list);
+router.post(
+  "/member-attendance/check-in",
+  protect,
+  can("Members", "update"),
+  memAtt.checkIn,
+);
+router.post(
+  "/member-attendance/check-out",
+  protect,
+  can("Members", "update"),
+  memAtt.checkOut,
+);
+router.get("/staff-leaves", protect, leave.listLeaves);
+router.post("/staff-leaves", protect, leave.createLeave);
+router.get("/staff-leaves/allowance", protect, leave.getAllowance);
+router.put(
+  "/staff-leaves/allowance",
+  protect,
+  can("Staff", "update"),
+  leave.setAllowance,
+);
+router.put("/staff-leaves/:id", protect, leave.editLeave);
+router.put(
+  "/staff-leaves/:id/decision",
+  protect,
+  can("Staff", "update"),
+  leave.decideLeave,
+);
+router.post("/staff-leaves/:id/cancel", protect, leave.cancelLeave);
+router.put(
+  "/staff-attendance/profile/:id",
+  protect,
+  can("Staff", "update"),
+  face.saveProfile,
+);
+router.post(
+  "/attendance/assign-ids",
+  protect,
+  can("Staff", "update"),
+  face.assignIds,
+);
+router.get(
+  "/attendance-devices/logs",
+  protect,
+  can("Staff", "read"),
+  face.deviceLogs,
+);
+router.get(
+  "/member-attendance/not-checked-in",
+  protect,
+  can("Members", "read"),
+  memAtt.notCheckedIn,
+);
 
 router.get(
   "/members/:id/overview",

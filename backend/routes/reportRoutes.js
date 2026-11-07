@@ -13,5 +13,9 @@ router.get("/renewals", read, c.renewals);
 router.get("/birthdays", read, c.birthdays);
 router.get("/gst", read, c.gstRegister);
 router.get("/insights", read, c.insights);
+router.get("/transactions", read, c.transactions);
+router.get("/new-members", read, c.newMembers);
+router.get("/custom/meta", read, c.customMeta);
+router.get("/custom", read, c.custom);
 
 module.exports = router;

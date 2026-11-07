@@ -22,7 +22,8 @@ export default function Turnstile() {
     if ((window as any).turnstile) draw();
     else {
       const s = document.createElement("script");
-      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      s.src =
+        "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
       s.async = true;
       s.onload = draw;
       document.head.appendChild(s);

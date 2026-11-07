@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Panel, inr } from "./kit";
 
 export interface Point {
@@ -35,11 +43,14 @@ export default function RangeChartPanel({
   seriesName: string;
 }) {
   const [range, setRange] = useState<number | null>(null);
-  const weekday = (k: string) => new Date(k).toLocaleDateString("en-IN", { weekday: "short" });
+  const weekday = (k: string) =>
+    new Date(k).toLocaleDateString("en-IN", { weekday: "short" });
   let data: { label: string; value: number }[];
   let caption: string;
   if (range === null) {
-    data = daily.slice(-7).map((p) => ({ label: weekday(p.key), value: p.value }));
+    data = daily
+      .slice(-7)
+      .map((p) => ({ label: weekday(p.key), value: p.value }));
     caption = "last 7 days";
   } else if (range === 1) {
     data = daily.map((p) => ({ label: p.key.slice(8), value: p.value }));
@@ -72,15 +83,42 @@ export default function RangeChartPanel({
       </p>
       <ResponsiveContainer width="100%" height={210}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-          <XAxis dataKey="label" tick={{ fontSize: 10, fontWeight: 700 }} tickLine={false} axisLine={false} interval={range === 1 ? 4 : 0} />
-          <YAxis tick={{ fontSize: 10, fontWeight: 700 }} tickLine={false} axisLine={false} width={money ? 44 : 28} allowDecimals={false} />
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="#E5E7EB"
+            vertical={false}
+          />
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 10, fontWeight: 700 }}
+            tickLine={false}
+            axisLine={false}
+            interval={range === 1 ? 4 : 0}
+          />
+          <YAxis
+            tick={{ fontSize: 10, fontWeight: 700 }}
+            tickLine={false}
+            axisLine={false}
+            width={money ? 44 : 28}
+            allowDecimals={false}
+          />
           <Tooltip
             cursor={{ fill: `${color}22` }}
             formatter={(v: any) => [fmt(Number(v)), seriesName]}
-            contentStyle={{ border: "2px solid #000", borderRadius: 0, fontSize: 12, fontWeight: 700 }}
+            contentStyle={{
+              border: "2px solid #000",
+              borderRadius: 0,
+              fontSize: 12,
+              fontWeight: 700,
+            }}
           />
-          <Bar dataKey="value" name={seriesName} fill={color} stroke="#0A0A0A" strokeWidth={2} />
+          <Bar
+            dataKey="value"
+            name={seriesName}
+            fill={color}
+            stroke="#0A0A0A"
+            strokeWidth={2}
+          />
         </BarChart>
       </ResponsiveContainer>
     </Panel>

@@ -4,17 +4,38 @@ const mongoose = require("mongoose");
 // The member authorises once through `shortUrl`; each `subscription.charged` webhook renews the membership.
 const mandateSchema = new mongoose.Schema(
   {
-    tenantId: { type: mongoose.Schema.Types.ObjectId, ref: "Tenant", required: true },
-    memberId: { type: mongoose.Schema.Types.ObjectId, ref: "Member", required: true, index: true },
+    tenantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Tenant",
+      required: true,
+    },
+    memberId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Member",
+      required: true,
+      index: true,
+    },
     membershipId: { type: mongoose.Schema.Types.ObjectId, ref: "Membership" }, // the membership it renews from
-    planId: { type: mongoose.Schema.Types.ObjectId, ref: "MembershipPlan", required: true },
+    planId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MembershipPlan",
+      required: true,
+    },
     amount: { type: Number, required: true }, // rupees per cycle, GST included
     razorpayPlanId: String,
     razorpaySubscriptionId: { type: String, required: true },
     shortUrl: String,
     status: {
       type: String,
-      enum: ["created", "authenticated", "active", "paused", "halted", "cancelled", "completed"],
+      enum: [
+        "created",
+        "authenticated",
+        "active",
+        "paused",
+        "halted",
+        "cancelled",
+        "completed",
+      ],
       default: "created",
     },
     chargesCount: { type: Number, default: 0 },
@@ -26,4 +47,5 @@ const mandateSchema = new mongoose.Schema(
 );
 mandateSchema.index({ razorpaySubscriptionId: 1 }, { unique: true });
 
-module.exports = mongoose.models.Mandate || mongoose.model("Mandate", mandateSchema);
+module.exports =
+  mongoose.models.Mandate || mongoose.model("Mandate", mandateSchema);

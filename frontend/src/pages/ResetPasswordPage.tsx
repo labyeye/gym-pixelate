@@ -53,16 +53,27 @@ export default function ResetPasswordPage() {
           <div className="flex justify-center mb-4">
             <CheckCircle className="w-14 h-14 text-green-500" />
           </div>
-          <h2 className="text-xl font-display font-bold text-black mb-2">Password reset!</h2>
-          <p className="text-sm text-gray-600 mb-6">Your password has been changed. You can now sign in.</p>
-          <Link to="/login" className="text-xs font-bold text-[#024BAB] hover:underline">
+          <h2 className="text-xl font-display font-bold text-black mb-2">
+            Password reset!
+          </h2>
+          <p className="text-sm text-gray-600 mb-6">
+            Your password has been changed. You can now sign in.
+          </p>
+          <Link
+            to="/login"
+            className="text-xs font-bold text-[#024BAB] hover:underline"
+          >
             ← Back to sign in
           </Link>
         </div>
       ) : (
         <>
-          <h2 className="text-2xl font-display font-bold text-black mb-1">Choose a new password</h2>
-          <p className="text-sm text-gray-500 mb-6 font-medium">At least 8 characters with upper, lower case and a number.</p>
+          <h2 className="text-2xl font-display font-bold text-black mb-1">
+            Choose a new password
+          </h2>
+          <p className="text-sm text-gray-500 mb-6 font-medium">
+            At least 8 characters with upper, lower case and a number.
+          </p>
           <ErrorBanner error={error} />
           <form onSubmit={submit} className="space-y-5 login-anim">
             <div>
@@ -84,7 +95,11 @@ export default function ResetPasswordPage() {
                   className="px-3 border-l-2 border-black hover:bg-gray-50 transition-colors"
                   aria-label={showPw ? "Hide password" : "Show password"}
                 >
-                  {showPw ? <EyeOff className="w-4 h-4 text-black" /> : <Eye className="w-4 h-4 text-black" />}
+                  {showPw ? (
+                    <EyeOff className="w-4 h-4 text-black" />
+                  ) : (
+                    <Eye className="w-4 h-4 text-black" />
+                  )}
                 </button>
               </div>
               {password && <PasswordChecklist password={password} />}
@@ -101,7 +116,9 @@ export default function ResetPasswordPage() {
               />
             </div>
             <button type="submit" disabled={loading} className={primaryBtnCls}>
-              {loading ? "Resetting..." : (
+              {loading ? (
+                "Resetting..."
+              ) : (
                 <>
                   Reset Password <ArrowRight className="w-4 h-4" />
                 </>
@@ -109,7 +126,10 @@ export default function ResetPasswordPage() {
             </button>
           </form>
           <div className="mt-6">
-            <Link to="/login" className="text-xs font-bold text-[#024BAB] hover:underline">
+            <Link
+              to="/login"
+              className="text-xs font-bold text-[#024BAB] hover:underline"
+            >
               ← Back to sign in
             </Link>
           </div>

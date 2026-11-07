@@ -24,7 +24,15 @@ export function printSubscriptionBill(b: BillRow, buyer: BillBuyer) {
   const html = buildInvoiceHTML({
     ...b,
     product: "NestGym",
-    company: { name: buyer.name, address: buyer.address, state: buyer.state, gstNumber: buyer.gst, panNumber: buyer.pan, email: buyer.email, phone: buyer.phone },
+    company: {
+      name: buyer.name,
+      address: buyer.address,
+      state: buyer.state,
+      gstNumber: buyer.gst,
+      panNumber: buyer.pan,
+      email: buyer.email,
+      phone: buyer.phone,
+    },
   });
   openPrintWindow(html, true);
 }

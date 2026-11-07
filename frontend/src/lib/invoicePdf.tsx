@@ -1,5 +1,8 @@
 import { pdf } from "@react-pdf/renderer";
-import { InvoicePDFDocument, type InvoiceCompany } from "@/components/pdf/InvoicePDFDocument";
+import {
+  InvoicePDFDocument,
+  type InvoiceCompany,
+} from "@/components/pdf/InvoicePDFDocument";
 
 // react-pdf only reads PNG/JPEG, so any logo (webp, svg, a URL...) goes through a canvas first.
 // null when it can't be loaded (e.g. a cross-origin URL without CORS); callers fall back.
@@ -27,8 +30,12 @@ export async function pngDataUrl(src: string): Promise<string | undefined> {
 }
 
 // The gym's own logo (Settings > logoUrl); undefined when there is none, so the PDF just has no logo.
-export async function resolveLogo(custom?: string): Promise<string | undefined> {
-  return custom?.trim() ? (await logoToPng(custom.trim())) || undefined : undefined;
+export async function resolveLogo(
+  custom?: string,
+): Promise<string | undefined> {
+  return custom?.trim()
+    ? (await logoToPng(custom.trim())) || undefined
+    : undefined;
 }
 
 // Company block of the PDF from the gym's Settings document.
@@ -36,7 +43,10 @@ export function settingsToCompany(s: any): InvoiceCompany {
   const hasBank = !!(s?.bankAccountNumber || s?.bankName);
   return {
     name: s?.companyName || "Your Gym",
-    addressLines: String(s?.companyAddress || "").split("\n").map((l) => l.trim()).filter(Boolean),
+    addressLines: String(s?.companyAddress || "")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean),
     email: s?.companyEmail,
     phone: s?.companyPhone,
     website: s?.companyWebsite,
@@ -62,7 +72,10 @@ export function settingsToCompany(s: any): InvoiceCompany {
 export function invoiceCompany(c: any): InvoiceCompany {
   return {
     name: c?.name || "Your Gym",
-    addressLines: String(c?.address || "").split("\n").map((l: string) => l.trim()).filter(Boolean),
+    addressLines: String(c?.address || "")
+      .split("\n")
+      .map((l: string) => l.trim())
+      .filter(Boolean),
     email: c?.email,
     phone: c?.phone,
     website: c?.website,
@@ -84,7 +97,10 @@ export function gymInvoiceForPdf(i: any, member: any) {
     price: it.unitPrice,
   }));
   const taxable = Number(i.amount) || 0;
-  const taxPercent = taxable > 0 ? Math.round(((Number(i.gstAmount) || 0) / taxable) * 10000) / 100 : 0;
+  const taxPercent =
+    taxable > 0
+      ? Math.round(((Number(i.gstAmount) || 0) / taxable) * 10000) / 100
+      : 0;
   return {
     invoice: {
       invoiceNo: i.invoiceNumber,
@@ -107,7 +123,10 @@ export function gymInvoiceForPdf(i: any, member: any) {
   };
 }
 
-export async function openInvoicePDF(props: React.ComponentProps<typeof InvoicePDFDocument>, tab?: Window | null) {
+export async function openInvoicePDF(
+  props: React.ComponentProps<typeof InvoicePDFDocument>,
+  tab?: Window | null,
+) {
   const blob = await pdf(<InvoicePDFDocument {...props} />).toBlob();
   const url = URL.createObjectURL(blob);
   if (tab) tab.location.href = url;

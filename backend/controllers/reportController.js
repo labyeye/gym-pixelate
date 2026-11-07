@@ -74,6 +74,16 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     newToday,
     lowStock,
     serviceDue,
+    totalMembers,
+    frozen,
+    renewedMonth,
+    newMonth,
+    recentRenewals,
+    newMembersList,
+    planMix,
+    recentCollections,
+    recentPos,
+    recentMemberships,
   ] = await Promise.all([
     collections(m, today, now, null),
     collections(m, monthStart, now, null),
@@ -97,6 +107,94 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
       nextServiceOn: { $lte: addDays(now, 7) },
       status: { $ne: "retired" },
     }),
+    Member.countDocuments(m),
+    Membership.countDocuments({ ...m, status: "frozen" }),
+    Membership.countDocuments({
+      ...m,
+      isRenewal: true,
+      createdAt: { $gte: monthStart },
+      status: { $ne: "cancelled" },
+    }),
+    Member.countDocuments({ ...m, createdAt: { $gte: monthStart } }),
+    Membership.find({ ...m, isRenewal: true, status: { $ne: "cancelled" } })
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .select("planName totalAmount createdAt memberId")
+      .populate("memberId", "name")
+      .lean(),
+    Member.find({ ...m, createdAt: { $gte: monthStart } })
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .select("name phone createdAt")
+      .lean(),
+    Membership.aggregate([
+      { $match: { ...m, status: "active" } },
+      {
+        $group: {
+          _id: "$planName",
+          members: { $sum: 1 },
+          billed: { $sum: "$totalAmount" },
+        },
+      },
+      { $sort: { members: -1 } },
+      { $limit: 6 },
+    ]),
+    Invoice.aggregate([
+      { $match: { ...m, status: { $ne: "cancelled" } } },
+      { $unwind: "$payments" },
+      { $match: { "payments.amount": { $gt: 0 } } },
+      { $sort: { "payments.paidAt": -1 } },
+      { $limit: 6 },
+      {
+        $lookup: {
+          from: "members",
+          localField: "memberId",
+          foreignField: "_id",
+          as: "mem",
+        },
+      },
+      {
+        $project: {
+          amount: "$payments.amount",
+          method: "$payments.method",
+          at: "$payments.paidAt",
+          name: { $arrayElemAt: ["$mem.name", 0] },
+        },
+      },
+    ]),
+    Invoice.aggregate([
+      {
+        $match: {
+          ...m,
+          status: { $nin: ["cancelled", "refunded"] },
+          "items.kind": "product",
+        },
+      },
+      { $sort: { issuedAt: -1 } },
+      { $limit: 6 },
+      {
+        $lookup: {
+          from: "members",
+          localField: "memberId",
+          foreignField: "_id",
+          as: "mem",
+        },
+      },
+      {
+        $project: {
+          amount: "$totalAmount",
+          at: "$issuedAt",
+          name: { $arrayElemAt: ["$mem.name", 0] },
+          number: "$invoiceNumber",
+        },
+      },
+    ]),
+    Membership.find({ ...m, status: { $ne: "cancelled" } })
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .select("planName totalAmount createdAt memberId")
+      .populate("memberId", "name")
+      .lean(),
   ]);
   res.json({
     success: true,
@@ -112,6 +210,20 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
       newMembersToday: newToday,
       lowStockProducts: lowStock,
       equipmentServiceDue: serviceDue,
+      totalMembers,
+      frozenMemberships: frozen,
+      renewedThisMonth: renewedMonth,
+      newMembersThisMonth: newMonth,
+      recentRenewals,
+      newMembersList,
+      recentCollections,
+      recentPos,
+      recentMemberships,
+      planMix: planMix.map((p) => ({
+        plan: p._id || "—",
+        members: p.members,
+        billed: r2(p.billed),
+      })),
     },
   });
 });
@@ -120,34 +232,99 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
   const m = scope(req);
   const now = new Date();
   const from = istDayStart(addDays(now, -29));
-  const [rev, growth] = await Promise.all([
-    collections(m, from, now, {
-      $dateToString: {
-        format: "%Y-%m-%d",
-        date: "$payments.paidAt",
-        timezone: TZ,
-      },
-    }),
-    Membership.aggregate([
+  const m12 = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const posAgg = (fmt, since) =>
+    Invoice.aggregate([
       {
         $match: {
           ...m,
-          createdAt: {
-            $gte: new Date(now.getFullYear(), now.getMonth() - 11, 1),
-          },
+          status: { $nin: ["cancelled", "refunded"] },
+          issuedAt: { $gte: since },
         },
       },
+      { $unwind: "$items" },
+      { $match: { "items.kind": "product" } },
       {
         $group: {
           _id: {
-            y: { $year: { date: "$createdAt", timezone: TZ } },
-            mo: { $month: { date: "$createdAt", timezone: TZ } },
+            $dateToString: { format: fmt, date: "$issuedAt", timezone: TZ },
           },
-          n: { $sum: 1 },
+          total: {
+            $sum: {
+              $multiply: [
+                "$items.amount",
+                {
+                  $add: [
+                    1,
+                    { $divide: [{ $ifNull: ["$items.gstPercent", 0] }, 100] },
+                  ],
+                },
+              ],
+            },
+          },
         },
       },
-    ]),
-  ]);
+    ]);
+  const [rev, growth, revMonthAgg, posDayAgg, posMonthAgg, memDayAgg] =
+    await Promise.all([
+      collections(m, from, now, {
+        $dateToString: {
+          format: "%Y-%m-%d",
+          date: "$payments.paidAt",
+          timezone: TZ,
+        },
+      }),
+      Membership.aggregate([
+        {
+          $match: {
+            ...m,
+            createdAt: {
+              $gte: new Date(now.getFullYear(), now.getMonth() - 11, 1),
+            },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              y: { $year: { date: "$createdAt", timezone: TZ } },
+              mo: { $month: { date: "$createdAt", timezone: TZ } },
+            },
+            n: { $sum: 1 },
+          },
+        },
+      ]),
+      collections(m, m12, now, {
+        $dateToString: {
+          format: "%Y-%m",
+          date: "$payments.paidAt",
+          timezone: TZ,
+        },
+      }),
+      posAgg("%Y-%m-%d", from),
+      posAgg("%Y-%m", m12),
+      Membership.aggregate([
+        { $match: { ...m, createdAt: { $gte: from } } },
+        {
+          $group: {
+            _id: {
+              $dateToString: {
+                format: "%Y-%m-%d",
+                date: "$createdAt",
+                timezone: TZ,
+              },
+            },
+            n: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+  const mk = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const mapOf = (a, k) => new Map(a.map((x) => [x._id, x[k]]));
+  const revM = mapOf(revMonthAgg, "total");
+  const posD = mapOf(posDayAgg, "total");
+  const posM = mapOf(posMonthAgg, "total");
+  const memD = mapOf(memDayAgg, "n");
   const days = Array.from({ length: 30 }, (_, i) =>
     new Date(from.getTime() + i * DAY + 5.5 * 3600000)
       .toISOString()
@@ -162,6 +339,16 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
     success: true,
     data: {
       revenueByDay: days.map((d) => ({ date: d, revenue: r2(revMap.get(d)) })),
+      revenueByMonth: months.map((d) => ({
+        month: d.toLocaleString("en-IN", { month: "short", year: "2-digit" }),
+        revenue: r2(revM.get(mk(d))),
+      })),
+      posByDay: days.map((d) => ({ date: d, revenue: r2(posD.get(d)) })),
+      posByMonth: months.map((d) => ({
+        month: d.toLocaleString("en-IN", { month: "short", year: "2-digit" }),
+        revenue: r2(posM.get(mk(d))),
+      })),
+      membersByDay: days.map((d) => ({ date: d, count: memD.get(d) || 0 })),
       membershipGrowth: months.map((d) => ({
         month: d.toLocaleString("en-IN", { month: "short", year: "2-digit" }),
         newMemberships:
@@ -177,61 +364,55 @@ const getDashboardCharts = asyncHandler(async (req, res) => {
 const overview = asyncHandler(async (req, res) => {
   const m = scope(req);
   const { from, to } = range(req);
-  const [
-    byMethod,
-    byKind,
-    expenses,
-    planSales,
-    newMembers,
-    sources,
-  ] = await Promise.all([
-    collections(m, from, to),
-    Invoice.aggregate([
-      {
-        $match: {
-          ...m,
-          status: { $nin: ["cancelled"] },
-          issuedAt: { $gte: from, $lte: to },
+  const [byMethod, byKind, expenses, planSales, newMembers, sources] =
+    await Promise.all([
+      collections(m, from, to),
+      Invoice.aggregate([
+        {
+          $match: {
+            ...m,
+            status: { $nin: ["cancelled"] },
+            issuedAt: { $gte: from, $lte: to },
+          },
         },
-      },
-      { $unwind: "$items" },
-      {
-        $group: {
-          _id: "$items.kind",
-          amount: { $sum: "$items.amount" },
-          count: { $sum: 1 },
+        { $unwind: "$items" },
+        {
+          $group: {
+            _id: "$items.kind",
+            amount: { $sum: "$items.amount" },
+            count: { $sum: 1 },
+          },
         },
-      },
-    ]),
-    Expense.aggregate([
-      { $match: { ...m, paidOn: { $gte: from, $lte: to } } },
-      { $group: { _id: "$category", total: { $sum: "$amount" } } },
-    ]),
-    Membership.aggregate([
-      {
-        $match: {
-          ...m,
-          createdAt: { $gte: from, $lte: to },
-          status: { $ne: "cancelled" },
+      ]),
+      Expense.aggregate([
+        { $match: { ...m, paidOn: { $gte: from, $lte: to } } },
+        { $group: { _id: "$category", total: { $sum: "$amount" } } },
+      ]),
+      Membership.aggregate([
+        {
+          $match: {
+            ...m,
+            createdAt: { $gte: from, $lte: to },
+            status: { $ne: "cancelled" },
+          },
         },
-      },
-      {
-        $group: {
-          _id: "$planName",
-          sold: { $sum: 1 },
-          billed: { $sum: "$totalAmount" },
-          renewals: { $sum: { $cond: ["$isRenewal", 1, 0] } },
+        {
+          $group: {
+            _id: "$planName",
+            sold: { $sum: 1 },
+            billed: { $sum: "$totalAmount" },
+            renewals: { $sum: { $cond: ["$isRenewal", 1, 0] } },
+          },
         },
-      },
-      { $sort: { billed: -1 } },
-    ]),
-    Member.countDocuments({ ...m, createdAt: { $gte: from, $lte: to } }),
-    Member.aggregate([
-      { $match: { ...m, createdAt: { $gte: from, $lte: to } } },
-      { $group: { _id: { $ifNull: ["$source", ""] }, n: { $sum: 1 } } },
-      { $sort: { n: -1 } },
-    ]),
-  ]);
+        { $sort: { billed: -1 } },
+      ]),
+      Member.countDocuments({ ...m, createdAt: { $gte: from, $lte: to } }),
+      Member.aggregate([
+        { $match: { ...m, createdAt: { $gte: from, $lte: to } } },
+        { $group: { _id: { $ifNull: ["$source", ""] }, n: { $sum: 1 } } },
+        { $sort: { n: -1 } },
+      ]),
+    ]);
 
   // retention: of memberships that ended in the window, how many members are still covered afterwards?
   const ended = await Membership.find({
@@ -426,11 +607,33 @@ const insights = asyncHandler(async (req, res) => {
     Invoice.aggregate([
       { $match: { ...m, status: { $ne: "cancelled" } } },
       { $unwind: "$payments" },
-      { $group: { _id: null, total: { $sum: "$payments.amount" }, members: { $addToSet: "$memberId" } } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$payments.amount" },
+          members: { $addToSet: "$memberId" },
+        },
+      },
     ]),
-    User.find({ ...(m.tenantId && { tenantId: m.tenantId }), role: "trainer", status: "active" }).select("name trainerProfile.maxClients").lean(),
-    TrainerAssignment.aggregate([{ $match: { ...m, isActive: true } }, { $group: { _id: "$trainerId", clients: { $sum: 1 } } }]),
-    Feedback.find({ ...m, createdAt: { $gte: new Date(Date.now() - 90 * DAY) } }).sort("-createdAt").limit(200).populate("memberId", "name").lean(),
+    User.find({
+      ...(m.tenantId && { tenantId: m.tenantId }),
+      role: "trainer",
+      status: "active",
+    })
+      .select("name trainerProfile.maxClients")
+      .lean(),
+    TrainerAssignment.aggregate([
+      { $match: { ...m, isActive: true } },
+      { $group: { _id: "$trainerId", clients: { $sum: 1 } } },
+    ]),
+    Feedback.find({
+      ...m,
+      createdAt: { $gte: new Date(Date.now() - 90 * DAY) },
+    })
+      .sort("-createdAt")
+      .limit(200)
+      .populate("memberId", "name")
+      .lean(),
   ]);
   const promoters = ratings.filter((r) => r.score >= 9).length;
   const detractors = ratings.filter((r) => r.score <= 6).length;
@@ -441,22 +644,298 @@ const insights = asyncHandler(async (req, res) => {
     data: {
       nps: {
         responses: ratings.length,
-        score: ratings.length ? Math.round(((promoters - detractors) / ratings.length) * 100) : null,
-        recent: ratings.filter((r) => r.comment).slice(0, 10).map((r) => ({ name: r.memberId?.name, score: r.score, comment: r.comment, at: r.createdAt })),
+        score: ratings.length
+          ? Math.round(((promoters - detractors) / ratings.length) * 100)
+          : null,
+        recent: ratings
+          .filter((r) => r.comment)
+          .slice(0, 10)
+          .map((r) => ({
+            name: r.memberId?.name,
+            score: r.score,
+            comment: r.comment,
+            at: r.createdAt,
+          })),
       },
       churn: churn(memberships, now),
       cohorts: cohorts(memberships, now),
-      ltv: ltv(memberships, paid[0]?.total || 0, (paid[0]?.members || []).filter(Boolean).length),
+      ltv: ltv(
+        memberships,
+        paid[0]?.total || 0,
+        (paid[0]?.members || []).filter(Boolean).length,
+      ),
       trainers: trainers.map((t) => {
         const max = t.trainerProfile?.maxClients || 0;
         const clients = load[String(t._id)] || 0;
-        return { _id: t._id, name: t.name, clients, maxClients: max, utilisationPct: max ? Math.round((clients / max) * 100) : null };
+        return {
+          _id: t._id,
+          name: t.name,
+          clients,
+          maxClients: max,
+          utilisationPct: max ? Math.round((clients / max) * 100) : null,
+        };
       }),
     },
   });
 });
 
+// Custom report builder: subject x up to 2 group-by dimensions x equality filters.
+// Everything is whitelisted below; the client only ever sends keys, never field names.
+const mon = (f) => ({
+  $dateToString: { format: "%Y-%m", date: f, timezone: TZ },
+});
+const day = (f) => ({
+  $dateToString: { format: "%Y-%m-%d", date: f, timezone: TZ },
+});
+const SUBJECTS = {
+  collections: {
+    model: Invoice,
+    date: "$payments.paidAt",
+    sum: "$payments.amount",
+    sumLabel: "Collected",
+    pre: [
+      { $match: { status: { $ne: "cancelled" } } },
+      { $unwind: "$payments" },
+    ],
+    dims: {
+      method: "$payments.method",
+      invoiceStatus: "$status",
+      month: mon("$payments.paidAt"),
+      day: day("$payments.paidAt"),
+      receivedBy: "$payments.receivedBy",
+    },
+  },
+  invoices: {
+    model: Invoice,
+    date: "$issuedAt",
+    sum: "$totalAmount",
+    sumLabel: "Billed",
+    pre: [{ $match: { status: { $ne: "cancelled" } } }],
+    dims: { status: "$status", month: mon("$issuedAt"), day: day("$issuedAt") },
+  },
+  memberships: {
+    model: Membership,
+    date: "$createdAt",
+    sum: "$totalAmount",
+    sumLabel: "Billed",
+    pre: [{ $match: { status: { $ne: "cancelled" } } }],
+    dims: {
+      plan: "$planName",
+      status: "$status",
+      renewal: { $cond: ["$isRenewal", "renewal", "new"] },
+      coupon: { $ifNull: ["$couponCode", ""] },
+      soldBy: "$soldBy",
+      month: mon("$createdAt"),
+      day: day("$createdAt"),
+    },
+  },
+  members: {
+    model: Member,
+    date: "$createdAt",
+    sum: null,
+    sumLabel: "",
+    pre: [{ $match: { deletedAt: null } }],
+    dims: {
+      source: "$source",
+      gender: "$gender",
+      status: "$status",
+      goal: "$fitness.goal",
+      slot: "$fitness.preferredSlot",
+      level: "$fitness.level",
+      city: "$city",
+      month: mon("$createdAt"),
+    },
+  },
+  expenses: {
+    model: Expense,
+    date: "$paidOn",
+    sum: "$amount",
+    sumLabel: "Spent",
+    pre: [],
+    dims: {
+      category: "$category",
+      method: "$method",
+      vendor: { $ifNull: ["$vendor", ""] },
+      month: mon("$paidOn"),
+      day: day("$paidOn"),
+    },
+  },
+};
+const customMeta = (req, res) =>
+  res.json({
+    success: true,
+    data: Object.fromEntries(
+      Object.entries(SUBJECTS).map(([k, s]) => [
+        k,
+        { dims: Object.keys(s.dims), sumLabel: s.sumLabel },
+      ]),
+    ),
+  });
+
+const custom = asyncHandler(async (req, res) => {
+  const s = SUBJECTS[req.query.subject];
+  if (!s) {
+    res.status(400);
+    throw new Error("Unknown subject");
+  }
+  const keys = String(req.query.groupBy || "")
+    .split(",")
+    .filter(Boolean)
+    .slice(0, 2);
+  if (keys.some((k) => !s.dims[k])) {
+    res.status(400);
+    throw new Error("Unknown group-by");
+  }
+  let filters = {};
+  try {
+    filters = JSON.parse(req.query.filters || "{}");
+  } catch {
+    /* ignore bad json */
+  }
+  const eq = Object.entries(filters)
+    .filter(([k, v]) => s.dims[k] && v !== "" && v != null)
+    .map(([k, v]) => ({ $expr: { $eq: [s.dims[k], String(v)] } }));
+  const { from, to } = range(req);
+  const rows = await s.model.aggregate([
+    { $match: scope(req) },
+    ...s.pre,
+    {
+      $match: {
+        $expr: { $and: [{ $gte: [s.date, from] }, { $lte: [s.date, to] }] },
+      },
+    },
+    ...(eq.length ? [{ $match: { $and: eq } }] : []),
+    {
+      $group: {
+        _id: Object.fromEntries(keys.map((k, i) => [`k${i}`, s.dims[k]])),
+        count: { $sum: 1 },
+        total: s.sum ? { $sum: s.sum } : { $sum: 0 },
+      },
+    },
+    { $sort: { total: -1, count: -1 } },
+    { $limit: 500 },
+  ]);
+  const data = rows.map((r) => ({
+    keys: keys.map((_, i) => String(r._id[`k${i}`] ?? "") || "unknown"),
+    count: r.count,
+    total: r2(r.total),
+  }));
+  res.json({
+    success: true,
+    groupBy: keys,
+    sumLabel: s.sumLabel,
+    data,
+    totals: {
+      count: data.reduce((a, r) => a + r.count, 0),
+      total: r2(data.reduce((a, r) => a + r.total, 0)),
+    },
+  });
+});
+
+const dayKey = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: TZ });
+
+// Daily transaction ledger: every payment received (income) and every expense, with per-day totals.
+// ?type=income|expense narrows it; ?method=upi etc filters both sides.
+const transactions = asyncHandler(async (req, res) => {
+  const m = scope(req);
+  const { from, to } = range(req, 1);
+  const { type, method } = req.query;
+  const inRange = (d) => d >= from && d <= to;
+  const rows = [];
+  if (type !== "expense") {
+    const inv = await Invoice.find({
+      ...m,
+      status: { $ne: "cancelled" },
+      "payments.paidAt": { $gte: from, $lte: to },
+    })
+      .select("invoiceNumber memberId payments")
+      .populate("memberId", "name")
+      .lean();
+    for (const i of inv)
+      for (const p of i.payments)
+        if (inRange(p.paidAt) && (!method || p.method === method))
+          rows.push({
+            at: p.paidAt,
+            type: "income",
+            ref: i.invoiceNumber,
+            party: i.memberId?.name || "Walk-in",
+            method: p.method,
+            amount: p.amount,
+          });
+  }
+  if (type !== "income") {
+    const exp = await Expense.find({
+      ...m,
+      paidOn: { $gte: from, $lte: to },
+      ...(method && { method }),
+    }).lean();
+    for (const e of exp)
+      rows.push({
+        at: e.paidOn,
+        type: "expense",
+        ref: e.category,
+        party: e.vendor || e.description || "",
+        method: e.method,
+        amount: e.amount,
+      });
+  }
+  rows.sort((a, b) => a.at - b.at);
+  const days = {};
+  for (const r of rows) {
+    const d = (days[dayKey(r.at)] ||= {
+      day: dayKey(r.at),
+      income: 0,
+      expense: 0,
+    });
+    d[r.type] += r.amount;
+  }
+  const dayRows = Object.values(days).map((d) => ({
+    ...d,
+    income: r2(d.income),
+    expense: r2(d.expense),
+    net: r2(d.income - d.expense),
+  }));
+  const income = r2(dayRows.reduce((s, d) => s + d.income, 0));
+  const expense = r2(dayRows.reduce((s, d) => s + d.expense, 0));
+  res.json({
+    success: true,
+    data: rows,
+    days: dayRows,
+    totals: { income, expense, net: r2(income - expense) },
+  });
+});
+
+// Members who joined in the range (today / yesterday / any window), with their latest plan.
+const newMembers = asyncHandler(async (req, res) => {
+  const m = scope(req);
+  const { from, to } = range(req, 1);
+  const q = { ...m, deletedAt: null, createdAt: { $gte: from, $lte: to } };
+  if (req.query.source) q.source = req.query.source;
+  if (req.query.gender) q.gender = req.query.gender;
+  const members = await Member.find(q)
+    .select("name phone memberCode source gender createdAt")
+    .sort("-createdAt")
+    .limit(1000)
+    .lean();
+  const ms = await Membership.find({
+    memberId: { $in: members.map((x) => x._id) },
+    status: { $ne: "cancelled" },
+  })
+    .select("memberId planName createdAt")
+    .sort("createdAt")
+    .lean();
+  const plan = Object.fromEntries(
+    ms.map((x) => [String(x.memberId), x.planName]),
+  );
+  const data = members.map((x) => ({ ...x, plan: plan[String(x._id)] || "" }));
+  res.json({ success: true, count: data.length, data });
+});
+
 module.exports = {
+  transactions,
+  newMembers,
+  custom,
+  customMeta,
   insights,
   getDashboardSummary,
   getDashboardCharts,

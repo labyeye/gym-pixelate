@@ -142,7 +142,8 @@ export default function MemberProfilePage() {
   // the plan running right now (active, or frozen but not yet over)
   const current = memberships.find(
     (m: any) =>
-      ["active", "frozen"].includes(m.status) && new Date(m.endDate) >= new Date(),
+      ["active", "frozen"].includes(m.status) &&
+      new Date(m.endDate) >= new Date(),
   );
   const left = current ? daysFromNow(current.endDate) : null;
   const refresh = () =>
@@ -260,7 +261,9 @@ export default function MemberProfilePage() {
         <StatCard
           label="Locker"
           value={locker ? `#${locker.number}` : "None"}
-          sub={locker?.validTill ? `till ${fmtDate(locker.validTill)}` : undefined}
+          sub={
+            locker?.validTill ? `till ${fmtDate(locker.validTill)}` : undefined
+          }
           icon={TrendingUp}
           color="#A855F7"
         />

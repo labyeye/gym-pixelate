@@ -25,7 +25,10 @@ const limiter = (max = 5, countOnlyFailures = false) =>
     windowMs: 15 * 60 * 1000,
     max,
     skipSuccessfulRequests: countOnlyFailures, // a good login does not use up the budget
-    message: { success: false, message: "Too many attempts, please wait a few minutes and try again." },
+    message: {
+      success: false,
+      message: "Too many attempts, please wait a few minutes and try again.",
+    },
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => (req.user ? `u:${req.user._id}` : req.ip),
@@ -45,7 +48,12 @@ router.post("/delete-account", protect, limiter(5), deleteAccount);
 // forgot / reset password (every method ends in a strong-password check)
 router.get("/forgot-password/methods", limiter(10), sec.forgotPasswordMethods);
 router.post("/forgot-password", limiter(5), captcha, sec.forgotPassword);
-router.post("/forgot-password/whatsapp", limiter(5), captcha, sec.forgotPasswordWhatsapp);
+router.post(
+  "/forgot-password/whatsapp",
+  limiter(5),
+  captcha,
+  sec.forgotPasswordWhatsapp,
+);
 router.post("/reset-password/otp", limiter(5), sec.resetPasswordWithOtp);
 router.post("/reset-password/otp/totp", limiter(5), sec.resetPasswordWithTotp);
 router.post("/reset/backup", limiter(10), sec.resetPasswordWithBackupCode);
@@ -62,12 +70,32 @@ router.post("/backup-codes", protect, limiter(5), sec.generateBackupCodes);
 router.post("/login/backup", limiter(10), sec.loginWithBackupCode);
 
 // email OTP sign-in, email + phone verification
-router.post("/login/email-otp/send", limiter(5), captcha, sec.loginRequestEmailOtp);
+router.post(
+  "/login/email-otp/send",
+  limiter(5),
+  captcha,
+  sec.loginRequestEmailOtp,
+);
 router.post("/login/email-otp/verify", limiter(10), sec.loginVerifyEmailOtp);
-router.post("/contact/email/send-otp", protect, limiter(5), sec.sendEmailVerifyOtp);
-router.post("/contact/email/verify-otp", protect, limiter(10), sec.verifyEmailVerifyOtp);
+router.post(
+  "/contact/email/send-otp",
+  protect,
+  limiter(5),
+  sec.sendEmailVerifyOtp,
+);
+router.post(
+  "/contact/email/verify-otp",
+  protect,
+  limiter(10),
+  sec.verifyEmailVerifyOtp,
+);
 router.post("/phone/send-otp", protect, limiter(5), sec.sendPhoneVerifyOtp);
-router.post("/phone/verify-otp", protect, limiter(10), sec.verifyPhoneVerifyOtp);
+router.post(
+  "/phone/verify-otp",
+  protect,
+  limiter(10),
+  sec.verifyPhoneVerifyOtp,
+);
 
 // signed-in devices
 router.get("/sessions", protect, sec.listSessions);

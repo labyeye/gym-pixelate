@@ -1,6 +1,17 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, BadgeCheck, CalendarX2, IndianRupee, Plus, Printer, RefreshCw, TrendingUp, Wallet } from "lucide-react";
+import {
+  AlertTriangle,
+  Ban,
+  BadgeCheck,
+  CalendarX2,
+  IndianRupee,
+  Plus,
+  Printer,
+  RefreshCw,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { gym } from "@/services/gymApi";
@@ -13,6 +24,7 @@ import {
   ActionButton,
   Btn,
   DataTable,
+  Modal,
   Pager,
   Pill,
   RowActions,
@@ -31,7 +43,14 @@ import {
   useDebounced,
 } from "@/components/gym/kit";
 
-const STATUSES = ["active", "upcoming", "frozen", "expired", "cancelled", "upgraded"];
+const STATUSES = [
+  "active",
+  "upcoming",
+  "frozen",
+  "expired",
+  "cancelled",
+  "upgraded",
+];
 
 /** Dedicated membership status: who holds which plan, until when, and what is still unpaid. */
 export default function MembershipsPage() {
@@ -44,8 +63,15 @@ export default function MembershipsPage() {
   const [only, setOnly] = useState<"" | "expiring" | "dues">("");
   const [sort, setSort] = useState("-createdAt");
   const [page, setPage] = useState(1);
-  const [sell, setSell] = useState<{ mode: "sell" | "renew" | "upgrade"; membership?: any } | null>(null);
+  const [sell, setSell] = useState<{
+    mode: "sell" | "renew" | "upgrade";
+    membership?: any;
+  } | null>(null);
   const [collect, setCollect] = useState<any>(null);
+  const [term, setTerm] = useState<any>(null);
+  const [reason, setReason] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const params = useMemo(
     () => ({
@@ -74,10 +100,38 @@ export default function MembershipsPage() {
   return (
     <AppLayout title="Memberships">
       <StatGrid>
-        <StatCard label="Active" value={c.active ?? 0} icon={BadgeCheck} color="#00C48C" active={status === "active" && !only} onClick={() => pick("active")} />
-        <StatCard label="Expiring ≤ 7 days" value={c.expiring ?? 0} icon={AlertTriangle} color="#FA731C" active={only === "expiring"} onClick={() => pick("", "expiring")} />
-        <StatCard label="Expired" value={c.expired ?? 0} icon={CalendarX2} color="#EF4444" active={status === "expired"} onClick={() => pick("expired")} />
-        <StatCard label="With dues" value={c.dues ?? 0} icon={IndianRupee} color="#A855F7" active={only === "dues"} onClick={() => pick("", "dues")} />
+        <StatCard
+          label="Active"
+          value={c.active ?? 0}
+          icon={BadgeCheck}
+          color="#00C48C"
+          active={status === "active" && !only}
+          onClick={() => pick("active")}
+        />
+        <StatCard
+          label="Expiring ≤ 7 days"
+          value={c.expiring ?? 0}
+          icon={AlertTriangle}
+          color="#FA731C"
+          active={only === "expiring"}
+          onClick={() => pick("", "expiring")}
+        />
+        <StatCard
+          label="Expired"
+          value={c.expired ?? 0}
+          icon={CalendarX2}
+          color="#EF4444"
+          active={status === "expired"}
+          onClick={() => pick("expired")}
+        />
+        <StatCard
+          label="With dues"
+          value={c.dues ?? 0}
+          icon={IndianRupee}
+          color="#A855F7"
+          active={only === "dues"}
+          onClick={() => pick("", "dues")}
+        />
       </StatGrid>
 
       <Toolbar
@@ -97,7 +151,11 @@ export default function MembershipsPage() {
           }}
           placeholder="Member name, phone or ID…"
         />
-        <select className={inputCls + " sm:w-44 font-bold"} value={status} onChange={(e) => pick(e.target.value)}>
+        <select
+          className={inputCls + " sm:w-44 font-bold"}
+          value={status}
+          onChange={(e) => pick(e.target.value)}
+        >
           <option value="">Status: all</option>
           {STATUSES.map((s) => (
             <option key={s} value={s}>
@@ -105,30 +163,46 @@ export default function MembershipsPage() {
             </option>
           ))}
         </select>
-        <select className={inputCls + " sm:w-44 font-bold"} value={sort} onChange={(e) => setSort(e.target.value)}>
+        <select
+          className={inputCls + " sm:w-44 font-bold"}
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+        >
           <option value="-createdAt">Newest first</option>
           <option value="endDate">Expiring soonest</option>
           <option value="-endDate">Expiring last</option>
         </select>
       </Toolbar>
 
-      <DataTable head={["Member", "Plan", "Period", "Time left", "Fees (paid / total)", "Fee status", "Actions"]} loading={isLoading} empty={rows.length === 0}>
+      <DataTable
+        head={[
+          "Member",
+          "Plan",
+          "Period",
+          "Time left",
+          "Fees (paid / total)",
+          "Fee status",
+          "Actions",
+        ]}
+        loading={isLoading}
+        empty={rows.length === 0}
+      >
         {rows.map((m, i) => {
           const left = daysFromNow(m.endDate);
           const due = Math.max(0, (m.totalAmount || 0) - (m.paidAmount || 0));
           const live = ["active", "frozen", "upcoming"].includes(m.status);
           return (
-            <Tr key={m._id} i={i} onClick={() => navigate(`/members/${m.memberId?._id}`)}>
+            <Tr
+              key={m._id}
+              i={i}
+              onClick={() => navigate(`/members/${m.memberId?._id}`)}
+            >
               <Td>
-                <div className="flex items-center gap-3">
-                  <Thumb photo={m.memberId?.photo} name={m.memberId?.name || "—"} />
-                  <div>
-                    <p className="font-black">{m.memberId?.name}</p>
-                    <p className="text-xs text-black/50">
-                      {m.memberId?.memberCode} · {m.memberId?.phone}
-                    </p>
-                  </div>
-                </div>
+                <Thumb
+                  photo={m.memberId?.photo}
+                  name={m.memberId?.name || "—"}
+                  sub={`${m.memberId?.memberCode || ""} · ${m.memberId?.phone || ""}`}
+                />
               </Td>
               <Td className="font-bold">{m.planName || m.planId?.name}</Td>
               <Td className="text-xs whitespace-nowrap">
@@ -136,7 +210,15 @@ export default function MembershipsPage() {
               </Td>
               <Td className="whitespace-nowrap">
                 {live ? (
-                  <span className={left < 0 ? "font-bold text-red-600" : left <= 7 ? "font-bold text-orange-600" : "font-bold"}>
+                  <span
+                    className={
+                      left < 0
+                        ? "font-bold text-red-600"
+                        : left <= 7
+                          ? "font-bold text-orange-600"
+                          : "font-bold"
+                    }
+                  >
                     {left < 0 ? `${-left}d overdue` : `${left}d left`}
                   </span>
                 ) : (
@@ -147,7 +229,12 @@ export default function MembershipsPage() {
                 <p className="font-black">{inr(m.totalAmount)}</p>
                 <p className="text-xs text-black/50">
                   Paid {inr(m.paidAmount)}
-                  {due > 0 && <span className="text-red-600 font-bold"> · Due {inr(due)}</span>}
+                  {due > 0 && (
+                    <span className="text-red-600 font-bold">
+                      {" "}
+                      · Due {inr(due)}
+                    </span>
+                  )}
                 </p>
               </Td>
               <Td>
@@ -159,14 +246,30 @@ export default function MembershipsPage() {
                     <ActionButton
                       icon={TrendingUp}
                       label="Change plan"
-                      onClick={() => setSell({ mode: "upgrade", membership: m })}
+                      onClick={() =>
+                        setSell({ mode: "upgrade", membership: m })
+                      }
                     />
                   )}
-                  {can("Memberships", "create") && (live || m.status === "expired") && (
+                  {can("Memberships", "create") &&
+                    (live || m.status === "expired") && (
+                      <ActionButton
+                        icon={RefreshCw}
+                        label="Renew"
+                        onClick={() =>
+                          setSell({ mode: "renew", membership: m })
+                        }
+                      />
+                    )}
+                  {can("Memberships", "update") && live && (
                     <ActionButton
-                      icon={RefreshCw}
-                      label="Renew"
-                      onClick={() => setSell({ mode: "renew", membership: m })}
+                      icon={Ban}
+                      label="Terminate"
+                      onClick={() => {
+                        setReason("");
+                        setErr("");
+                        setTerm(m);
+                      }}
                     />
                   )}
                 </RowActions>
@@ -177,8 +280,61 @@ export default function MembershipsPage() {
       </DataTable>
       <Pager page={page} pages={data?.pages || 1} onPage={setPage} />
 
-      <PaymentModal invoice={collect} onClose={() => { setCollect(null); qc.invalidateQueries({ queryKey: ["memberships"] }); }} />
-      <SellMembershipModal open={!!sell} mode={sell?.mode} membership={sell?.membership} onClose={() => setSell(null)} />
+      <PaymentModal
+        invoice={collect}
+        onClose={() => {
+          setCollect(null);
+          qc.invalidateQueries({ queryKey: ["memberships"] });
+        }}
+      />
+      <Modal
+        open={!!term}
+        title="Terminate membership"
+        subtitle={
+          term
+            ? `${term.memberId?.name} · ${term.planName || term.planId?.name}`
+            : ""
+        }
+        onClose={() => setTerm(null)}
+        footer={
+          <Btn
+            disabled={busy || reason.trim().length < 3}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await gym.memberships.cancel(term._id, {
+                  reason: reason.trim(),
+                });
+                setTerm(null);
+                qc.invalidateQueries({ queryKey: ["memberships"] });
+              } catch (e: any) {
+                setErr(e?.message || "Could not terminate");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? "Terminating…" : "Terminate"}
+          </Btn>
+        }
+      >
+        <label className="text-xs font-black uppercase">
+          Reason (required)
+        </label>
+        <textarea
+          className={inputCls + " mt-1 h-24"}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g. Moving city, medical, member request…"
+        />
+        {err && <p className="text-xs font-bold text-red-600 mt-2">{err}</p>}
+      </Modal>
+      <SellMembershipModal
+        open={!!sell}
+        mode={sell?.mode}
+        membership={sell?.membership}
+        onClose={() => setSell(null)}
+      />
     </AppLayout>
   );
 }

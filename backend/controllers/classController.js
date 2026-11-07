@@ -202,13 +202,11 @@ const bookClass = asyncHandler(async (req, res) => {
     booking,
     `${booking.status === "booked" ? "Booked" : "Waitlisted"} ${member.name} into ${cls.name}`,
   );
-  res
-    .status(201)
-    .json({
-      success: true,
-      data: booking,
-      waitlisted: booking.status === "waitlisted",
-    });
+  res.status(201).json({
+    success: true,
+    data: booking,
+    waitlisted: booking.status === "waitlisted",
+  });
 });
 
 // Cancelling frees the seat; the longest-waiting member is promoted automatically.

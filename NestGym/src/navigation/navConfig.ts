@@ -15,6 +15,7 @@ import {
   Receipt,
   Ruler,
   Settings,
+  Headphones,
   ShieldCheck,
   ShoppingBag,
   Tag,
@@ -75,6 +76,12 @@ const groups: NavGroup[] = [
         route: 'Memberships',
         icon: BadgeCheck,
         roles: [...DESK, 'trainer'],
+      },
+      {
+        title: 'Document Vault',
+        route: 'Vault',
+        icon: ShieldCheck,
+        roles: MANAGERS,
       },
       {
         title: 'Membership Plans',
@@ -193,6 +200,7 @@ const groups: NavGroup[] = [
         icon: Coins,
         roles: ['gym_owner', 'branch_manager'],
       },
+      { title: 'Support', route: 'Support', icon: Headphones, roles: ['gym_owner', 'branch_manager'] },
       { title: 'Security', route: 'Security', icon: ShieldCheck, roles: ALL },
       { title: 'Settings', route: 'Settings', icon: Settings, roles: ALL },
     ],

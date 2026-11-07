@@ -137,7 +137,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await authAPI.login(email, password);
       if (response.data?.requires2FA) {
-        return { success: false, requires2FA: true, pendingToken: response.data.pendingToken };
+        return {
+          success: false,
+          requires2FA: true,
+          pendingToken: response.data.pendingToken,
+        };
       }
       const { token, tenant: tenantData, ...userData } = response.data;
       setToken(token);

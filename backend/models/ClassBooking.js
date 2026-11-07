@@ -50,6 +50,9 @@ classBookingSchema.index(
   },
 );
 
-classBookingSchema.index({ paymentId: 1 }, { unique: true, partialFilterExpression: { paymentId: { $type: "string" } } });
+classBookingSchema.index(
+  { paymentId: 1 },
+  { unique: true, partialFilterExpression: { paymentId: { $type: "string" } } },
+);
 
 module.exports = mongoose.model("ClassBooking", classBookingSchema);

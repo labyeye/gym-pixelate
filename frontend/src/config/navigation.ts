@@ -25,6 +25,9 @@ import {
   Crown,
   UserCog,
   BadgeCheck,
+  UserCheck,
+  Headphones,
+  ShieldCheck,
 } from "lucide-react";
 
 export type NavIconComponent =
@@ -64,6 +67,18 @@ const allGroups: NavGroup[] = [
         icon: LayoutDashboard,
         roles: ALL_ROLES,
       },
+      {
+        title: "Attendance",
+        href: "/staff-attendance",
+        icon: UserCheck,
+        roles: [
+          "gym_owner",
+          "branch_manager",
+          "receptionist",
+          "trainer",
+          "accountant",
+        ],
+      },
     ],
   },
   {
@@ -80,6 +95,12 @@ const allGroups: NavGroup[] = [
         href: "/memberships",
         icon: BadgeCheck,
         roles: [...DESK, "trainer"],
+      },
+      {
+        title: "Document Vault",
+        href: "/vault",
+        icon: ShieldCheck,
+        roles: MANAGERS,
       },
       {
         title: "Membership Plans",
@@ -180,6 +201,12 @@ const allGroups: NavGroup[] = [
         icon: Crown,
         roles: ["gym_owner"],
       },
+      {
+        title: "Support",
+        href: "/support",
+        icon: Headphones,
+        roles: ["gym_owner", "branch_manager"],
+      },
       { title: "Settings", href: "/settings", icon: Settings, roles: MANAGERS },
     ],
   },
@@ -191,11 +218,16 @@ export function getNavForRole(role: UserRole) {
   return navItems.filter((item) => item.roles.includes(role));
 }
 
-export function getNavGroupsForRole(role: UserRole, modules?: ModuleFlags): NavGroup[] {
+export function getNavGroupsForRole(
+  role: UserRole,
+  modules?: ModuleFlags,
+): NavGroup[] {
   return allGroups
     .map((g) => ({
       ...g,
-      items: g.items.filter((item) => item.roles.includes(role) && pathEnabled(modules, item.href)),
+      items: g.items.filter(
+        (item) => item.roles.includes(role) && pathEnabled(modules, item.href),
+      ),
     }))
     .filter((g) => g.items.length > 0);
 }

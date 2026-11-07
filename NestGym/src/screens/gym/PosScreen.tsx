@@ -35,6 +35,7 @@ import {
   Package as StatPackage,
   ShoppingCart as StatShoppingCart,
 } from 'lucide-react-native';
+import { PurchasesTab, SalesTab } from './PosPurchases';
 import ExportSheet, { ExportSpec } from '../../components/ExportSheet';
 import { Download as ExportIcon } from 'lucide-react-native';
 
@@ -279,11 +280,19 @@ export default function PosScreen() {
         tabs={[
           { id: 'sell', label: 'Sell' },
           { id: 'stock', label: 'Inventory' },
+          { id: 'purchases', label: 'Purchases' },
+          { id: 'history', label: 'Sales history' },
         ]}
       />
-      <SearchBox value={q} onChange={setQ} placeholder="Search products…" />
+      {(tab === 'sell' || tab === 'stock') && (
+        <SearchBox value={q} onChange={setQ} placeholder="Search products…" />
+      )}
 
-      {loading && !data ? (
+      {tab === 'purchases' ? (
+        <PurchasesTab products={products} canWrite={canWrite} />
+      ) : tab === 'history' ? (
+        <SalesTab />
+      ) : loading && !data ? (
         <Loader />
       ) : products.length === 0 ? (
         <Empty text="No products yet — add some in Inventory" />

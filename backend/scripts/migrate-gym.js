@@ -10,15 +10,7 @@ async function migrate({
 } = {}) {
   const APPLY = apply;
   const M = (n) => require(`../models/${n}`);
-  const [
-    Invoice,
-    Member,
-    Membership,
-    MembershipPlan,
-    Tenant,
-    Counter,
-    User,
-  ] = [
+  const [Invoice, Member, Membership, MembershipPlan, Tenant, Counter, User] = [
     "Invoice",
     "Member",
     "Membership",

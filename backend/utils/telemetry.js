@@ -17,7 +17,23 @@ const TYPES = ["page", "crash", "error"];
 const DAY = 86400000;
 const RANGES = { "1h": 3600000, "24h": DAY, "7d": 7 * DAY, "30d": 30 * DAY };
 // Fields the dashboard can filter on and get a breakdown for.
-const DIMS = ["country", "region", "city", "isp", "browser", "os", "device", "ip", "tenantName", "tenantId", "userName", "userId", "role", "version", "path"];
+const DIMS = [
+  "country",
+  "region",
+  "city",
+  "isp",
+  "browser",
+  "os",
+  "device",
+  "ip",
+  "tenantName",
+  "tenantId",
+  "userName",
+  "userId",
+  "role",
+  "version",
+  "path",
+];
 const FILTERS = [...DIMS, "type"];
 
 const eventSchema = new mongoose.Schema({
@@ -63,36 +79,90 @@ const minuteSchema = new mongoose.Schema({
 });
 minuteSchema.index({ platform: 1, minute: 1 }, { unique: true });
 
-const Event = mongoose.models.UsageEvent || mongoose.model("UsageEvent", eventSchema);
-const Minute = mongoose.models.UsageMinute || mongoose.model("UsageMinute", minuteSchema);
+const Event =
+  mongoose.models.UsageEvent || mongoose.model("UsageEvent", eventSchema);
+const Minute =
+  mongoose.models.UsageMinute || mongoose.model("UsageMinute", minuteSchema);
 
 const clip = (v, n) => (v == null ? undefined : String(v).slice(0, n));
 const platformOf = (v) => (String(v).toLowerCase() === "app" ? "app" : "web");
 // Query-less path with ids collapsed, so /employees/64af... counts as /employees/:id.
 const normPath = (p) =>
-  String(p || "/").split("?")[0].split("#")[0].replace(/\/[a-f0-9]{24}(?=\/|$)/gi, "/:id").replace(/\/\d+(?=\/|$)/g, "/:id").slice(0, 120);
+  String(p || "/")
+    .split("?")[0]
+    .split("#")[0]
+    .replace(/\/[a-f0-9]{24}(?=\/|$)/gi, "/:id")
+    .replace(/\/\d+(?=\/|$)/g, "/:id")
+    .slice(0, 120);
 
 // ponytail: regex UA sniffing covers the common browsers/phones; swap for ua-parser-js if exact versions matter.
 const parseUA = (ua = "") => ({
-  browser: /Edg\//.test(ua) ? "Edge" : /OPR\/|Opera/.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\/|CriOS/.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : /okhttp/i.test(ua) ? "Android app" : /CFNetwork|Darwin/.test(ua) ? "iOS app" : "Other",
-  os: /Windows/.test(ua) ? "Windows" : /Android/.test(ua) ? "Android" : /iPhone|iPad|iOS|CFNetwork/.test(ua) ? "iOS" : /Mac OS X|Macintosh/.test(ua) ? "macOS" : /CrOS/.test(ua) ? "ChromeOS" : /Linux/.test(ua) ? "Linux" : "Other",
-  device: /iPad|Tablet/.test(ua) ? "Tablet" : /Mobi|Android|iPhone|okhttp|CFNetwork/.test(ua) ? "Mobile" : ua ? "Desktop" : "Other",
+  browser: /Edg\//.test(ua)
+    ? "Edge"
+    : /OPR\/|Opera/.test(ua)
+      ? "Opera"
+      : /Firefox\//.test(ua)
+        ? "Firefox"
+        : /Chrome\/|CriOS/.test(ua)
+          ? "Chrome"
+          : /Safari\//.test(ua)
+            ? "Safari"
+            : /okhttp/i.test(ua)
+              ? "Android app"
+              : /CFNetwork|Darwin/.test(ua)
+                ? "iOS app"
+                : "Other",
+  os: /Windows/.test(ua)
+    ? "Windows"
+    : /Android/.test(ua)
+      ? "Android"
+      : /iPhone|iPad|iOS|CFNetwork/.test(ua)
+        ? "iOS"
+        : /Mac OS X|Macintosh/.test(ua)
+          ? "macOS"
+          : /CrOS/.test(ua)
+            ? "ChromeOS"
+            : /Linux/.test(ua)
+              ? "Linux"
+              : "Other",
+  device: /iPad|Tablet/.test(ua)
+    ? "Tablet"
+    : /Mobi|Android|iPhone|okhttp|CFNetwork/.test(ua)
+      ? "Mobile"
+      : ua
+        ? "Desktop"
+        : "Other",
 });
 
 // IP -> location via ipwho.is (free, HTTPS, no key). One lookup per new IP, cached; failures retried after 10 min.
 // ponytail: external call + in-memory cache; swap for a local GeoLite2 file if volume or privacy needs it.
 const geoCache = new Map(); // ip -> [geo|null, expiresAt]
-const isPrivateIp = (ip) => !ip || /^(::1$|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|f[cd]|fe80)/i.test(ip);
+const isPrivateIp = (ip) =>
+  !ip ||
+  /^(::1$|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|f[cd]|fe80)/i.test(
+    ip,
+  );
 const geoFor = async (ip) => {
   if (isPrivateIp(ip) || typeof fetch !== "function") return null;
   const hit = geoCache.get(ip);
   if (hit && hit[1] > Date.now()) return hit[0];
   let g = null;
   try {
-    const r = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}?fields=success,country,region,city,latitude,longitude,connection,timezone`, { signal: AbortSignal.timeout(3000) });
+    const r = await fetch(
+      `https://ipwho.is/${encodeURIComponent(ip)}?fields=success,country,region,city,latitude,longitude,connection,timezone`,
+      { signal: AbortSignal.timeout(3000) },
+    );
     const j = await r.json();
     if (j && j.success)
-      g = { country: j.country, region: j.region, city: j.city, lat: j.latitude, lon: j.longitude, isp: j.connection && j.connection.isp, tz: j.timezone && j.timezone.id };
+      g = {
+        country: j.country,
+        region: j.region,
+        city: j.city,
+        lat: j.latitude,
+        lon: j.longitude,
+        isp: j.connection && j.connection.isp,
+        tz: j.timezone && j.timezone.id,
+      };
   } catch (e) {
     /* geo is best effort */
   }
@@ -126,14 +196,24 @@ const serverStats = async () => {
   let disk = null;
   try {
     const d = fs.statfsSync("/");
-    disk = { totalGb: Math.round((d.blocks * d.bsize) / 1e8) / 10, freeGb: Math.round((d.bavail * d.bsize) / 1e8) / 10 };
+    disk = {
+      totalGb: Math.round((d.blocks * d.bsize) / 1e8) / 10,
+      freeGb: Math.round((d.bavail * d.bsize) / 1e8) / 10,
+    };
   } catch (e) {
     /* statfs is Linux/Node 18.15+ */
   }
   let db = null;
   try {
     const st = await conn.db.stats();
-    db = { name: st.db, collections: st.collections, documents: st.objects, dataMb: mb(st.dataSize), storageMb: mb(st.storageSize), indexMb: mb(st.indexSize) };
+    db = {
+      name: st.db,
+      collections: st.collections,
+      documents: st.objects,
+      dataMb: mb(st.dataSize),
+      storageMb: mb(st.storageSize),
+      indexMb: mb(st.indexSize),
+    };
   } catch (e) {
     /* the db user may not be allowed dbStats */
   }
@@ -149,9 +229,21 @@ const serverStats = async () => {
     cpuProcessPct: cpuPct,
     loadAvg: os.loadavg().map((x) => Math.round(x * 100) / 100),
     eventLoopLagMs: lagMs,
-    memory: { rssMb: mb(m.rss), heapUsedMb: mb(m.heapUsed), heapTotalMb: mb(m.heapTotal), systemTotalMb: mb(os.totalmem()), systemFreeMb: mb(os.freemem()) },
+    memory: {
+      rssMb: mb(m.rss),
+      heapUsedMb: mb(m.heapUsed),
+      heapTotalMb: mb(m.heapTotal),
+      systemTotalMb: mb(os.totalmem()),
+      systemFreeMb: mb(os.freemem()),
+    },
     disk,
-    mongo: { state: ["disconnected", "connected", "connecting", "disconnecting"][conn.readyState] || "unknown", db },
+    mongo: {
+      state:
+        ["disconnected", "connected", "connecting", "disconnecting"][
+          conn.readyState
+        ] || "unknown",
+      db,
+    },
   };
 };
 
@@ -176,7 +268,16 @@ module.exports = (secretEnv) => {
         [...batch.values()].map((c) => ({
           updateOne: {
             filter: { minute: c.minute, platform: c.platform },
-            update: { $inc: { n: c.n, ok: c.ok, c4: c.c4, c5: c.c5, ms: c.ms, slow: c.slow } },
+            update: {
+              $inc: {
+                n: c.n,
+                ok: c.ok,
+                c4: c.c4,
+                c5: c.c5,
+                ms: c.ms,
+                slow: c.slow,
+              },
+            },
             upsert: true,
           },
         })),
@@ -189,13 +290,27 @@ module.exports = (secretEnv) => {
   setInterval(flush, 30000).unref();
 
   const middleware = (req, res, next) => {
-    if (!req.originalUrl.startsWith("/api/") || req.originalUrl.startsWith("/api/telemetry") || req.originalUrl.startsWith("/api/crm")) return next();
+    if (
+      !req.originalUrl.startsWith("/api/") ||
+      req.originalUrl.startsWith("/api/telemetry") ||
+      req.originalUrl.startsWith("/api/crm")
+    )
+      return next();
     const t0 = Date.now();
     res.on("finish", () => {
       const platform = platformOf(req.headers["x-client"]);
       const minute = new Date(Math.floor(t0 / 60000) * 60000);
       const key = `${platform}|${minute.getTime()}`;
-      const c = pending.get(key) || { minute, platform, n: 0, ok: 0, c4: 0, c5: 0, ms: 0, slow: 0 };
+      const c = pending.get(key) || {
+        minute,
+        platform,
+        n: 0,
+        ok: 0,
+        c4: 0,
+        c5: 0,
+        ms: 0,
+        slow: 0,
+      };
       const ms = Date.now() - t0;
       c.n++;
       c.ms += ms;
@@ -219,22 +334,35 @@ module.exports = (secretEnv) => {
       try {
         let hit = who.get(uid);
         if (!hit || hit[1] < Date.now()) {
-          const u = await User.findById(uid).select("name email tenantId company").lean();
+          const u = await User.findById(uid)
+            .select("name email tenantId company")
+            .lean();
           let info = null;
           if (u) {
             const org = u.tenantId || u.company;
             let orgName;
             if (org && Org) {
-              const o = await Org.findById(org).select("name companyName businessName").lean();
+              const o = await Org.findById(org)
+                .select("name companyName businessName")
+                .lean();
               orgName = o && (o.name || o.companyName || o.businessName);
             }
-            info = { userName: u.name, userEmail: u.email, ...(org ? { tenantId: String(org) } : {}), ...(orgName ? { tenantName: orgName } : {}) };
+            info = {
+              userName: u.name,
+              userEmail: u.email,
+              ...(org ? { tenantId: String(org) } : {}),
+              ...(orgName ? { tenantName: orgName } : {}),
+            };
           }
           if (who.size > 5000) who.clear();
           hit = [info, Date.now() + (info ? 6 * 3600000 : 600000)];
           who.set(uid, hit);
         }
-        if (hit[0]) await Event.updateMany({ _id: { $in: eventIds }, userId: uid }, { $set: hit[0] });
+        if (hit[0])
+          await Event.updateMany(
+            { _id: { $in: eventIds }, userId: uid },
+            { $set: hit[0] },
+          );
       } catch (e) {
         /* invalid id or lookup failed: leave the event as is */
       }
@@ -251,9 +379,19 @@ module.exports = (secretEnv) => {
     if (!h || now - h[1] > 60000) hits.set(ip, [1, now]);
     else if (++h[0] > 120) return res.status(429).json({ success: false });
     if (hits.size > 5000) hits.clear();
-    const list = Array.isArray(req.body?.events) ? req.body.events.slice(0, 20) : [];
+    const list = Array.isArray(req.body?.events)
+      ? req.body.events.slice(0, 20)
+      : [];
     const ua = clip(req.headers["user-agent"], 250) || "";
-    const env = { ip: clip(ip, 45), ua, lang: clip(String(req.headers["accept-language"] || "").split(",")[0], 12), ...parseUA(ua) };
+    const env = {
+      ip: clip(ip, 45),
+      ua,
+      lang: clip(
+        String(req.headers["accept-language"] || "").split(",")[0],
+        12,
+      ),
+      ...parseUA(ua),
+    };
     const docs = list
       .filter((e) => e && TYPES.includes(e.type))
       .map((e) => ({
@@ -268,11 +406,17 @@ module.exports = (secretEnv) => {
         version: clip(e.version, 20),
         ...env,
       }));
-    const saved = docs.length ? await Event.insertMany(docs, { ordered: false }).catch(() => []) : [];
+    const saved = docs.length
+      ? await Event.insertMany(docs, { ordered: false }).catch(() => [])
+      : [];
     res.json({ success: true });
     if (saved.length) {
       const ids = saved.map((d) => d._id);
-      geoFor(ip).then((g) => g && Event.updateMany({ _id: { $in: ids } }, { $set: g }).catch(() => {}));
+      geoFor(ip).then(
+        (g) =>
+          g &&
+          Event.updateMany({ _id: { $in: ids } }, { $set: g }).catch(() => {}),
+      );
       enrich([...new Set(saved.map((d) => d.userId).filter(Boolean))], ids);
     }
   });
@@ -289,48 +433,120 @@ module.exports = (secretEnv) => {
       const filters = {};
       for (const k of FILTERS) {
         const v = req.query[k];
-        if (typeof v === "string" && v) filters[k] = v === "Unknown" ? null : v.slice(0, 120);
+        if (typeof v === "string" && v)
+          filters[k] = v === "Unknown" ? null : v.slice(0, 120);
       }
       const base = { platform, ...filters };
       const inRange = { ...base, ts: { $gte: since(RANGES[range]) } };
       const distinctUsers = async (ms) =>
-        (await Event.distinct("userId", { ...base, ts: { $gte: since(ms) }, userId: { $ne: null } })).length;
+        (
+          await Event.distinct("userId", {
+            ...base,
+            ts: { $gte: since(ms) },
+            userId: { $ne: null },
+          })
+        ).length;
       const User = mongoose.models.User;
       const facet = { total: [{ $count: "n" }] };
       for (const d of DIMS)
         facet[d] = [
-          { $group: { _id: { $ifNull: [`$${d}`, "Unknown"] }, events: { $sum: 1 }, users: { $addToSet: "$userId" } } },
-          { $project: { events: 1, users: { $size: { $setDifference: ["$users", [null]] } } } },
+          {
+            $group: {
+              _id: { $ifNull: [`$${d}`, "Unknown"] },
+              events: { $sum: 1 },
+              users: { $addToSet: "$userId" },
+            },
+          },
+          {
+            $project: {
+              events: 1,
+              users: { $size: { $setDifference: ["$users", [null]] } },
+            },
+          },
           { $sort: { events: -1 } },
           { $limit: 15 },
         ];
-      const liveMin = [5, 10, 15, 30, 60].includes(+req.query.liveMin) ? +req.query.liveMin : 10;
+      const liveMin = [5, 10, 15, 30, 60].includes(+req.query.liveMin)
+        ? +req.query.liveMin
+        : 10;
       const [live, server, series] = await Promise.all([
         Event.aggregate([
-          { $match: { ...base, type: "page", ts: { $gte: since(liveMin * 60000) } } },
+          {
+            $match: {
+              ...base,
+              type: "page",
+              ts: { $gte: since(liveMin * 60000) },
+            },
+          },
           { $sort: { ts: -1 } },
-          { $group: { _id: { $ifNull: ["$userId", "$ip"] }, last: { $first: "$$ROOT" }, since: { $min: "$ts" }, pages: { $sum: 1 } } },
+          {
+            $group: {
+              _id: { $ifNull: ["$userId", "$ip"] },
+              last: { $first: "$$ROOT" },
+              since: { $min: "$ts" },
+              pages: { $sum: 1 },
+            },
+          },
           { $sort: { "last.ts": -1 } },
           { $limit: 500 },
         ]),
         serverStats(),
-        Minute.find({ platform, minute: { $gte: since(3600000) } }).sort({ minute: 1 }).select("minute n c5 ms -_id").lean(),
+        Minute.find({ platform, minute: { $gte: since(3600000) } })
+          .sort({ minute: 1 })
+          .select("minute n c5 ms -_id")
+          .lean(),
       ]);
       const online = live.map((r) => ({
-        who: r.last.userName || r.last.userEmail || r.last.userId || "Anonymous visitor",
-        userId: r.last.userId, email: r.last.userEmail, role: r.last.role, company: r.last.tenantName || r.last.tenantId,
-        screen: r.last.path, lastSeen: r.last.ts, since: r.since, pagesViewed: r.pages,
-        ip: r.last.ip, city: r.last.city, region: r.last.region, country: r.last.country, isp: r.last.isp,
-        lat: r.last.lat, lon: r.last.lon, browser: r.last.browser, os: r.last.os, device: r.last.device, version: r.last.version,
+        who:
+          r.last.userName ||
+          r.last.userEmail ||
+          r.last.userId ||
+          "Anonymous visitor",
+        userId: r.last.userId,
+        email: r.last.userEmail,
+        role: r.last.role,
+        company: r.last.tenantName || r.last.tenantId,
+        screen: r.last.path,
+        lastSeen: r.last.ts,
+        since: r.since,
+        pagesViewed: r.pages,
+        ip: r.last.ip,
+        city: r.last.city,
+        region: r.last.region,
+        country: r.last.country,
+        isp: r.last.isp,
+        lat: r.last.lat,
+        lon: r.last.lon,
+        browser: r.last.browser,
+        os: r.last.os,
+        device: r.last.device,
+        version: r.last.version,
       }));
       const screens = new Map();
       for (const o of online) {
-        const e = screens.get(o.screen) || { screen: o.screen, people: 0, names: [] };
+        const e = screens.get(o.screen) || {
+          screen: o.screen,
+          people: 0,
+          names: [],
+        };
         e.people++;
         if (e.names.length < 8) e.names.push(o.who);
         screens.set(o.screen, e);
       }
-      const [activeNow, active24h, active7d, active30d, totalUsers, topPages, hourly, crashes, crashCount, api, fac, events] = await Promise.all([
+      const [
+        activeNow,
+        active24h,
+        active7d,
+        active30d,
+        totalUsers,
+        topPages,
+        hourly,
+        crashes,
+        crashCount,
+        api,
+        fac,
+        events,
+      ] = await Promise.all([
         distinctUsers(5 * 60000),
         distinctUsers(DAY),
         distinctUsers(7 * DAY),
@@ -338,7 +554,13 @@ module.exports = (secretEnv) => {
         User ? User.countDocuments() : 0,
         Event.aggregate([
           { $match: { ...inRange, type: "page" } },
-          { $group: { _id: "$path", views: { $sum: 1 }, users: { $addToSet: "$userId" } } },
+          {
+            $group: {
+              _id: "$path",
+              views: { $sum: 1 },
+              users: { $addToSet: "$userId" },
+            },
+          },
           { $project: { views: 1, users: { $size: "$users" } } },
           { $sort: { views: -1 } },
           { $limit: 20 },
@@ -347,42 +569,103 @@ module.exports = (secretEnv) => {
           { $match: inRange },
           {
             $group: {
-              _id: { $dateToString: { format: RANGES[range] > 2 * DAY ? "%Y-%m-%dT00:00:00Z" : "%Y-%m-%dT%H:00:00Z", date: "$ts" } },
+              _id: {
+                $dateToString: {
+                  format:
+                    RANGES[range] > 2 * DAY
+                      ? "%Y-%m-%dT00:00:00Z"
+                      : "%Y-%m-%dT%H:00:00Z",
+                  date: "$ts",
+                },
+              },
               views: { $sum: { $cond: [{ $eq: ["$type", "page"] }, 1, 0] } },
               crashes: { $sum: { $cond: [{ $eq: ["$type", "page"] }, 0, 1] } },
             },
           },
           { $sort: { _id: 1 } },
         ]),
-        Event.find({ ...base, type: { $in: ["crash", "error"] } }).sort({ ts: -1 }).limit(25).select("-__v").lean(),
+        Event.find({ ...base, type: { $in: ["crash", "error"] } })
+          .sort({ ts: -1 })
+          .limit(25)
+          .select("-__v")
+          .lean(),
         Event.countDocuments({ ...inRange, type: { $in: ["crash", "error"] } }),
         Minute.aggregate([
           { $match: { platform, minute: { $gte: since(RANGES[range]) } } },
-          { $group: { _id: null, n: { $sum: "$n" }, ok: { $sum: "$ok" }, c4: { $sum: "$c4" }, c5: { $sum: "$c5" }, ms: { $sum: "$ms" }, slow: { $sum: "$slow" } } },
+          {
+            $group: {
+              _id: null,
+              n: { $sum: "$n" },
+              ok: { $sum: "$ok" },
+              c4: { $sum: "$c4" },
+              c5: { $sum: "$c5" },
+              ms: { $sum: "$ms" },
+              slow: { $sum: "$slow" },
+            },
+          },
         ]),
         Event.aggregate([{ $match: inRange }, { $facet: facet }]),
-        Event.find(inRange).sort({ ts: -1 }).limit(100).select("-__v -stack").lean(),
+        Event.find(inRange)
+          .sort({ ts: -1 })
+          .limit(100)
+          .select("-__v -stack")
+          .lean(),
       ]);
       const a = api[0] || { n: 0, ok: 0, c4: 0, c5: 0, ms: 0, slow: 0 };
       const f = fac[0] || {};
       const breakdowns = {};
-      for (const d of DIMS) breakdowns[d] = (f[d] || []).map((r) => ({ value: r._id, events: r.events, users: r.users }));
+      for (const d of DIMS)
+        breakdowns[d] = (f[d] || []).map((r) => ({
+          value: r._id,
+          events: r.events,
+          users: r.users,
+        }));
       res.json({
         success: true,
         platform,
         range,
-        filters: Object.fromEntries(Object.entries(filters).map(([k, v]) => [k, v === null ? "Unknown" : v])),
+        filters: Object.fromEntries(
+          Object.entries(filters).map(([k, v]) => [
+            k,
+            v === null ? "Unknown" : v,
+          ]),
+        ),
         generatedAt: new Date(),
         totalEvents: (f.total && f.total[0] && f.total[0].n) || 0,
-        users: { total: totalUsers, activeNow, active24h, active7d, active30d, inactive30d: Math.max(0, totalUsers - active30d) },
-        topPages: topPages.map((p) => ({ path: p._id, views: p.views, users: p.users })),
-        hourly: hourly.map((h) => ({ hour: h._id, views: h.views, crashes: h.crashes })),
+        users: {
+          total: totalUsers,
+          activeNow,
+          active24h,
+          active7d,
+          active30d,
+          inactive30d: Math.max(0, totalUsers - active30d),
+        },
+        topPages: topPages.map((p) => ({
+          path: p._id,
+          views: p.views,
+          users: p.users,
+        })),
+        hourly: hourly.map((h) => ({
+          hour: h._id,
+          views: h.views,
+          crashes: h.crashes,
+        })),
         crashes: { last24h: crashCount, recent: crashes },
         breakdowns,
         events,
-        live: { windowMin: liveMin, total: online.length, byScreen: [...screens.values()].sort((a, b) => b.people - a.people), online },
+        live: {
+          windowMin: liveMin,
+          total: online.length,
+          byScreen: [...screens.values()].sort((a, b) => b.people - a.people),
+          online,
+        },
         server,
-        apiSeries: series.map((m) => ({ minute: m.minute, requests: m.n, errors5xx: m.c5, avgMs: m.n ? Math.round(m.ms / m.n) : 0 })),
+        apiSeries: series.map((m) => ({
+          minute: m.minute,
+          requests: m.n,
+          errors5xx: m.c5,
+          avgMs: m.n ? Math.round(m.ms / m.n) : 0,
+        })),
         api: {
           requests24h: a.n,
           successRate: a.n ? Math.round((a.ok / a.n) * 1000) / 10 : null,

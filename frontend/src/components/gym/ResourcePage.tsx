@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useNotify } from "@/components/ui/Notification";
+import { useNotify, useConfirm } from "@/components/ui/Notification";
 import { usePermission } from "@/hooks/usePermission";
 import {
   PhoneField,
@@ -122,6 +122,7 @@ const LINKED = ["member", "trainer", "plan", "class", "photo"];
 
 export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
   const notify = useNotify();
+  const { confirm, message } = useConfirm();
   const qc = useQueryClient();
   const { can } = usePermission();
   const [q, setQ] = useState("");
@@ -182,6 +183,14 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
       if (v === "" && f.type !== "checkbox") v = undefined;
       setPath(body, f.key, v);
     }
+    const isNew = editing === "new";
+    if (
+      !(await confirm({
+        title: isNew ? `Add ${p.noun}?` : `Save changes to this ${p.noun}?`,
+        confirmText: isNew ? "Add" : "Save",
+      }))
+    )
+      return;
     try {
       setSaving(true);
       const payload = p.toPayload ? p.toPayload(body) : body;
@@ -193,21 +202,28 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
       setEditing(null);
       refresh();
     } catch (err: any) {
-      notify.error("Save failed", err.message);
+      message("Save failed", err.message, "error");
     } finally {
       setSaving(false);
     }
   };
 
   const remove = async (row: any) => {
-    if (!window.confirm(`Delete this ${p.noun}? This cannot be undone.`))
+    if (
+      !(await confirm({
+        title: `Delete this ${p.noun}?`,
+        message: "This cannot be undone.",
+        confirmText: "Delete",
+        tone: "danger",
+      }))
+    )
       return;
     try {
       await p.api.remove(row._id);
       notify.success(`${p.noun} deleted`);
       refresh();
     } catch (err: any) {
-      notify.error("Delete failed", err.message);
+      message("Delete failed", err.message, "error");
     }
   };
 
@@ -221,8 +237,7 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
       if (f.type === "number") v = Number(v);
       else if (f.type === "date" || f.type === "datetime")
         v = new Date(v).toISOString();
-      else if (f.type === "checkbox")
-        v = /^(true|yes|1|y)$/i.test(String(v));
+      else if (f.type === "checkbox") v = /^(true|yes|1|y)$/i.test(String(v));
       setPath(body, f.key, v);
     }
     return p.api.create(p.toPayload ? p.toPayload(body) : body);
@@ -261,7 +276,13 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
         );
       case "combo":
         return (
-          <Field key={f.key} label={f.label} required={f.required} hint={f.hint} className={span}>
+          <Field
+            key={f.key}
+            label={f.label}
+            required={f.required}
+            hint={f.hint}
+            className={span}
+          >
             <input
               className={inputCls}
               list={`dl-${f.key}`}

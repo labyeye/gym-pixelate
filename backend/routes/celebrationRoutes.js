@@ -9,25 +9,49 @@ const { protect } = require("../middleware/auth");
 // Queries are tenant-scoped by the tenant-scope plugin (protect runs the request inside runWithTenant).
 router.get("/", protect, async (req, res, next) => {
   try {
-    if (req.user.role === "member") return res.json({ success: true, data: [] });
+    if (req.user.role === "member")
+      return res.json({ success: true, data: [] });
     const ist = new Date(Date.now() + 5.5 * 3600 * 1000);
     const m = ist.getUTCMonth();
     const d = ist.getUTCDate();
-    const on = (dt) => dt && new Date(dt).getUTCMonth() === m && new Date(dt).getUTCDate() === d;
+    const on = (dt) =>
+      dt && new Date(dt).getUTCMonth() === m && new Date(dt).getUTCDate() === d;
     const [staff, members] = await Promise.all([
-      User.find({ status: "active", role: { $ne: "member" } }).select("name avatar trainerProfile.dob").lean(),
-      Member.find({ status: "active" }).select("name photo dob anniversary").lean(),
+      User.find({ status: "active", role: { $ne: "member" } })
+        .select("name avatar trainerProfile.dob")
+        .lean(),
+      Member.find({ status: "active" })
+        .select("name photo dob anniversary")
+        .lean(),
     ]);
     const data = [];
     for (const u of staff) {
       const p = u.trainerProfile || {};
       const base = { name: u.name, avatar: u.avatar, who: "Team" };
-      if (on(p.dob)) data.push({ ...base, id: `sb-${u._id}`, kind: "birthday", detail: "Birthday today" });
+      if (on(p.dob))
+        data.push({
+          ...base,
+          id: `sb-${u._id}`,
+          kind: "birthday",
+          detail: "Birthday today",
+        });
     }
     for (const mem of members) {
       const base = { name: mem.name, avatar: mem.photo, who: "Member" };
-      if (on(mem.dob)) data.push({ ...base, id: `mb-${mem._id}`, kind: "birthday", detail: "Member birthday today" });
-      if (on(mem.anniversary)) data.push({ ...base, id: `ma-${mem._id}`, kind: "anniversary", detail: "Marriage anniversary today" });
+      if (on(mem.dob))
+        data.push({
+          ...base,
+          id: `mb-${mem._id}`,
+          kind: "birthday",
+          detail: "Member birthday today",
+        });
+      if (on(mem.anniversary))
+        data.push({
+          ...base,
+          id: `ma-${mem._id}`,
+          kind: "anniversary",
+          detail: "Marriage anniversary today",
+        });
     }
     res.json({ success: true, data });
   } catch (e) {

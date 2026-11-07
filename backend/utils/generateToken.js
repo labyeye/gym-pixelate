@@ -10,10 +10,15 @@ const generateToken = (id, sid) =>
 // Proof that the password step succeeded, spent on /auth/2fa/verify. Never a session: `protect` rejects any
 // token that carries a `purpose` claim.
 const generatePendingToken = (id) =>
-  jwt.sign({ id, purpose: "2fa" }, process.env.JWT_SECRET, { expiresIn: "5m", algorithm: "HS256" });
+  jwt.sign({ id, purpose: "2fa" }, process.env.JWT_SECRET, {
+    expiresIn: "5m",
+    algorithm: "HS256",
+  });
 
 const verifyPendingToken = (token) => {
-  const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+  const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+    algorithms: ["HS256"],
+  });
   if (decoded.purpose !== "2fa") throw new Error("Wrong token purpose");
   return decoded;
 };

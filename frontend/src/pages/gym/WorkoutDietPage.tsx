@@ -9,10 +9,12 @@ import {
   Apple,
   Dumbbell,
   ClipboardList,
+  FileDown,
+  MessageCircle,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { gym } from "@/services/gymApi";
-import { useNotify } from "@/components/ui/Notification";
+import { useNotify, useConfirm } from "@/components/ui/Notification";
 import { usePermission } from "@/hooks/usePermission";
 import {
   ActionButton,
@@ -38,6 +40,8 @@ import {
 } from "@/components/gym/kit";
 import { MemberPicker, useTrainers } from "@/components/gym/pickers";
 import { ExportImport } from "@/components/gym/ExportImport";
+import { settingsAPI } from "@/services/api";
+import { openPlanPdf, sendPlanOnWhatsApp } from "@/lib/planPdf";
 
 const GOALS = [
   "weight_loss",
@@ -118,6 +122,7 @@ const D0 = {
 
 export default function WorkoutDietPage() {
   const notify = useNotify();
+  const { confirm, message } = useConfirm();
   const qc = useQueryClient();
   const { can } = usePermission();
   const trainers = useTrainers();
@@ -128,7 +133,21 @@ export default function WorkoutDietPage() {
   const [d, setD] = useState<any>(D0);
   const [busy, setBusy] = useState(false);
 
+  const settingsQ = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => settingsAPI.get(),
+  });
+  const settings = settingsQ.data?.data;
   const api = tab === "workout" ? gym.workouts : gym.diets;
+  // PDF in the gym's own chart design / the same PDF on the member's WhatsApp
+  const pdfOf = (r: any) =>
+    openPlanPdf(tab as "workout" | "diet", r, settings).catch((e) =>
+      notify.error("Could not make the PDF", e.message),
+    );
+  const waOf = (r: any, pre?: Window | null) =>
+    sendPlanOnWhatsApp(tab as "workout" | "diet", r, settings, pre).catch((e) =>
+      notify.error("Could not send", e.message),
+    );
   const { data, isLoading } = useQuery({
     queryKey: ["plans-" + tab, view],
     queryFn: () =>
@@ -157,9 +176,12 @@ export default function WorkoutDietPage() {
   const importRow = async (r: Record<string, any>) => {
     let memberId: string | undefined;
     if (r["Member ID"]) {
-      const m = (await gym.members.list({ search: String(r["Member ID"]).trim(), limit: 5 })).data.find(
-        (x: any) => x.memberCode === String(r["Member ID"]).trim(),
-      );
+      const m = (
+        await gym.members.list({
+          search: String(r["Member ID"]).trim(),
+          limit: 5,
+        })
+      ).data.find((x: any) => x.memberCode === String(r["Member ID"]).trim());
       if (!m) throw new Error(`Member ${r["Member ID"]} not found`);
       memberId = m._id;
     }
@@ -171,7 +193,11 @@ export default function WorkoutDietPage() {
       isTemplate: !memberId,
       ...(tab === "workout"
         ? { weeks: Number(r.Weeks) || 4, days: [] }
-        : { targetCalories: Number(r.Calories) || undefined, targetProteinG: Number(r.Protein) || undefined, meals: [] }),
+        : {
+            targetCalories: Number(r.Calories) || undefined,
+            targetProteinG: Number(r.Protein) || undefined,
+            meals: [],
+          }),
     });
   };
   const refresh = () => qc.invalidateQueries({ queryKey: ["plans-" + tab] });
@@ -226,7 +252,8 @@ export default function WorkoutDietPage() {
 
   const num = (v: any) =>
     v === "" || v === undefined || v === null ? undefined : Number(v);
-  const save = async () => {
+  const save = async (sendAfter = false) => {
+    const waTab = sendAfter ? window.open("", "_blank") : null; // opened inside the click so it is not blocked
     try {
       setBusy(true);
       let body: any;
@@ -283,13 +310,31 @@ export default function WorkoutDietPage() {
         if (!d.isTemplate && !body.memberId)
           throw new Error("Pick a member, or tick 'Save as template'");
       }
+      if (
+        !(await confirm({
+          title:
+            edit === "new"
+              ? `Add this ${tab} plan?`
+              : "Save changes to this plan?",
+          confirmText: edit === "new" ? "Add" : "Save",
+        }))
+      ) {
+        waTab?.close();
+        return;
+      }
       if (edit === "new") await api.create(body);
       else await api.update(edit._id, body);
       notify.success("Plan saved");
       setEdit(null);
       refresh();
+      if (sendAfter)
+        await waOf(
+          { ...body, memberId: tab === "workout" ? w.member : d.member },
+          waTab,
+        );
     } catch (e: any) {
-      notify.error("Could not save", e.message);
+      waTab?.close();
+      message("Could not save", e.message, "error");
     } finally {
       setBusy(false);
     }
@@ -370,16 +415,31 @@ export default function WorkoutDietPage() {
             rows={rows}
             cols={[
               { header: "Plan", value: (r: any) => r.name },
-              { header: "Member ID", value: (r: any) => r.memberId?.memberCode },
+              {
+                header: "Member ID",
+                value: (r: any) => r.memberId?.memberCode,
+              },
               { header: "Member", value: (r: any) => r.memberId?.name },
               { header: "Goal", value: (r: any) => titleCase(r.goal) },
               { header: "Trainer", value: (r: any) => r.trainerId?.name },
-              { header: "Template", value: (r: any) => (r.isTemplate ? "Yes" : "No") },
-              { header: "Updated", value: (r: any) => (r.updatedAt || "").slice(0, 10) },
+              {
+                header: "Template",
+                value: (r: any) => (r.isTemplate ? "Yes" : "No"),
+              },
+              {
+                header: "Updated",
+                value: (r: any) => (r.updatedAt || "").slice(0, 10),
+              },
             ]}
             importTemplate={{
-              headers: tab === "workout" ? ["Plan", "Member ID", "Goal", "Weeks"] : ["Plan", "Member ID", "Goal", "Calories", "Protein"],
-              example: tab === "workout" ? ["Push Pull Legs", "GYM-00001", "muscle_gain", 8] : ["Cutting diet", "GYM-00001", "weight_loss", 1800, 130],
+              headers:
+                tab === "workout"
+                  ? ["Plan", "Member ID", "Goal", "Weeks"]
+                  : ["Plan", "Member ID", "Goal", "Calories", "Protein"],
+              example:
+                tab === "workout"
+                  ? ["Push Pull Legs", "GYM-00001", "muscle_gain", 8]
+                  : ["Cutting diet", "GYM-00001", "weight_loss", 1800, 130],
             }}
             onImportRow={can("WorkoutPlans", "create") ? importRow : undefined}
             onImported={refresh}
@@ -392,17 +452,42 @@ export default function WorkoutDietPage() {
         </div>
       </div>
       <div className="flex flex-col sm:flex-row gap-2 mb-5">
-        <SearchBox value={q} onChange={setQ} placeholder="Plan, member name or ID…" />
-        <select className={inputCls + " sm:w-44 font-bold"} value={goalF} onChange={(e) => setGoalF(e.target.value)}>
+        <SearchBox
+          value={q}
+          onChange={setQ}
+          placeholder="Plan, member name or ID…"
+        />
+        <select
+          className={inputCls + " sm:w-44 font-bold"}
+          value={goalF}
+          onChange={(e) => setGoalF(e.target.value)}
+        >
           <option value="">Goal: all</option>
-          {["weight_loss", "muscle_gain", "strength", "endurance", "flexibility", "general_fitness", "rehab", "sports"].map((g) => (
-            <option key={g} value={g}>{titleCase(g)}</option>
+          {[
+            "weight_loss",
+            "muscle_gain",
+            "strength",
+            "endurance",
+            "flexibility",
+            "general_fitness",
+            "rehab",
+            "sports",
+          ].map((g) => (
+            <option key={g} value={g}>
+              {titleCase(g)}
+            </option>
           ))}
         </select>
-        <select className={inputCls + " sm:w-44 font-bold"} value={trainerF} onChange={(e) => setTrainerF(e.target.value)}>
+        <select
+          className={inputCls + " sm:w-44 font-bold"}
+          value={trainerF}
+          onChange={(e) => setTrainerF(e.target.value)}
+        >
           <option value="">Trainer: all</option>
           {trainers.map((t: any) => (
-            <option key={t.value} value={t.value}>{t.label}</option>
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
           ))}
         </select>
       </div>
@@ -430,7 +515,9 @@ export default function WorkoutDietPage() {
               )}
             </Td>
             <Td className="text-xs font-bold whitespace-nowrap">
-              {r.memberId?.memberCode || <span className="text-black/30">—</span>}
+              {r.memberId?.memberCode || (
+                <span className="text-black/30">—</span>
+              )}
             </Td>
             <Td>
               {r.memberId ? (
@@ -439,9 +526,7 @@ export default function WorkoutDietPage() {
                 <span className="text-black/30">—</span>
               )}
             </Td>
-            <Td className="capitalize text-xs">
-              {titleCase(r.goal) || "—"}
-            </Td>
+            <Td className="capitalize text-xs">{titleCase(r.goal) || "—"}</Td>
             <Td className="text-xs">{r.trainerId?.name || "—"}</Td>
             <Td className="text-xs font-bold">
               {tab === "workout"
@@ -451,6 +536,18 @@ export default function WorkoutDietPage() {
             <Td className="text-xs font-bold">{fmtDate(r.updatedAt)}</Td>
             <Td>
               <RowActions>
+                <ActionButton
+                  label="Download PDF"
+                  icon={FileDown}
+                  onClick={() => pdfOf(r)}
+                />
+                {r.memberId?.phone && (
+                  <ActionButton
+                    label="Send on WhatsApp"
+                    icon={MessageCircle}
+                    onClick={() => waOf(r)}
+                  />
+                )}
                 <ActionButton
                   label="Copy to a member / new plan"
                   icon={Copy}
@@ -469,7 +566,13 @@ export default function WorkoutDietPage() {
                     icon={Trash2}
                     tone="danger"
                     onClick={async () => {
-                      if (window.confirm(`Delete "${r.name}"?`)) {
+                      if (
+                        await confirm({
+                          title: `Delete "${r.name}"?`,
+                          confirmText: "Delete",
+                          tone: "danger",
+                        })
+                      ) {
                         await api.remove(r._id);
                         refresh();
                       }
@@ -492,9 +595,15 @@ export default function WorkoutDietPage() {
             <Btn light onClick={() => setEdit(null)}>
               Cancel
             </Btn>
-            <Btn busy={busy} onClick={save}>
+            <Btn busy={busy} onClick={() => save()}>
               Save plan
             </Btn>
+            {!(tab === "workout" ? w.isTemplate : d.isTemplate) &&
+              (tab === "workout" ? w.member : d.member)?.phone && (
+                <Btn busy={busy} onClick={() => save(true)}>
+                  <MessageCircle className="w-4 h-4" /> Save & send on WhatsApp
+                </Btn>
+              )}
           </>
         }
       >

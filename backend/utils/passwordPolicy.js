@@ -15,12 +15,46 @@ const HISTORY_KEEP = 5;
 
 // Matched anywhere in the password (letters/digits only, lower-cased).
 const COMMON_CONTAINS = [
-  "password", "passw0rd", "qwerty", "asdfgh", "zxcvbn", "letmein", "welcome", "iloveyou", "monkey", "dragon",
-  "football", "baseball", "sunshine", "princess", "superman", "trustno1", "changeme", "default", "secret",
-  "admin", "pixelate", "nesthr", "nestgym", "nestleads", "nestacademy",
+  "password",
+  "passw0rd",
+  "qwerty",
+  "asdfgh",
+  "zxcvbn",
+  "letmein",
+  "welcome",
+  "iloveyou",
+  "monkey",
+  "dragon",
+  "football",
+  "baseball",
+  "sunshine",
+  "princess",
+  "superman",
+  "trustno1",
+  "changeme",
+  "default",
+  "secret",
+  "admin",
+  "pixelate",
+  "nesthr",
+  "nestgym",
+  "nestleads",
+  "nestacademy",
 ];
 // Only rejected when this is all the letters in the password (e.g. "Admin@1" but not "Admiral@7").
-const COMMON_EXACT = ["root", "user", "test", "login", "abc", "pass", "guest", "demo", "temp", "qaz", "xyz"];
+const COMMON_EXACT = [
+  "root",
+  "user",
+  "test",
+  "login",
+  "abc",
+  "pass",
+  "guest",
+  "demo",
+  "temp",
+  "qaz",
+  "xyz",
+];
 
 const seq = (s, len, digits) => {
   const re = digits ? /\d/ : /[a-z]/;
@@ -37,17 +71,38 @@ const seq = (s, len, digits) => {
 
 // Each rule: id, label shown in the apps, test. Keep wording identical to the apps' checklist.
 const RULES = [
-  { id: "length", label: "At least 8 characters", test: (p) => p.length >= 8 && p.length <= 128 },
-  { id: "upper", label: "An uppercase letter (A–Z)", test: (p) => /[A-Z]/.test(p) },
-  { id: "lower", label: "A lowercase letter (a–z)", test: (p) => /[a-z]/.test(p) },
+  {
+    id: "length",
+    label: "At least 8 characters",
+    test: (p) => p.length >= 8 && p.length <= 128,
+  },
+  {
+    id: "upper",
+    label: "An uppercase letter (A–Z)",
+    test: (p) => /[A-Z]/.test(p),
+  },
+  {
+    id: "lower",
+    label: "A lowercase letter (a–z)",
+    test: (p) => /[a-z]/.test(p),
+  },
   { id: "number", label: "A number (0–9)", test: (p) => /\d/.test(p) },
-  { id: "special", label: "A special character (! @ # $ …)", test: (p) => /[^A-Za-z0-9]/.test(p) },
+  {
+    id: "special",
+    label: "A special character (! @ # $ …)",
+    test: (p) => /[^A-Za-z0-9]/.test(p),
+  },
   {
     id: "series",
     label: "No simple series like 1234, 4321, abcd or 1111",
     test: (p) => {
       const s = p.toLowerCase();
-      return !(seq(s, 3, true) || seq(s, 4, false) || /(.)\1{3,}/.test(s) || /(\d)\1{2,}/.test(s));
+      return !(
+        seq(s, 3, true) ||
+        seq(s, 4, false) ||
+        /(.)\1{3,}/.test(s) ||
+        /(\d)\1{2,}/.test(s)
+      );
     },
   },
   {
@@ -56,7 +111,10 @@ const RULES = [
     test: (p) => {
       const s = p.toLowerCase().replace(/[^a-z0-9]/g, "");
       const letters = p.toLowerCase().replace(/[^a-z]/g, "");
-      return !(COMMON_CONTAINS.some((w) => s.includes(w)) || COMMON_EXACT.includes(letters));
+      return !(
+        COMMON_CONTAINS.some((w) => s.includes(w)) ||
+        COMMON_EXACT.includes(letters)
+      );
     },
   },
 ];
@@ -65,7 +123,9 @@ const RULES = [
 function checkPasswordRules(password) {
   if (typeof password !== "string") return "Password is required";
   const broken = RULES.find((r) => !r.test(password));
-  return broken ? `Password needs: ${broken.label.charAt(0).toLowerCase()}${broken.label.slice(1)}` : null;
+  return broken
+    ? `Password needs: ${broken.label.charAt(0).toLowerCase()}${broken.label.slice(1)}`
+    : null;
 }
 
 const REUSED_MSG = `You have used this password before. Choose one that is not among your last ${HISTORY_KEEP} passwords.`;
@@ -94,7 +154,11 @@ function generatePassword(length = 14) {
 function addPasswordPolicy(schema) {
   schema.add({
     // hashes of earlier passwords, newest first
-    passwordHistory: { type: [{ hash: String, at: { type: Date, default: Date.now } }], default: [], select: false },
+    passwordHistory: {
+      type: [{ hash: String, at: { type: Date, default: Date.now } }],
+      default: [],
+      select: false,
+    },
   });
 
   schema.pre("validate", async function () {
@@ -104,11 +168,17 @@ function addPasswordPolicy(schema) {
     const msg = checkPasswordRules(plain);
     if (msg) return this.invalidate("password", msg, plain);
     if (this.isNew) return;
-    const cur = await this.constructor.findById(this._id).select("+password +passwordHistory");
+    const cur = await this.constructor
+      .findById(this._id)
+      .select("+password +passwordHistory");
     if (!cur?.password) return;
-    const hashes = [cur.password, ...(cur.passwordHistory || []).map((h) => h.hash)];
+    const hashes = [
+      cur.password,
+      ...(cur.passwordHistory || []).map((h) => h.hash),
+    ];
     for (const h of hashes) {
-      if (h && (await bcrypt.compare(plain, h))) return this.invalidate("password", REUSED_MSG, plain);
+      if (h && (await bcrypt.compare(plain, h)))
+        return this.invalidate("password", REUSED_MSG, plain);
     }
     // remembered for the save hook below: the hash being replaced goes into the history
     this.$locals.replacedPassword = cur.password;
@@ -118,10 +188,20 @@ function addPasswordPolicy(schema) {
   schema.pre("save", function () {
     const prev = this.$locals.replacedPassword;
     if (!prev) return;
-    this.passwordHistory = [{ hash: prev, at: new Date() }, ...(this.$locals.oldHistory || [])].slice(0, HISTORY_KEEP);
+    this.passwordHistory = [
+      { hash: prev, at: new Date() },
+      ...(this.$locals.oldHistory || []),
+    ].slice(0, HISTORY_KEEP);
     this.$locals.replacedPassword = undefined;
     this.$locals.oldHistory = undefined;
   });
 }
 
-module.exports = { RULES, HISTORY_KEEP, REUSED_MSG, checkPasswordRules, generatePassword, addPasswordPolicy };
+module.exports = {
+  RULES,
+  HISTORY_KEEP,
+  REUSED_MSG,
+  checkPasswordRules,
+  generatePassword,
+  addPasswordPolicy,
+};

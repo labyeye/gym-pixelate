@@ -19,7 +19,9 @@ const positional = args.filter((a) => !a.startsWith("--"));
 async function backup(db, dir) {
   fs.mkdirSync(dir, { recursive: true });
   let total = 0;
-  for (const { name } of await db.listCollections({}, { nameOnly: true }).toArray()) {
+  for (const { name } of await db
+    .listCollections({}, { nameOnly: true })
+    .toArray()) {
     if (name.startsWith("system.")) continue;
     const out = zlib.createGzip();
     out.pipe(fs.createWriteStream(path.join(dir, `${name}.jsonl.gz`)));
@@ -37,19 +39,35 @@ async function backup(db, dir) {
 
 async function restore(db, dir, apply, force) {
   let total = 0;
-  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".jsonl.gz"))) {
+  for (const file of fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".jsonl.gz"))) {
     const name = file.replace(".jsonl.gz", "");
     const col = db.collection(name);
     if (apply && !force && (await col.estimatedDocumentCount()) > 0) {
-      console.log(`${name}: skipped, collection already has data (use --force to overwrite)`);
+      console.log(
+        `${name}: skipped, collection already has data (use --force to overwrite)`,
+      );
       continue;
     }
-    const rl = readline.createInterface({ input: fs.createReadStream(path.join(dir, file)).pipe(zlib.createGunzip()) });
+    const rl = readline.createInterface({
+      input: fs
+        .createReadStream(path.join(dir, file))
+        .pipe(zlib.createGunzip()),
+    });
     let batch = [];
     let n = 0;
     const flush = async () => {
       if (apply && batch.length)
-        await col.bulkWrite(batch.map((d) => ({ replaceOne: { filter: { _id: d._id }, replacement: d, upsert: true } })));
+        await col.bulkWrite(
+          batch.map((d) => ({
+            replaceOne: {
+              filter: { _id: d._id },
+              replacement: d,
+              upsert: true,
+            },
+          })),
+        );
       batch = [];
     };
     for await (const line of rl) {
@@ -73,8 +91,18 @@ if (require.main === module) {
     if (!uri) throw new Error("MONGO_URI is not set");
     const client = await MongoClient.connect(uri);
     const db = client.db();
-    if (flag("--restore")) await restore(db, positional[0], flag("--apply"), flag("--force"));
-    else await backup(db, positional[0] || path.join(__dirname, "../backups", new Date().toISOString().replace(/[:.]/g, "-")));
+    if (flag("--restore"))
+      await restore(db, positional[0], flag("--apply"), flag("--force"));
+    else
+      await backup(
+        db,
+        positional[0] ||
+          path.join(
+            __dirname,
+            "../backups",
+            new Date().toISOString().replace(/[:.]/g, "-"),
+          ),
+      );
     await client.close();
   })().catch((e) => {
     console.error(e.message);

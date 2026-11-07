@@ -19,11 +19,18 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 if (process.env.JWT_SECRET.length < 32) {
-  console.warn("JWT_SECRET is shorter than 32 characters. Use a long random value.");
+  console.warn(
+    "JWT_SECRET is shorter than 32 characters. Use a long random value.",
+  );
 }
 
-if (process.env.NODE_ENV === "production" && !process.env.FIELD_ENCRYPTION_KEY) {
-  console.error("FIELD_ENCRYPTION_KEY is required in production (encrypts member health / ID data at rest)");
+if (
+  process.env.NODE_ENV === "production" &&
+  !process.env.FIELD_ENCRYPTION_KEY
+) {
+  console.error(
+    "FIELD_ENCRYPTION_KEY is required in production (encrypts member health / ID data at rest)",
+  );
   process.exit(1);
 }
 connectDB();
@@ -48,7 +55,11 @@ const allowedOrigins = [
   ...(process.env.CORS_ORIGINS || "").split(","),
   ...(process.env.NODE_ENV === "production"
     ? []
-    : ["http://localhost:8081", "http://localhost:5173", "http://localhost:3000"]),
+    : [
+        "http://localhost:8081",
+        "http://localhost:5173",
+        "http://localhost:3000",
+      ]),
 ]
   .map((o) => (o || "").trim().replace(/\/$/, ""))
   .filter(Boolean);
@@ -64,6 +75,7 @@ app.use(
       "Authorization",
       "X-API-Key",
       "X-CSRF-Token",
+      "X-Vault-Pass",
       "X-Captcha-Token",
       "X-Requested-With",
     ],
@@ -98,7 +110,11 @@ app.use("/api/", generalLimiter);
 
 // Razorpay webhooks need the RAW body for signature checks, so mount before express.json().
 // Razorpay "payment captured" notices for plan purchases (see utils/paymentReconcile.js); raw body for the signature
-app.post("/api/webhooks/razorpay-billing", express.raw({ type: "*/*", limit: "1mb" }), require("./utils/paymentReconcile").webhook);
+app.post(
+  "/api/webhooks/razorpay-billing",
+  express.raw({ type: "*/*", limit: "1mb" }),
+  require("./utils/paymentReconcile").webhook,
+);
 app.use(
   "/api/webhooks/razorpay/:tenantId",
   express.raw({ type: "*/*", limit: "1mb" }),
@@ -116,7 +132,10 @@ app.use(
   require("express").static(require("path").join(__dirname, "uploads"), {
     setHeaders: (res) => {
       res.setHeader("X-Content-Type-Options", "nosniff");
-      res.setHeader("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
+      res.setHeader(
+        "Content-Security-Policy",
+        "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+      );
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     },
   }),
@@ -134,11 +153,24 @@ const tele = require("./utils/telemetry")("NESTGYM_SECRET");
 app.use(tele.middleware);
 app.use("/api/telemetry", tele.ingest);
 app.use("/api/crm/metrics", tele.metrics);
-app.use("/api/crm/accounts", require("./utils/crmAccounts")("NESTGYM_SECRET", require("./utils/crmAdapter")));
+app.use(
+  "/api/crm/accounts",
+  require("./utils/crmAccounts")(
+    "NESTGYM_SECRET",
+    require("./utils/crmAdapter"),
+  ),
+);
 
 // Domain association files so iOS / Android trust this domain for passkeys (see PASSKEY_RP_ID).
 app.get("/.well-known/apple-app-site-association", (req, res) =>
-  res.json({ webcredentials: { apps: (process.env.APPLE_APP_ID || "").split(",").map((x) => x.trim()).filter(Boolean) } }),
+  res.json({
+    webcredentials: {
+      apps: (process.env.APPLE_APP_ID || "")
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean),
+    },
+  }),
 );
 app.get("/.well-known/assetlinks.json", (req, res) =>
   res.json([
@@ -147,7 +179,10 @@ app.get("/.well-known/assetlinks.json", (req, res) =>
       target: {
         namespace: "android_app",
         package_name: process.env.ANDROID_PACKAGE || "com.nestgym",
-        sha256_cert_fingerprints: (process.env.ANDROID_SHA256 || "").split(",").map((x) => x.trim()).filter(Boolean),
+        sha256_cert_fingerprints: (process.env.ANDROID_SHA256 || "")
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean),
       },
     },
   ]),
@@ -175,10 +210,13 @@ app.use("/api/api-keys", require("./routes/apiKeyRoutes"));
 app.use("/api/billing", require("./routes/billingRoutes"));
 app.use("/api/credits", require("./routes/creditsRoutes"));
 app.use("/api/upload", require("./routes/uploadRoutes"));
+app.use("/api/vault", require("./routes/vaultRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
 app.use("/api/portal", require("./routes/portalRoutes"));
 app.use("/api/pay", require("./routes/payRoutes")); // public, token-authenticated
 app.use("/api/payment-links", require("./routes/paymentLinkRoutes"));
+app.use("/api/support", require("./routes/supportRoutes"));
+app.use("/iclock", require("./routes/admsRoutes")); // biometric terminals push here (matched by serial number)
 app.use("/api", require("./routes/gymRoutes"));
 
 app.get("/api/health", (req, res) => {
@@ -197,6 +235,7 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   require("./utils/paymentLinkJob").startPaymentLinkJob();
   require("./utils/reminders").startReminderJob();
+  require("./utils/staffHr").startStaffAbsentJob();
   if (process.env.NODE_ENV === "development") {
     console.log(`NestGym API running on port ${PORT}`);
   }

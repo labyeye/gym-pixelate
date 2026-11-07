@@ -22,6 +22,8 @@ import {
   Loader2,
   Megaphone,
   Receipt,
+  RefreshCw,
+  Snowflake,
   Users,
   Wallet,
   Wrench,
@@ -30,7 +32,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { dashboardService } from "@/services/dashboardService";
 import { gym } from "@/services/gymApi";
 import { useAuth } from "@/contexts/AuthContext";
-import { Panel, StatCard, fmtDate, inr } from "@/components/gym/kit";
+import { Panel, StatCard, fmtDate, inr, titleCase } from "@/components/gym/kit";
 import RangeChartPanel from "@/components/gym/RangeChartPanel";
 import { moduleOn } from "@/config/modules";
 
@@ -53,6 +55,32 @@ const Empty = ({ children }: { children: React.ReactNode }) => (
     {children}
   </p>
 );
+
+const MiniList = ({
+  rows,
+  empty,
+}: {
+  rows: { id: any; a: string; b: string; c: string }[];
+  empty: string;
+}) =>
+  rows.length === 0 ? (
+    <Empty>{empty}</Empty>
+  ) : (
+    <ul className="nb-list divide-y divide-black/10">
+      {rows.map((r) => (
+        <li
+          key={r.id}
+          className="py-2 flex items-center justify-between gap-2 text-sm"
+        >
+          <div className="min-w-0">
+            <p className="font-black truncate">{r.a}</p>
+            <p className="text-xs text-black/50 truncate">{r.b}</p>
+          </div>
+          <span className="font-black whitespace-nowrap">{r.c}</span>
+        </li>
+      ))}
+    </ul>
+  );
 
 export default function DashboardPage() {
   const { user, tenant, modules } = useAuth();
@@ -211,36 +239,114 @@ export default function DashboardPage() {
           icon={Wrench}
           color={st.equipmentServiceDue ? "#FA731C" : "#14B8A6"}
         />
+        <StatCard
+          label="Total members"
+          value={st.totalMembers ?? 0}
+          icon={Users}
+          color="#024BAB"
+          sub={`${st.newMembersThisMonth ?? 0} joined this month`}
+        />
+        <StatCard
+          label="Renewed this month"
+          value={st.renewedThisMonth ?? 0}
+          icon={RefreshCw}
+          color="#00C48C"
+        />
+        <StatCard
+          label="Frozen memberships"
+          value={st.frozenMemberships ?? 0}
+          icon={Snowflake}
+          color="#38BDF8"
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        {money && (
+      {money && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
           <RangeChartPanel
             title="Collections"
             seriesName="Collected"
             color="#024BAB"
             money
-            daily={(ch.revenueByDay || []).map((d: any) => ({ key: d.date, value: d.revenue }))}
-            monthly={(ch.revenueByMonth || []).map((d: any) => ({ key: d.month, value: d.revenue }))}
+            daily={(ch.revenueByDay || []).map((d: any) => ({
+              key: d.date,
+              value: d.revenue,
+            }))}
+            monthly={(ch.revenueByMonth || []).map((d: any) => ({
+              key: d.month,
+              value: d.revenue,
+            }))}
           />
-        )}
-        {(money || desk) && moduleOn(modules, "pos") && (
-          <RangeChartPanel
-            title="Shop / POS revenue"
-            seriesName="POS sales"
-            color="#FA731C"
-            money
-            daily={(ch.posByDay || []).map((d: any) => ({ key: d.date, value: d.revenue }))}
-            monthly={(ch.posByMonth || []).map((d: any) => ({ key: d.month, value: d.revenue }))}
-          />
-        )}
+          <Panel title="Recent collections">
+            <MiniList
+              empty="No payments yet"
+              rows={(st.recentCollections || []).map((r: any, i: number) => ({
+                id: i,
+                a: r.name || "Walk-in",
+                b: `${titleCase(r.method || "")} · ${fmtDate(r.at)}`,
+                c: inr(r.amount),
+              }))}
+            />
+          </Panel>
+        </div>
+      )}
+
+      {(money || desk) && moduleOn(modules, "pos") && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+          <Panel title="Recent shop / POS sales" className="lg:order-1 order-2">
+            <MiniList
+              empty="No sales yet"
+              rows={(st.recentPos || []).map((r: any) => ({
+                id: r._id,
+                a: r.name || "Walk-in",
+                b: `${r.number || ""} · ${fmtDate(r.at)}`,
+                c: inr(r.amount),
+              }))}
+            />
+          </Panel>
+          <div className="lg:order-2 order-1">
+            <RangeChartPanel
+              title="Shop / POS revenue"
+              seriesName="POS sales"
+              color="#FA731C"
+              money
+              daily={(ch.posByDay || []).map((d: any) => ({
+                key: d.date,
+                value: d.revenue,
+              }))}
+              monthly={(ch.posByMonth || []).map((d: any) => ({
+                key: d.month,
+                value: d.revenue,
+              }))}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <RangeChartPanel
           title="New memberships"
           seriesName="New"
           color="#00C48C"
-          daily={(ch.membersByDay || []).map((d: any) => ({ key: d.date, value: d.count }))}
-          monthly={(ch.membershipGrowth || []).map((d: any) => ({ key: d.month, value: d.newMemberships }))}
+          daily={(ch.membersByDay || []).map((d: any) => ({
+            key: d.date,
+            value: d.count,
+          }))}
+          monthly={(ch.membershipGrowth || []).map((d: any) => ({
+            key: d.month,
+            value: d.newMemberships,
+          }))}
         />
+        <Panel title="Recent memberships sold">
+          <MiniList
+            empty="No memberships yet"
+            rows={(st.recentMemberships || []).map((r: any) => ({
+              id: r._id,
+              a: r.memberId?.name || "—",
+              b: `${r.planName} · ${fmtDate(r.createdAt)}`,
+              c: money ? inr(r.totalAmount) : "",
+            }))}
+          />
+        </Panel>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
@@ -282,44 +388,93 @@ export default function DashboardPage() {
             )}
           </Panel>
         )}
-        {money && (
-          <Panel
-            title="Biggest dues"
-            right={
-              <Link
-                to="/reports"
-                className="text-[11px] font-black uppercase underline"
-              >
-                All
-              </Link>
-            }
-          >
-            {(dues.data?.data || []).length === 0 ? (
-              <Empty>All clear</Empty>
-            ) : (
-              <ul className="nb-list divide-y divide-black/10">
-                {(dues.data?.data || [])
-                  .slice(0, 6)
-                  .map((r: any, i: number) => (
-                    <li
-                      key={i}
-                      className="py-2 flex items-center justify-between gap-2 text-sm"
-                    >
-                      <Link
-                        to={`/members/${r.member?._id}`}
-                        className="font-black truncate hover:underline"
-                      >
-                        {r.member?.name}
-                      </Link>
-                      <span className="font-black text-red-600">
-                        {inr(r.due)}
-                      </span>
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </Panel>
-        )}
+        <Panel title="Recent renewals">
+          {(st.recentRenewals || []).length === 0 ? (
+            <Empty>No renewals yet</Empty>
+          ) : (
+            <ul className="nb-list divide-y divide-black/10">
+              {st.recentRenewals.map((r: any) => (
+                <li
+                  key={r._id}
+                  className="py-2 flex items-center justify-between gap-2 text-sm"
+                >
+                  <span className="font-black truncate">
+                    {r.memberId?.name}
+                  </span>
+                  <span className="text-xs text-black/60 whitespace-nowrap">
+                    {r.planName} · {fmtDate(r.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+        <Panel title="New members this month">
+          {(st.newMembersList || []).length === 0 ? (
+            <Empty>No new members yet</Empty>
+          ) : (
+            <ul className="nb-list divide-y divide-black/10">
+              {st.newMembersList.map((r: any) => (
+                <li
+                  key={r._id}
+                  className="py-2 flex items-center justify-between gap-2 text-sm"
+                >
+                  <Link
+                    to={`/members/${r._id}`}
+                    className="font-black truncate hover:underline"
+                  >
+                    {r.name}
+                  </Link>
+                  <span className="text-xs text-black/60 whitespace-nowrap">
+                    {fmtDate(r.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <Panel title="Active members by plan">
+          {(st.planMix || []).length === 0 ? (
+            <Empty>No active memberships</Empty>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] font-black uppercase text-black/50">
+                  <th className="py-1">Plan</th>
+                  <th className="py-1 text-right">Members</th>
+                  {money && <th className="py-1 text-right">Billed</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/10">
+                {st.planMix.map((p: any) => (
+                  <tr key={p.plan}>
+                    <td className="py-2 font-bold">{p.plan}</td>
+                    <td className="py-2 text-right font-black">{p.members}</td>
+                    {money && (
+                      <td className="py-2 text-right">{inr(p.billed)}</td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Panel>
+        <Panel title="Plan popularity">
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={st.planMix || []}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="plan" tick={{ fontSize: 10 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                <Tooltip content={<NbTooltip />} />
+                <Bar dataKey="members" name="Members" fill="#024BAB" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

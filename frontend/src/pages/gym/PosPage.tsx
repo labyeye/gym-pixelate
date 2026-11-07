@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { gym } from "@/services/gymApi";
-import { useNotify } from "@/components/ui/Notification";
+import { useNotify, useConfirm } from "@/components/ui/Notification";
 import { usePermission } from "@/hooks/usePermission";
 import {
   ActionButton,
@@ -72,6 +72,7 @@ const blank = {
 
 export default function PosPage() {
   const notify = useNotify();
+  const { confirm } = useConfirm();
   const qc = useQueryClient();
   const { can } = usePermission();
   const [tab, setTab] = useState("sell");
@@ -384,13 +385,39 @@ export default function PosPage() {
                     { header: "Cost price", value: (p: any) => p.costPrice },
                     { header: "GST %", value: (p: any) => p.gstPercent },
                     { header: "Stock", value: (p: any) => p.stock },
-                    { header: "Reorder level", value: (p: any) => p.reorderLevel },
+                    {
+                      header: "Reorder level",
+                      value: (p: any) => p.reorderLevel,
+                    },
                     { header: "Vendor", value: (p: any) => p.vendor },
-                    { header: "Active", value: (p: any) => (p.isActive ? "Yes" : "No") },
+                    {
+                      header: "Active",
+                      value: (p: any) => (p.isActive ? "Yes" : "No"),
+                    },
                   ]}
                   importTemplate={{
-                    headers: ["Name", "Code", "Category", "Selling price", "Cost price", "GST %", "Opening stock", "Reorder level", "Vendor"],
-                    example: ["Whey 1kg", "", "supplement", 2500, 1900, 18, 10, 5, "ABC Nutrition"],
+                    headers: [
+                      "Name",
+                      "Code",
+                      "Category",
+                      "Selling price",
+                      "Cost price",
+                      "GST %",
+                      "Opening stock",
+                      "Reorder level",
+                      "Vendor",
+                    ],
+                    example: [
+                      "Whey 1kg",
+                      "",
+                      "supplement",
+                      2500,
+                      1900,
+                      18,
+                      10,
+                      5,
+                      "ABC Nutrition",
+                    ],
                   }}
                   onImportRow={
                     can("Products", "create")
@@ -399,12 +426,18 @@ export default function PosPage() {
                           return gym.products.create({
                             name: r.Name,
                             sku: r.Code || undefined,
-                            category: String(r.Category || "supplement").toLowerCase(),
+                            category: String(
+                              r.Category || "supplement",
+                            ).toLowerCase(),
                             price: Number(r["Selling price"]) || 0,
                             costPrice: Number(r["Cost price"]) || 0,
-                            gstPercent: r["GST %"] === "" ? 18 : Number(r["GST %"]),
+                            gstPercent:
+                              r["GST %"] === "" ? 18 : Number(r["GST %"]),
                             stock: Number(r["Opening stock"]) || 0,
-                            reorderLevel: r["Reorder level"] === "" ? 5 : Number(r["Reorder level"]),
+                            reorderLevel:
+                              r["Reorder level"] === ""
+                                ? 5
+                                : Number(r["Reorder level"]),
                             vendor: r.Vendor || undefined,
                           });
                         }
@@ -425,26 +458,52 @@ export default function PosPage() {
               </>
             }
           >
-            <SearchBox value={q} onChange={setQ} placeholder="Name, code or vendor…" />
-            <select className={inputCls + " sm:w-40 font-bold"} value={catF} onChange={(e) => setCatF(e.target.value)}>
+            <SearchBox
+              value={q}
+              onChange={setQ}
+              placeholder="Name, code or vendor…"
+            />
+            <select
+              className={inputCls + " sm:w-40 font-bold"}
+              value={catF}
+              onChange={(e) => setCatF(e.target.value)}
+            >
               <option value="">Category: all</option>
               {CATS.map((c) => (
-                <option key={c} value={c}>{titleCase(c)}</option>
+                <option key={c} value={c}>
+                  {titleCase(c)}
+                </option>
               ))}
             </select>
-            <select className={inputCls + " sm:w-40 font-bold"} value={stockF} onChange={(e) => setStockF(e.target.value)}>
+            <select
+              className={inputCls + " sm:w-40 font-bold"}
+              value={stockF}
+              onChange={(e) => setStockF(e.target.value)}
+            >
               <option value="">Stock: all</option>
               <option value="low">Low stock</option>
               <option value="out">Out of stock</option>
             </select>
           </Toolbar>
           <DataTable
-            head={["Code", "Product", "Category", "Vendor", "Price", "Cost", "Stock", "Status", "Actions"]}
+            head={[
+              "Code",
+              "Product",
+              "Category",
+              "Vendor",
+              "Price",
+              "Cost",
+              "Stock",
+              "Status",
+              "Actions",
+            ]}
             empty={shown.length === 0}
           >
             {shown.map((p, i) => (
               <Tr key={p._id} i={i}>
-                <Td className="text-xs font-bold whitespace-nowrap">{p.sku || "—"}</Td>
+                <Td className="text-xs font-bold whitespace-nowrap">
+                  {p.sku || "—"}
+                </Td>
                 <Td>
                   <Thumb photo={p.photo} name={p.name} />
                 </Td>
@@ -453,10 +512,18 @@ export default function PosPage() {
                 <Td className="font-medium">{inr(p.price)}</Td>
                 <Td>{inr(p.costPrice)}</Td>
                 <Td>
-                  <span className={cn("font-bold", p.stock <= p.reorderLevel && "text-red-600")}>
+                  <span
+                    className={cn(
+                      "font-bold",
+                      p.stock <= p.reorderLevel && "text-red-600",
+                    )}
+                  >
                     {p.stock}
                   </span>
-                  <span className="text-xs text-black/40"> (reorder {p.reorderLevel})</span>
+                  <span className="text-xs text-black/40">
+                    {" "}
+                    (reorder {p.reorderLevel})
+                  </span>
                 </Td>
                 <Td>
                   <Pill value={p.isActive ? "active" : "inactive"} />
@@ -495,7 +562,13 @@ export default function PosPage() {
                         icon={Trash2}
                         tone="danger"
                         onClick={async () => {
-                          if (window.confirm(`Delete ${p.name}?`)) {
+                          if (
+                            await confirm({
+                              title: `Delete ${p.name}?`,
+                              confirmText: "Delete",
+                              tone: "danger",
+                            })
+                          ) {
                             await gym.products.remove(p._id);
                             refresh();
                           }

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { request } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNotify } from "@/components/ui/Notification";
+import { useNotify, useConfirm } from "@/components/ui/Notification";
 import {
   Btn,
   Modal,
@@ -56,6 +56,7 @@ const TABS = [
 export default function MemberPortal() {
   const { logout } = useAuth();
   const notify = useNotify();
+  const { confirm } = useConfirm();
   const qc = useQueryClient();
   const [tab, setTab] = useState("home");
   const [paying, setPaying] = useState("");
@@ -94,11 +95,21 @@ export default function MemberPortal() {
     enabled: tab === "home",
   });
   const renewPlan = async (opt: any) => {
-    if (!window.confirm(`Renew with ${opt.name} for ₹${opt.total}?`)) return;
+    if (
+      !(await confirm({
+        title: `Renew with ${opt.name}?`,
+        message: `Total ₹${opt.total}.`,
+        confirmText: "Renew",
+      }))
+    )
+      return;
     try {
       setChanging(opt._id);
       await post("/membership/renew", { planId: opt._id });
-      notify.success("Membership renewed", `Pay ₹${opt.total} from the Bills tab to finish.`);
+      notify.success(
+        "Membership renewed",
+        `Pay ₹${opt.total} from the Bills tab to finish.`,
+      );
       refresh();
       setTab("pay");
     } catch (e: any) {
@@ -108,11 +119,21 @@ export default function MemberPortal() {
     }
   };
   const changePlan = async (opt: any) => {
-    if (!window.confirm(`Switch to ${opt.name}? You pay ₹${opt.payable} more (what you already paid is credited).`)) return;
+    if (
+      !(await confirm({
+        title: `Switch to ${opt.name}?`,
+        message: `You pay ₹${opt.payable} more (what you already paid is credited).`,
+        confirmText: "Switch",
+      }))
+    )
+      return;
     try {
       setChanging(opt._id);
       await post("/membership/change", { planId: opt._id });
-      notify.success("Plan changed", `Pay the ₹${opt.payable} balance from the Bills tab.`);
+      notify.success(
+        "Plan changed",
+        `Pay the ₹${opt.payable} balance from the Bills tab.`,
+      );
       refresh();
       setTab("pay");
     } catch (e: any) {
@@ -209,7 +230,10 @@ export default function MemberPortal() {
               razorpayPaymentId: res.razorpay_payment_id,
               razorpaySignature: res.razorpay_signature,
             });
-            notify.success(v.waitlisted ? "Paid — added to waitlist" : "Paid & booked!", s.name);
+            notify.success(
+              v.waitlisted ? "Paid — added to waitlist" : "Paid & booked!",
+              s.name,
+            );
             refresh();
           } catch (e: any) {
             notify.error(
@@ -319,14 +343,27 @@ export default function MemberPortal() {
                 </p>
                 <div className="space-y-2">
                   {ren.data.data.options.map((opt: any) => (
-                    <div key={opt._id} className="border-2 border-black p-3 flex items-center justify-between gap-3">
+                    <div
+                      key={opt._id}
+                      className="border-2 border-black p-3 flex items-center justify-between gap-3"
+                    >
                       <div>
                         <p className="font-black">
-                          {opt.name} {opt.last && <span className="nb-badge nb-tag-orange ml-1">Your last plan</span>}
+                          {opt.name}{" "}
+                          {opt.last && (
+                            <span className="nb-badge nb-tag-orange ml-1">
+                              Your last plan
+                            </span>
+                          )}
                         </p>
-                        <p className="text-xs text-black/60">{opt.durationDays} days</p>
+                        <p className="text-xs text-black/60">
+                          {opt.durationDays} days
+                        </p>
                       </div>
-                      <Btn busy={changing === opt._id} onClick={() => renewPlan(opt)}>
+                      <Btn
+                        busy={changing === opt._id}
+                        onClick={() => renewPlan(opt)}
+                      >
                         Renew · {inr(opt.total)}
                       </Btn>
                     </div>
@@ -334,32 +371,46 @@ export default function MemberPortal() {
                 </div>
               </Panel>
             )}
-            {chg.data?.data?.canChange && (chg.data.data.options || []).length > 0 && (
-              <Panel title="Change your plan">
-                <p className="text-xs text-black/60 mb-3">
-                  Within 24 hours of buying you can switch to a higher plan and pay only the difference
-                  (until {fmtDateTime(chg.data.data.windowEndsAt)}).
-                </p>
-                <div className="space-y-2">
-                  {chg.data.data.options.map((opt: any) => (
-                    <div key={opt._id} className="border-2 border-black p-3 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-black">{opt.name}</p>
-                        <p className="text-xs text-black/60">
-                          {opt.durationDays} days · {inr(opt.newTotal)} − {inr(opt.credit)} already paid
-                        </p>
+            {chg.data?.data?.canChange &&
+              (chg.data.data.options || []).length > 0 && (
+                <Panel title="Change your plan">
+                  <p className="text-xs text-black/60 mb-3">
+                    Within 24 hours of buying you can switch to a higher plan
+                    and pay only the difference (until{" "}
+                    {fmtDateTime(chg.data.data.windowEndsAt)}).
+                  </p>
+                  <div className="space-y-2">
+                    {chg.data.data.options.map((opt: any) => (
+                      <div
+                        key={opt._id}
+                        className="border-2 border-black p-3 flex items-center justify-between gap-3"
+                      >
+                        <div>
+                          <p className="font-black">{opt.name}</p>
+                          <p className="text-xs text-black/60">
+                            {opt.durationDays} days · {inr(opt.newTotal)} −{" "}
+                            {inr(opt.credit)} already paid
+                          </p>
+                        </div>
+                        <Btn
+                          busy={changing === opt._id}
+                          onClick={() => changePlan(opt)}
+                        >
+                          Pay {inr(opt.payable)} more
+                        </Btn>
                       </div>
-                      <Btn busy={changing === opt._id} onClick={() => changePlan(opt)}>
-                        Pay {inr(opt.payable)} more
-                      </Btn>
-                    </div>
-                  ))}
-                </div>
-              </Panel>
-            )}
-            {chg.data?.data && !chg.data.data.canChange && chg.data.data.reason && o.access.allowed && (
-              <p className="text-xs font-bold text-black/50">{chg.data.data.reason}</p>
-            )}
+                    ))}
+                  </div>
+                </Panel>
+              )}
+            {chg.data?.data &&
+              !chg.data.data.canChange &&
+              chg.data.data.reason &&
+              o.access.allowed && (
+                <p className="text-xs font-bold text-black/50">
+                  {chg.data.data.reason}
+                </p>
+              )}
             <div className="grid grid-cols-1 gap-3">
               <StatCard
                 label="To pay"
@@ -443,7 +494,13 @@ export default function MemberPortal() {
                     className="w-9 h-9 border-2 border-black font-black text-sm hover:bg-[#FA731C] hover:text-white"
                     onClick={async () => {
                       try {
-                        await post("/feedback", { score: n, comment: window.prompt("Anything we could do better? (optional)") || "" });
+                        await post("/feedback", {
+                          score: n,
+                          comment:
+                            window.prompt(
+                              "Anything we could do better? (optional)",
+                            ) || "",
+                        });
                         notify.success("Thanks for the feedback!");
                       } catch (e: any) {
                         notify.error("Feedback", e.message);
@@ -567,7 +624,9 @@ export default function MemberPortal() {
                   </p>
                   <p className="text-[10px] font-black uppercase text-black/40">
                     {s.seatsLeft} seats left
-                    {s.price > 0 ? ` · ₹${s.price} drop-in` : " · included in plan"}
+                    {s.price > 0
+                      ? ` · ₹${s.price} drop-in`
+                      : " · included in plan"}
                   </p>
                 </div>
                 {s.price > 0 ? (

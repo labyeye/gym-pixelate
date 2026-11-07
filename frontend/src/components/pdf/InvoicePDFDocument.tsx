@@ -510,6 +510,7 @@ export function InvoicePDFDocument({
           rate: "Rate (Rs.)",
           dis: "Disc.",
           amt: "Amount (Rs.)",
+          ...(invoice?.plan?.cols || {}), // workout / diet charts rename the columns
         };
         const empty = Math.max(0, (Number(p.minRows) || 0) - c.items.length);
         return (
@@ -530,14 +531,36 @@ export function InvoicePDFDocument({
               ))}
             </View>
             {c.items.map((it, idx) => {
-              const cell: Record<string, React.ReactNode> = {
-                sno: idx + 1,
-                hsn: it.hsn,
-                qty: it.qty,
-                rate: fmt(it.rate),
-                dis: it.disc > 0 ? fmt(it.disc) : "—",
-                amt: fmt(it.amt),
-              };
+              const cell: Record<string, React.ReactNode> = it.cells
+                ? {
+                    sno: idx + 1,
+                    hsn: "",
+                    qty: "",
+                    rate: "",
+                    dis: "",
+                    amt: "",
+                    ...it.cells,
+                  }
+                : {
+                    sno: idx + 1,
+                    hsn: it.hsn,
+                    qty: it.qty,
+                    rate: fmt(it.rate),
+                    dis: it.disc > 0 ? fmt(it.disc) : "—",
+                    amt: fmt(it.amt),
+                  };
+              if (it.group)
+                return (
+                  <View
+                    key={idx}
+                    style={[S.tableRow, { backgroundColor: T.headerBg }]}
+                  >
+                    <Text style={[S.tdText, { fontFamily: bold, flex: 1 }]}>
+                      {it.description}
+                      {it.details ? `  ·  ${it.details}` : ""}
+                    </Text>
+                  </View>
+                );
               return (
                 <View
                   key={idx}
@@ -579,6 +602,7 @@ export function InvoicePDFDocument({
       }
 
       case "words":
+        if (invoice?.plan) return null;
         return (
           <View
             key={b.id}
@@ -595,10 +619,10 @@ export function InvoicePDFDocument({
         );
 
       case "summary":
-        return renderSummary(b);
+        return invoice?.plan ? null : renderSummary(b);
 
       case "taxSummary":
-        return c.taxAmt > 0 ? renderTax(b) : null;
+        return c.taxAmt > 0 && !invoice?.plan ? renderTax(b) : null;
 
       case "footer":
         return (

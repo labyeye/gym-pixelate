@@ -22,13 +22,18 @@ export function PhotoUpload({
 
   const pick = async (file?: File) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) return notify.error("Photo must be an image");
-    if (file.size > 5 * 1024 * 1024) return notify.error("Photo is too large", "Max 5 MB");
+    if (!file.type.startsWith("image/"))
+      return notify.error("Photo must be an image");
+    if (file.size > 5 * 1024 * 1024)
+      return notify.error("Photo is too large", "Max 5 MB");
     const fd = new FormData();
     fd.append("file", file);
     try {
       setBusy(true);
-      const r = await request<{ url: string }>("/upload", { method: "POST", body: fd });
+      const r = await request<{ url: string }>("/upload", {
+        method: "POST",
+        body: fd,
+      });
       onChange(r.url);
     } catch (e: any) {
       notify.error("Upload failed", e.message);
@@ -41,13 +46,28 @@ export function PhotoUpload({
   return (
     <div className="flex items-center gap-4">
       <div className="w-24 h-24 border-2 border-black bg-[#024BAB] text-white flex items-center justify-center text-3xl font-black overflow-hidden shrink-0">
-        {value ? <img src={value} alt="" className="w-full h-full object-cover" /> : (name[0] || "?").toUpperCase()}
+        {value ? (
+          <img src={value} alt="" className="w-full h-full object-cover" />
+        ) : (
+          (name[0] || "?").toUpperCase()
+        )}
       </div>
       <div className="space-y-2">
-        <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
+        <input
+          ref={input}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => pick(e.target.files?.[0])}
+        />
         <div className="flex flex-wrap gap-2">
           <Btn light onClick={() => input.current?.click()} disabled={busy}>
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />} {value ? "Change photo" : "Upload photo"}
+            {busy ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Camera className="w-4 h-4" />
+            )}{" "}
+            {value ? "Change photo" : "Upload photo"}
           </Btn>
           {value && (
             <Btn light onClick={() => onChange("")}>

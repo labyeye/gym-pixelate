@@ -1,7 +1,7 @@
 /** Cheque-style member receipt (membership / invoice payments), designed in Settings > Receipt design. */
 
 export interface ReceiptDesign {
-  style: "standard" | "cheque";
+  style: "standard" | "cheque" | "designed";
   accent: string; // hex
   signatory: string; // printed under the signature line
   note: string; // small line at the bottom
@@ -21,13 +21,56 @@ export const DEFAULT_RECEIPT_DESIGN: ReceiptDesign = {
 };
 
 const esc = (s: any) =>
-  String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+  String(s ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ]!,
+  );
 
-const ONES = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
-const TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-const below100 = (n: number) => (n < 20 ? ONES[n] : TENS[Math.floor(n / 10)] + (n % 10 ? " " + ONES[n % 10] : ""));
+const ONES = [
+  "",
+  "One",
+  "Two",
+  "Three",
+  "Four",
+  "Five",
+  "Six",
+  "Seven",
+  "Eight",
+  "Nine",
+  "Ten",
+  "Eleven",
+  "Twelve",
+  "Thirteen",
+  "Fourteen",
+  "Fifteen",
+  "Sixteen",
+  "Seventeen",
+  "Eighteen",
+  "Nineteen",
+];
+const TENS = [
+  "",
+  "",
+  "Twenty",
+  "Thirty",
+  "Forty",
+  "Fifty",
+  "Sixty",
+  "Seventy",
+  "Eighty",
+  "Ninety",
+];
+const below100 = (n: number) =>
+  n < 20
+    ? ONES[n]
+    : TENS[Math.floor(n / 10)] + (n % 10 ? " " + ONES[n % 10] : "");
 const below1000 = (n: number) =>
-  (n >= 100 ? ONES[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " : "") : "") + (n % 100 ? below100(n % 100) : "");
+  (n >= 100
+    ? ONES[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " : "")
+    : "") + (n % 100 ? below100(n % 100) : "");
 
 /** 123456.5 -> "One Lakh Twenty Three Thousand Four Hundred Fifty Six Rupees and Fifty Paise Only" */
 export function amountInWords(amount: number): string {
@@ -51,10 +94,17 @@ export function amountInWords(amount: number): string {
 }
 
 const inr2 = (n: number) =>
-  Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  Number(n || 0).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 const dmy = (d?: any) => {
   const x = d ? new Date(d) : new Date();
-  return [String(x.getDate()).padStart(2, "0"), String(x.getMonth() + 1).padStart(2, "0"), String(x.getFullYear())];
+  return [
+    String(x.getDate()).padStart(2, "0"),
+    String(x.getMonth() + 1).padStart(2, "0"),
+    String(x.getFullYear()),
+  ];
 };
 
 export interface ChequeData {
@@ -67,14 +117,28 @@ export interface ChequeData {
   method?: string;
   reference?: string;
   balance?: number;
-  company: { name?: string; address?: string; phone?: string; gst?: string; logoUrl?: string };
+  company: {
+    name?: string;
+    address?: string;
+    phone?: string;
+    gst?: string;
+    logoUrl?: string;
+  };
 }
 
 /** One full HTML document (A4 landscape) laid out like a bank cheque. */
-export function chequeReceiptHtml(d: ChequeData, design: ReceiptDesign, autoPrint = false): string {
+export function chequeReceiptHtml(
+  d: ChequeData,
+  design: ReceiptDesign,
+  autoPrint = false,
+): string {
   const a = /^#[0-9a-f]{6}$/i.test(design.accent) ? design.accent : "#024BAB";
   const [dd, mm, yyyy] = dmy(d.date);
-  const box = (txt: string) => txt.split("").map((c) => `<i>${c}</i>`).join("");
+  const box = (txt: string) =>
+    txt
+      .split("")
+      .map((c) => `<i>${c}</i>`)
+      .join("");
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.receiptNo)}</title><style>
   @page{size:A4 landscape;margin:12mm}
   *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff}
@@ -122,5 +186,10 @@ export const SAMPLE_CHEQUE: ChequeData = {
   method: "upi",
   reference: "UPI123456",
   balance: 0,
-  company: { name: "Your Gym", address: "Main Road, City", phone: "98765 43210", gst: "27ABCDE1234F1Z5" },
+  company: {
+    name: "Your Gym",
+    address: "Main Road, City",
+    phone: "98765 43210",
+    gst: "27ABCDE1234F1Z5",
+  },
 };

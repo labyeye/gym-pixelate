@@ -299,7 +299,11 @@ export function ExpensesPage() {
         {
           label: "Category",
           render: (r) => (
-            <span className={"nb-badge capitalize whitespace-nowrap " + tagFor(r.category)}>
+            <span
+              className={
+                "nb-badge capitalize whitespace-nowrap " + tagFor(r.category)
+              }
+            >
               {r.category}
             </span>
           ),
@@ -654,7 +658,9 @@ export function EquipmentPage() {
       columns={[
         {
           label: "Code",
-          render: (r) => <span className="text-xs font-bold">{r.code || "—"}</span>,
+          render: (r) => (
+            <span className="text-xs font-bold">{r.code || "—"}</span>
+          ),
         },
         {
           label: "Equipment",
@@ -679,7 +685,11 @@ export function EquipmentPage() {
         {
           label: "Price",
           render: (r) =>
-            r.purchaseCost ? <span className="font-bold">{inr(r.purchaseCost)}</span> : "—",
+            r.purchaseCost ? (
+              <span className="font-bold">{inr(r.purchaseCost)}</span>
+            ) : (
+              "—"
+            ),
         },
         { label: "Last service", render: (r) => fmtDate(r.lastServiceOn) },
         {

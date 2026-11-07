@@ -255,9 +255,19 @@ export function defaultTemplate(): InvoiceTemplate {
   };
 }
 
-// Invoices, sales orders and purchase orders share one saved design (Settings.invoiceTemplate);
-// quotations have their own (Settings.quotationTemplate). Same editor, different wording.
-export type DocKind = "invoice" | "quotation";
+// Each kind has its own saved design on Settings (same editor, different wording / blocks):
+// invoices + sales/purchase orders, quotations, member receipts, workout charts and diet charts.
+export type DocKind = "invoice" | "quotation" | "receipt" | "workout" | "diet";
+export const TEMPLATE_FIELD: Record<DocKind, string> = {
+  invoice: "invoiceTemplate",
+  quotation: "quotationTemplate",
+  receipt: "receiptTemplate",
+  workout: "workoutTemplate",
+  diet: "dietTemplate",
+};
+// Workout / diet charts have no money, so the words / summary / tax blocks don't apply to them.
+export const isPlanKind = (k: DocKind) => k === "workout" || k === "diet";
+export const MONEY_BLOCKS: BlockType[] = ["words", "summary", "taxSummary"];
 
 export function localize(
   t: InvoiceTemplate,
@@ -265,29 +275,111 @@ export function localize(
   footer?: string,
 ): InvoiceTemplate {
   if (kind === "invoice") return t;
-  return {
-    ...t,
-    blocks: t.blocks.map((b) =>
-      b.type === "footer" && !b.props.declaration
+  const map = (fn: (b: Block) => Block) => ({ ...t, blocks: t.blocks.map(fn) });
+  if (kind === "receipt")
+    return map((b) =>
+      b.type === "title"
         ? {
             ...b,
-            props: {
-              ...b.props,
-              declaration:
-                "We declare that this quotation shows the price of the goods/services described and that all particulars are true and correct.",
-            },
+            props: { ...b.props, subtitle: "Payment received with thanks" },
           }
-        : b.type === "note" && b.props.text === BLOCK_DEFAULTS.note.text
+        : b.type === "footer" && !b.props.declaration
           ? {
               ...b,
               props: {
                 ...b.props,
-                text: footer || "Thank you for your business!",
+                declaration:
+                  "Received with thanks the amount stated above. Fees once paid are non-refundable.",
               },
             }
-          : b,
-    ),
-  };
+          : b.type === "note" && b.props.text === BLOCK_DEFAULTS.note.text
+            ? {
+                ...b,
+                props: {
+                  ...b.props,
+                  text: "This is a computer-generated receipt.",
+                },
+              }
+            : b,
+    );
+  if (isPlanKind(kind)) {
+    const diet = kind === "diet";
+    return {
+      ...t,
+      blocks: t.blocks
+        .filter((b) => !MONEY_BLOCKS.includes(b.type))
+        .map((b) =>
+          b.type === "title"
+            ? {
+                ...b,
+                props: {
+                  ...b.props,
+                  subtitle: diet
+                    ? "Personalised nutrition plan"
+                    : "Personalised training plan",
+                },
+              }
+            : b.type === "parties"
+              ? { ...b, props: { ...b.props, label: "Member", showGst: false } }
+              : b.type === "items"
+                ? {
+                    ...b,
+                    props: {
+                      ...b.props,
+                      sno: true,
+                      hsn: !diet,
+                      qty: !diet,
+                      rate: true,
+                      discount: false,
+                      amount: diet,
+                      details: true,
+                      minRows: 0,
+                      descLabel: diet ? "Meal" : "Exercise",
+                    },
+                  }
+                : b.type === "footer"
+                  ? {
+                      ...b,
+                      props: {
+                        ...b.props,
+                        showDeclaration: false,
+                        signatoryLabel: "Trainer",
+                      },
+                    }
+                  : b.type === "note"
+                    ? {
+                        ...b,
+                        props: {
+                          ...b.props,
+                          text: diet
+                            ? "Drink plenty of water. Consult your doctor before changing your diet."
+                            : "Warm up before every session and stop if you feel pain.",
+                        },
+                      }
+                    : b,
+        ),
+    };
+  }
+  return map((b) =>
+    b.type === "footer" && !b.props.declaration
+      ? {
+          ...b,
+          props: {
+            ...b.props,
+            declaration:
+              "We declare that this quotation shows the price of the goods/services described and that all particulars are true and correct.",
+          },
+        }
+      : b.type === "note" && b.props.text === BLOCK_DEFAULTS.note.text
+        ? {
+            ...b,
+            props: {
+              ...b.props,
+              text: footer || "Thank you for your business!",
+            },
+          }
+        : b,
+  );
 }
 
 // The template to print with: the tenant's saved design, else the classic layout in that document's wording.

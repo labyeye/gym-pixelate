@@ -8,6 +8,7 @@ const { fail, r2, istDay } = require("../utils/gym");
 // Days that count towards pay: full day = 1, half day = 0.5, paid leave / weekly off / holiday = 1 (the gym pays them).
 const PAY_WEIGHT = {
   present: 1,
+  late: 1,
   half_day: 0.5,
   paid_leave: 1,
   weekly_off: 1,
@@ -36,9 +37,21 @@ const staffList = (req) =>
   User.find({
     ...(req.user.tenantId ? { tenantId: req.user.tenantId } : {}),
     status: "active",
-    role: { $nin: ["gym_owner", "super_admin", "member"] },
+    role:
+      req.query.group === "trainer"
+        ? "trainer"
+        : {
+            $nin: [
+              "gym_owner",
+              "super_admin",
+              "member",
+              ...(req.query.group === "staff" ? ["trainer"] : []),
+            ],
+          },
   })
-    .select("name role phone monthlySalary trainerProfile branchId")
+    .select(
+      "name role phone monthlySalary trainerProfile branchId createdAt attendanceProfile",
+    )
     .sort("name");
 
 // Month grid: every active staff member with their marked days.
@@ -66,6 +79,75 @@ const getMonth = asyncHandler(async (req, res) => {
       monthlySalary: u.monthlySalary || 0,
       marks: byUser.get(String(u._id)) || {},
     })),
+  });
+});
+
+// Day rows for a month (check-in/out times included) + the roster, for the Attendance page. ?group=trainer|staff
+const hhmm = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+const records = asyncHandler(async (req, res) => {
+  const b = monthBounds(req.query.month);
+  const [staff, rows] = await Promise.all([
+    staffList(req),
+    StaffAttendance.find({ date: { $gte: b.start, $lte: b.end } }).lean(),
+  ]);
+  const ids = new Set(staff.map((u) => String(u._id)));
+  const faces = new Set(
+    (
+      await User.find({
+        _id: { $in: [...ids] },
+        "faceDescriptor.127": { $exists: true },
+      })
+        .select("_id")
+        .lean()
+    ).map((u) => String(u._id)),
+  );
+  const pins = new Map(
+    (
+      await User.find({
+        _id: { $in: [...ids] },
+        biometricId: { $exists: true },
+      })
+        .select("biometricId")
+        .lean()
+    ).map((u) => [String(u._id), u.biometricId]),
+  );
+  res.json({
+    success: true,
+    month: b.label,
+    days: b.days,
+    roster: staff.map((u) => ({
+      _id: u._id,
+      name: u.name,
+      role: u.role,
+      faceEnrolled: faces.has(String(u._id)),
+      biometricId: pins.get(String(u._id)) || "",
+      workDays: require("../utils/staffHr").workDays(u.attendanceProfile),
+      joined: new Date(u.createdAt.getTime() + 5.5 * 3600000)
+        .toISOString()
+        .slice(0, 10),
+      attendanceProfile: u.attendanceProfile,
+    })),
+    data: rows
+      .filter((r) => ids.has(String(r.userId)))
+      .map((r) => ({
+        _id: r._id,
+        userId: r.userId,
+        date: new Date(r.date.getTime() + 5.5 * 3600000)
+          .toISOString()
+          .slice(0, 10),
+        status: r.status,
+        checkIn: r.checkIn,
+        checkOut: r.checkOut,
+        verifyMode: r.verifyMode || "manual",
+        checkInLocation:
+          r.checkInLocation?.lat != null ? r.checkInLocation : undefined,
+        checkOutLocation:
+          r.checkOutLocation?.lat != null ? r.checkOutLocation : undefined,
+        hours:
+          r.checkIn && r.checkOut
+            ? Math.max(0, (hhmm(r.checkOut) - hhmm(r.checkIn)) / 60)
+            : 0,
+      })),
   });
 });
 
@@ -172,4 +254,4 @@ const payroll = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getMonth, mark, payroll };
+module.exports = { getMonth, records, mark, payroll };

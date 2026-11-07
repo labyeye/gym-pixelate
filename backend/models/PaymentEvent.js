@@ -9,7 +9,11 @@ const paymentEventSchema = new mongoose.Schema(
     orderId: { type: String, required: true },
     amount: { type: Number }, // rupees
     receivedAt: { type: Date, default: Date.now },
-    status: { type: String, enum: ["pending", "done", "failed"], default: "pending" },
+    status: {
+      type: String,
+      enum: ["pending", "done", "failed"],
+      default: "pending",
+    },
     attempts: { type: Number, default: 0 },
     note: { type: String },
     lastError: { type: String },

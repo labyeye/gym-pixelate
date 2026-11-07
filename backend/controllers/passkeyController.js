@@ -8,7 +8,10 @@ const {
 } = require("@simplewebauthn/server");
 const User = require("../models/User");
 const { completeSignIn } = require("../utils/signIn");
-const { assertNewPassword, finishPasswordReset } = require("./securityController");
+const {
+  assertNewPassword,
+  finishPasswordReset,
+} = require("./securityController");
 
 const hostOf = (u) => {
   try {
@@ -20,9 +23,7 @@ const hostOf = (u) => {
 // The passkey is bound to this domain. For one passkey on web + mobile use a parent
 // domain of the web app (e.g. pixelatenest.com) and host the iOS association file there.
 const RP_ID =
-  process.env.PASSKEY_RP_ID ||
-  hostOf(process.env.FRONTEND_URL) ||
-  "localhost";
+  process.env.PASSKEY_RP_ID || hostOf(process.env.FRONTEND_URL) || "localhost";
 const RP_NAME = "NestGym";
 const ORIGINS = [
   `https://${RP_ID}`,
@@ -42,7 +43,9 @@ const signChallenge = (challenge, purpose, uid) =>
 
 const readChallenge = (res, token, purpose) => {
   try {
-    const p = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+    const p = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ["HS256"],
+    });
     if (p.purpose === purpose) return p;
   } catch {
     /* fall through */
@@ -116,7 +119,10 @@ const registerVerify = asyncHandler(async (req, res) => {
     publicKey: Buffer.from(cred.publicKey).toString("base64url"),
     counter: cred.counter,
     transports: cred.transports || [],
-    name: String(name || "").trim().slice(0, 60) || "Passkey",
+    name:
+      String(name || "")
+        .trim()
+        .slice(0, 60) || "Passkey",
   });
   await user.save();
   res.json({ success: true, message: "Passkey added" });
@@ -173,12 +179,21 @@ function assertSignInAllowed(res, user) {
   }
   if (user.lockUntil && user.lockUntil > new Date()) {
     res.status(429);
-    throw new Error("Account locked after too many wrong passwords. Sign in with a WhatsApp code to unlock it.");
+    throw new Error(
+      "Account locked after too many wrong passwords. Sign in with a WhatsApp code to unlock it.",
+    );
   }
 }
 
-async function verifyAssertion(res, assertion, challenge, requireUserVerification) {
-  const user = await User.findOne({ "passkeys.credentialId": assertion.id }).select("+passkeys +password");
+async function verifyAssertion(
+  res,
+  assertion,
+  challenge,
+  requireUserVerification,
+) {
+  const user = await User.findOne({
+    "passkeys.credentialId": assertion.id,
+  }).select("+passkeys +password");
   const stored = user?.passkeys.find((p) => p.credentialId === assertion.id);
   if (!user || !stored) {
     res.status(401);

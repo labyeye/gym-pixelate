@@ -7,7 +7,9 @@ const { sendDue } = require("./paymentLinks");
 // ponytail: in-process timer — does not run on serverless (Vercel); call POST /api/payment-links/send-now
 // or hit this from a real cron there. Turn off with PAYLINK_AUTO_SEND=false.
 async function runOnce() {
-  const gyms = await Setting.find({ onlinePaymentsEnabled: true }).select("tenantId").lean();
+  const gyms = await Setting.find({ onlinePaymentsEnabled: true })
+    .select("tenantId")
+    .lean();
   for (const g of gyms) {
     try {
       const s = await runWithTenant(g.tenantId, () => sendDue(g.tenantId));

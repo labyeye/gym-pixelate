@@ -51,13 +51,19 @@ const withProductPhotos = async (docs) => {
   const ids = [
     ...new Set(
       list.flatMap((i) =>
-        (i.items || []).filter((x) => x.kind === "product" && x.refId).map((x) => String(x.refId)),
+        (i.items || [])
+          .filter((x) => x.kind === "product" && x.refId)
+          .map((x) => String(x.refId)),
       ),
     ),
   ];
   if (!ids.length) return list;
   const photos = new Map(
-    (await Product.find({ _id: { $in: ids } }).select("photo").lean()).map((p) => [String(p._id), p.photo]),
+    (
+      await Product.find({ _id: { $in: ids } })
+        .select("photo")
+        .lean()
+    ).map((p) => [String(p._id), p.photo]),
   );
   for (const i of list)
     for (const x of i.items || [])
@@ -86,7 +92,8 @@ const getInvoices = asyncHandler(async (req, res) => {
   if (membershipId) query.membershipId = membershipId;
   // e.g. excludeKinds=membership,admission keeps plan sales out of the billing list
   if (TYPE_KINDS[type]) query["items.kind"] = { $in: TYPE_KINDS[type] };
-  else if (excludeKinds) query["items.kind"] = { $nin: String(excludeKinds).split(",") };
+  else if (excludeKinds)
+    query["items.kind"] = { $nin: String(excludeKinds).split(",") };
   if (status) query.status = status;
   if (search)
     query.invoiceNumber = {
@@ -101,10 +108,18 @@ const getInvoices = asyncHandler(async (req, res) => {
   // headline numbers for the same scope as the list, so the cards always match the table
   const scope = { ...query };
   for (const k of ["status", "issuedAt", "invoiceNumber"]) delete scope[k];
-  const ist = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const ist = new Date().toLocaleDateString("en-CA", {
+    timeZone: "Asia/Kolkata",
+  });
   const sumPaid = (from) =>
     Invoice.aggregate([
-      { $match: { ...scope, status: { $ne: "cancelled" }, issuedAt: { $gte: from } } },
+      {
+        $match: {
+          ...scope,
+          status: { $ne: "cancelled" },
+          issuedAt: { $gte: from },
+        },
+      },
       { $group: { _id: null, total: { $sum: "$paidAmount" } } },
     ]);
   const [todayAgg, monthAgg, dueAgg] = await Promise.all([
@@ -179,9 +194,17 @@ const getInvoice = asyncHandler(async (req, res) => {
       website: company.companyWebsite,
       state: company.companyState,
       stateCode: company.companyStateCode,
-      bank: { name: company.bankName, accountName: company.bankAccountName, accountNo: company.bankAccountNumber, ifsc: company.bankIFSC, branch: company.bankBranch, type: company.bankAccountType },
+      bank: {
+        name: company.bankName,
+        accountName: company.bankAccountName,
+        accountNo: company.bankAccountNumber,
+        ifsc: company.bankIFSC,
+        branch: company.bankBranch,
+        type: company.bankAccountType,
+      },
       terms: company.invoiceTerms,
       template: company.invoiceTemplate,
+      receiptTemplate: company.receiptTemplate,
       receiptDesign: company.receiptDesign,
     },
   });
@@ -331,13 +354,11 @@ const deleteInvoice = asyncHandler(async (req, res) => {
 });
 
 const getInvoicePdf = asyncHandler(async (req, res) => {
-  res
-    .status(501)
-    .json({
-      success: false,
-      message:
-        "Use the browser print view (GET /invoices/:id returns all fields incl. company details)",
-    });
+  res.status(501).json({
+    success: false,
+    message:
+      "Use the browser print view (GET /invoices/:id returns all fields incl. company details)",
+  });
 });
 
 module.exports = {

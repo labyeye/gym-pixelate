@@ -56,7 +56,10 @@ export default function SubscriptionPage() {
   const { refreshTenant } = useAuth();
   const [cycle, setCycle] = useState("monthly");
   const [busy, setBusy] = useState("");
-  const { data: gymSettings } = useQuery({ queryKey: ["gym-settings"], queryFn: () => settingsAPI.get() });
+  const { data: gymSettings } = useQuery({
+    queryKey: ["gym-settings"],
+    queryFn: () => settingsAPI.get(),
+  });
 
   const { data: plansRes } = useQuery({
     queryKey: ["saas-plans"],
@@ -373,7 +376,15 @@ export default function SubscriptionPage() {
         Payment history
       </h3>
       <DataTable
-        head={["Bill no", "Plan", "Term", "Amount", "Paid on", "Status", "Bill"]}
+        head={[
+          "Bill no",
+          "Plan",
+          "Term",
+          "Amount",
+          "Paid on",
+          "Status",
+          "Bill",
+        ]}
         empty={!(invRes?.data || []).length}
       >
         {(invRes?.data || []).map((v: any, i: number) => (

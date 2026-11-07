@@ -23,6 +23,7 @@ const staffAttendanceSchema = new mongoose.Schema(
       type: String,
       enum: [
         "present",
+        "late",
         "absent",
         "half_day",
         "paid_leave",
@@ -35,7 +36,25 @@ const staffAttendanceSchema = new mongoose.Schema(
     checkIn: { type: String }, // "HH:mm"
     checkOut: { type: String },
     note: { type: String, trim: true },
+    verifyMode: {
+      type: String,
+      enum: ["manual", "self", "geo", "face", "geo_camera", "biometric"],
+      default: "manual",
+    },
+    checkInLocation: {
+      lat: Number,
+      lng: Number,
+      accuracy: Number,
+      distanceMeters: Number,
+    },
+    checkOutLocation: {
+      lat: Number,
+      lng: Number,
+      accuracy: Number,
+      distanceMeters: Number,
+    },
     markedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    leaveId: { type: mongoose.Schema.Types.ObjectId, ref: "StaffLeave" }, // set on rows an approved leave created
   },
   { timestamps: true },
 );

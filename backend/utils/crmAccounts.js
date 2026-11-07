@@ -12,8 +12,12 @@ const express = require("express");
 
 const { checkPasswordRules, generatePassword } = require("./passwordPolicy");
 const STRONG = { test: (p) => !checkPasswordRules(p) };
-const fail = (message, statusCode = 400) => Object.assign(new Error(message), { statusCode });
-const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj[k] !== undefined).map((k) => [k, obj[k]]));
+const fail = (message, statusCode = 400) =>
+  Object.assign(new Error(message), { statusCode });
+const pick = (obj, keys) =>
+  Object.fromEntries(
+    keys.filter((k) => obj[k] !== undefined).map((k) => [k, obj[k]]),
+  );
 // Always satisfies STRONG (upper + lower + digit, 12 chars).
 const genPassword = () => generatePassword();
 const checkPassword = (p) => {
@@ -21,7 +25,12 @@ const checkPassword = (p) => {
   return p || genPassword();
 };
 const cleanFeatures = (v) =>
-  v === undefined ? undefined : (Array.isArray(v) ? v : String(v).split("\n")).map((f) => String(f).trim()).filter(Boolean).slice(0, 40);
+  v === undefined
+    ? undefined
+    : (Array.isArray(v) ? v : String(v).split("\n"))
+        .map((f) => String(f).trim())
+        .filter(Boolean)
+        .slice(0, 40);
 const toDate = (v, name) => {
   const d = new Date(v);
   if (isNaN(d)) throw fail(`Invalid ${name}`);
@@ -29,7 +38,9 @@ const toDate = (v, name) => {
 };
 const addMonths = (months) => {
   const d = new Date();
-  d.setMonth(d.getMonth() + Math.max(1, Math.min(36, Math.floor(Number(months) || 1))));
+  d.setMonth(
+    d.getMonth() + Math.max(1, Math.min(36, Math.floor(Number(months) || 1))),
+  );
   return d;
 };
 
@@ -47,23 +58,73 @@ module.exports = (secretEnv, adapter) => {
     try {
       res.status(fn.status || 200).json({ success: true, ...(await fn(req)) });
     } catch (err) {
-      if (err.code === 11000) return res.status(400).json({ success: false, message: "That email is already in use" });
-      if (err.name === "CastError") return res.status(400).json({ success: false, message: "Invalid id" });
-      if (err.name === "ValidationError") return res.status(400).json({ success: false, message: err.message });
-      res.status(err.statusCode || 500).json({ success: false, message: err.message });
+      if (err.code === 11000)
+        return res
+          .status(400)
+          .json({ success: false, message: "That email is already in use" });
+      if (err.name === "CastError")
+        return res.status(400).json({ success: false, message: "Invalid id" });
+      if (err.name === "ValidationError")
+        return res.status(400).json({ success: false, message: err.message });
+      res
+        .status(err.statusCode || 500)
+        .json({ success: false, message: err.message });
     }
   };
   const created = (fn) => Object.assign(fn, { status: 201 });
 
-  router.get("/", h(async (req) => ({ meta: adapter.meta, accounts: await adapter.list(String(req.query.search || "").trim().slice(0, 60)) })));
+  router.get(
+    "/",
+    h(async (req) => ({
+      meta: adapter.meta,
+      accounts: await adapter.list(
+        String(req.query.search || "")
+          .trim()
+          .slice(0, 60),
+      ),
+    })),
+  );
   router.post("/", h(created((req) => adapter.create(req.body || {}))));
-  router.patch("/users/:uid", h((req) => adapter.updateUser(req.params.uid, req.body || {})));
-  router.delete("/users/:uid", h(async (req) => { await adapter.deleteUser(req.params.uid); return {}; }));
-  router.get("/:id", h(async (req) => ({ meta: adapter.meta, ...(await adapter.get(req.params.id)) })));
-  router.patch("/:id", h((req) => adapter.updateAccount(req.params.id, req.body || {})));
-  router.put("/:id/subscription", h((req) => adapter.setSubscription(req.params.id, req.body || {})));
-  router.post("/:id/users", h(created((req) => adapter.createUser(req.params.id, req.body || {}))));
+  router.patch(
+    "/users/:uid",
+    h((req) => adapter.updateUser(req.params.uid, req.body || {})),
+  );
+  router.delete(
+    "/users/:uid",
+    h(async (req) => {
+      await adapter.deleteUser(req.params.uid);
+      return {};
+    }),
+  );
+  router.get(
+    "/:id",
+    h(async (req) => ({
+      meta: adapter.meta,
+      ...(await adapter.get(req.params.id)),
+    })),
+  );
+  router.patch(
+    "/:id",
+    h((req) => adapter.updateAccount(req.params.id, req.body || {})),
+  );
+  router.put(
+    "/:id/subscription",
+    h((req) => adapter.setSubscription(req.params.id, req.body || {})),
+  );
+  router.post(
+    "/:id/users",
+    h(created((req) => adapter.createUser(req.params.id, req.body || {}))),
+  );
   return router;
 };
 
-module.exports.helpers = { STRONG, fail, pick, genPassword, checkPassword, cleanFeatures, toDate, addMonths };
+module.exports.helpers = {
+  STRONG,
+  fail,
+  pick,
+  genPassword,
+  checkPassword,
+  cleanFeatures,
+  toDate,
+  addMonths,
+};

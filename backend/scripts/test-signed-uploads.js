@@ -8,9 +8,17 @@ const url = JSON.parse(signed).photo;
 const q = new URL(url).searchParams;
 let status = 0;
 const res = { status: (c) => ((status = c), { json: () => {} }) };
-su.verifyUpload({ path: "/a1.jpg", query: { e: q.get("e"), s: q.get("s") } }, res, () => (status = 200));
+su.verifyUpload(
+  { path: "/a1.jpg", query: { e: q.get("e"), s: q.get("s") } },
+  res,
+  () => (status = 200),
+);
 assert.strictEqual(status, 200);
-su.verifyUpload({ path: "/other.jpg", query: { e: q.get("e"), s: q.get("s") } }, res, () => (status = 200));
+su.verifyUpload(
+  { path: "/other.jpg", query: { e: q.get("e"), s: q.get("s") } },
+  res,
+  () => (status = 200),
+);
 assert.strictEqual(status, 403);
 su.verifyUpload({ path: "/a1.jpg", query: {} }, res, () => (status = 200));
 assert.strictEqual(status, 403);

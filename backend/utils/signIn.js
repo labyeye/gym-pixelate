@@ -8,7 +8,8 @@ const crypto = require("crypto");
 const REFRESH_DAYS = 30;
 const sha = (t) => crypto.createHash("sha256").update(t).digest("hex");
 const COOKIE = "gym_rt";
-const readCookie = (req) => (/(?:^|;\s*)gym_rt=([\w-]+)/.exec(req.headers.cookie || "") || [])[1];
+const readCookie = (req) =>
+  (/(?:^|;\s*)gym_rt=([\w-]+)/.exec(req.headers.cookie || "") || [])[1];
 
 // Mints a new opaque refresh token for the session. Browsers get it as an httpOnly cookie, native apps in the body.
 async function issueRefresh(req, res, sid) {
@@ -16,7 +17,11 @@ async function issueRefresh(req, res, sid) {
   const cur = await Session.findById(sid).select("+refreshHash");
   await Session.updateOne(
     { _id: sid },
-    { refreshHash: sha(token), prevRefreshHash: cur?.refreshHash, refreshExpiresAt: new Date(Date.now() + REFRESH_DAYS * 864e5) },
+    {
+      refreshHash: sha(token),
+      prevRefreshHash: cur?.refreshHash,
+      refreshExpiresAt: new Date(Date.now() + REFRESH_DAYS * 864e5),
+    },
   );
   if (req.headers["x-device-platform"]) return token;
   if (res) {
@@ -57,15 +62,33 @@ function describeFromUserAgent(ua = "") {
 
 // Creates the device record for a fresh sign-in and returns its id for the token.
 async function startSession(req, user) {
-  const platform = String(req.headers["x-device-platform"] || "web").slice(0, 20);
+  const platform = String(req.headers["x-device-platform"] || "web").slice(
+    0,
+    20,
+  );
   const deviceName =
-    String(req.headers["x-device-name"] || "").trim().slice(0, 80) || describeFromUserAgent(req.headers["user-agent"]);
+    String(req.headers["x-device-name"] || "")
+      .trim()
+      .slice(0, 80) || describeFromUserAgent(req.headers["user-agent"]);
   // a device we haven't seen for this account (and not the very first sign-in) triggers an email heads-up
-  const known = await Session.exists({ userId: user._id, deviceName, platform });
+  const known = await Session.exists({
+    userId: user._id,
+    deviceName,
+    platform,
+  });
   const any = known || (await Session.exists({ userId: user._id }));
-  const s = await Session.create({ userId: user._id, deviceName, platform, ip: req.ip || "" });
+  const s = await Session.create({
+    userId: user._id,
+    deviceName,
+    platform,
+    ip: req.ip || "",
+  });
   if (any && !known)
-    sendSecurityAlertEmail({ to: user.email, name: user.name, what: `New sign-in to your NestGym account from ${deviceName} (${platform}), IP ${req.ip || "unknown"}.` });
+    sendSecurityAlertEmail({
+      to: user.email,
+      name: user.name,
+      what: `New sign-in to your NestGym account from ${deviceName} (${platform}), IP ${req.ip || "unknown"}.`,
+    });
   return String(s._id);
 }
 
@@ -74,7 +97,9 @@ async function signInPayload(req, user, status = 200, res) {
   const sid = await startSession(req, user);
   const refreshToken = await issueRefresh(req, res, sid);
   const tenant = user.tenantId
-    ? await Tenant.findById(user.tenantId).select("name plan status planExpiresAt onboarded")
+    ? await Tenant.findById(user.tenantId).select(
+        "name plan status planExpiresAt onboarded",
+      )
     : null;
   return {
     status,
@@ -131,22 +156,49 @@ async function completeSignIn(req, res, user) {
 // Replaying an already-rotated token means it leaked, so that device session is killed.
 async function refresh(req, res) {
   const fromCookie = readCookie(req);
-  if (fromCookie && !req.headers["x-requested-with"]) return res.status(401).json({ success: false, message: "Bad request" });
+  if (fromCookie && !req.headers["x-requested-with"])
+    return res.status(401).json({ success: false, message: "Bad request" });
   const t = fromCookie || req.body?.refreshToken;
   const h = t && sha(String(t));
-  const s = h && (await Session.findOne({ $or: [{ refreshHash: h }, { prevRefreshHash: h }] }).select("+refreshHash +prevRefreshHash"));
+  const s =
+    h &&
+    (await Session.findOne({
+      $or: [{ refreshHash: h }, { prevRefreshHash: h }],
+    }).select("+refreshHash +prevRefreshHash"));
   if (!s || s.refreshHash !== h) {
     if (s) await s.deleteOne();
-    return res.status(401).json({ success: false, message: "Session expired, please sign in again" });
+    return res
+      .status(401)
+      .json({
+        success: false,
+        message: "Session expired, please sign in again",
+      });
   }
   if (!s.refreshExpiresAt || s.refreshExpiresAt < new Date()) {
     await s.deleteOne();
-    return res.status(401).json({ success: false, message: "Session expired, please sign in again" });
+    return res
+      .status(401)
+      .json({
+        success: false,
+        message: "Session expired, please sign in again",
+      });
   }
   s.lastActiveAt = new Date();
   await s.save();
   const refreshToken = await issueRefresh(req, res, s._id);
-  res.json({ success: true, data: { token: generateToken(s.userId, s._id), ...(refreshToken && { refreshToken }) } });
+  res.json({
+    success: true,
+    data: {
+      token: generateToken(s.userId, s._id),
+      ...(refreshToken && { refreshToken }),
+    },
+  });
 }
 
-module.exports = { startSession, signInPayload, completeSignIn, refresh, issueRefresh };
+module.exports = {
+  startSession,
+  signInPayload,
+  completeSignIn,
+  refresh,
+  issueRefresh,
+};

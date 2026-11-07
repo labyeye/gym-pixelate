@@ -62,7 +62,10 @@ const getMemberships = asyncHandler(async (req, res) => {
   if (dues === "true")
     query.$expr = { $gt: ["$totalAmount", { $add: ["$paidAmount", 0.005] }] };
   if (search) {
-    const rx = { $regex: String(search).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
+    const rx = {
+      $regex: String(search).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+      $options: "i",
+    };
     const ids = await Member.find({
       ...(req.user.tenantId ? { tenantId: req.user.tenantId } : {}),
       $or: [{ name: rx }, { phone: rx }, { memberCode: rx }],
@@ -92,22 +95,34 @@ const getMemberships = asyncHandler(async (req, res) => {
     Membership.find(query)
       .populate(...POPULATE_MEMBER)
       .populate(...POPULATE_PLAN)
-      .sort(["endDate", "-endDate", "-createdAt"].includes(sort) ? sort : "-createdAt")
+      .sort(
+        ["endDate", "-endDate", "-createdAt"].includes(sort)
+          ? sort
+          : "-createdAt",
+      )
       .skip(skip)
       .limit(parseInt(limit)),
     Membership.countDocuments(query),
   ]);
   const [active, expiring, expired, withDues] = await counts;
   // the invoice each membership was billed on, so the app can collect fees / open the receipt directly
-  const invs = await Invoice.find({ membershipId: { $in: memberships.map((m) => m._id) } })
+  const invs = await Invoice.find({
+    membershipId: { $in: memberships.map((m) => m._id) },
+  })
     .select("_id invoiceNumber membershipId")
     .sort("issuedAt")
     .lean();
   const invOf = new Map();
-  for (const i of invs) if (!invOf.has(String(i.membershipId))) invOf.set(String(i.membershipId), i);
+  for (const i of invs)
+    if (!invOf.has(String(i.membershipId)))
+      invOf.set(String(i.membershipId), i);
   const rows = memberships.map((m) => {
     const i = invOf.get(String(m._id));
-    return { ...m.toObject(), invoiceId: i?._id, invoiceNumber: i?.invoiceNumber };
+    return {
+      ...m.toObject(),
+      invoiceId: i?._id,
+      invoiceNumber: i?.invoiceNumber,
+    };
   });
   res.json({
     success: true,
@@ -305,7 +320,11 @@ const renewMembership = asyncHandler(async (req, res) => {
 const CHANGE_WINDOW_MS = 24 * 60 * 60 * 1000;
 // same rounding as the invoice line, so the quote equals the bill
 const unitOf = (plan) =>
-  r2(plan.priceIncludesGst ? plan.price / (1 + (plan.gstPercent || 0) / 100) : plan.price);
+  r2(
+    plan.priceIncludesGst
+      ? plan.price / (1 + (plan.gstPercent || 0) / 100)
+      : plan.price,
+  );
 
 async function quoteUpgrade(old, plan, now = new Date()) {
   const withinWindow = now - old.createdAt <= CHANGE_WINDOW_MS;
@@ -330,10 +349,15 @@ async function quoteUpgrade(old, plan, now = new Date()) {
     const target = r2(newTotal - credit);
     const raw = unit - target / (1 + g / 100);
     discount = [Math.floor(raw * 100) / 100, Math.ceil(raw * 100) / 100].sort(
-      (a, b) => Math.abs((unit - a) * (1 + g / 100) - target) - Math.abs((unit - b) * (1 + g / 100) - target),
+      (a, b) =>
+        Math.abs((unit - a) * (1 + g / 100) - target) -
+        Math.abs((unit - b) * (1 + g / 100) - target),
     )[0];
   } else {
-    const totalDays = Math.max(1, Math.round((old.endDate - old.startDate) / DAY));
+    const totalDays = Math.max(
+      1,
+      Math.round((old.endDate - old.startDate) / DAY),
+    );
     const left = Math.max(0, Math.ceil((old.endDate - now) / DAY));
     credit = r2(Math.min(old.paidAmount, (old.price * left) / totalDays));
     discount = credit;
@@ -366,16 +390,28 @@ async function performUpgrade({ old, plan, body = {}, userId, tenantId }) {
     isRenewal: false,
     previousMembershipId: old._id,
   });
-  return { membership, invoice, credit: q.credit, withinWindow: q.withinWindow, payable: q.payable };
+  return {
+    membership,
+    invoice,
+    credit: q.credit,
+    withinWindow: q.withinWindow,
+    payable: q.payable,
+  };
 }
 
 const upgradeQuote = asyncHandler(async (req, res) => {
-  const old = await Membership.findOne({ _id: req.params.id, status: "active" });
+  const old = await Membership.findOne({
+    _id: req.params.id,
+    status: "active",
+  });
   if (!old) throw fail(409, "Only an active membership can be changed");
   const plan = await MembershipPlan.findById(req.query.planId);
   if (!plan) throw fail(404, "Plan not found");
   const q = await quoteUpgrade(old, plan);
-  res.json({ success: true, data: { ...q, allowed: q.withinWindow || isManager(req.user) } });
+  res.json({
+    success: true,
+    data: { ...q, allowed: q.withinWindow || isManager(req.user) },
+  });
 });
 
 const upgradeMembership = asyncHandler(async (req, res) => {
@@ -383,11 +419,18 @@ const upgradeMembership = asyncHandler(async (req, res) => {
   if (!planId) throw fail(400, "planId is required to upgrade a membership");
   const plan = await MembershipPlan.findById(planId);
   if (!plan) throw fail(404, "Plan not found");
-  const cur = await Membership.findOne({ _id: req.params.id, status: "active" });
+  const cur = await Membership.findOne({
+    _id: req.params.id,
+    status: "active",
+  });
   if (!cur) throw fail(409, "Only an active membership can be upgraded");
-  if (String(cur.planId) === String(plan._id)) throw fail(400, "Pick a different plan");
+  if (String(cur.planId) === String(plan._id))
+    throw fail(400, "Pick a different plan");
   if (Date.now() - cur.createdAt > CHANGE_WINDOW_MS && !isManager(req.user))
-    throw fail(403, "Plans can only be changed after 24 hours by the gym owner or a manager.");
+    throw fail(
+      403,
+      "Plans can only be changed after 24 hours by the gym owner or a manager.",
+    );
   const old = await Membership.findOneAndUpdate(
     { _id: req.params.id, status: "active" },
     { $set: { status: "upgraded" } },
@@ -395,16 +438,32 @@ const upgradeMembership = asyncHandler(async (req, res) => {
   );
   if (!old) throw fail(409, "Only an active membership can be upgraded");
   try {
-    const r = await performUpgrade({ old, plan, body: req.body, userId: req.user._id, tenantId: req.user.tenantId });
+    const r = await performUpgrade({
+      old,
+      plan,
+      body: req.body,
+      userId: req.user._id,
+      tenantId: req.user.tenantId,
+    });
     log(
       req,
       "CREATE",
       r.membership,
       `Upgraded membership ${old._id} (credit ₹${r.credit}${r.withinWindow ? ", within 24h" : ""}, ${r.invoice.invoiceNumber})`,
     );
-    res.status(201).json({ success: true, data: r.membership, invoice: r.invoice, credit: r.credit });
+    res
+      .status(201)
+      .json({
+        success: true,
+        data: r.membership,
+        invoice: r.invoice,
+        credit: r.credit,
+      });
   } catch (e) {
-    await Membership.updateOne({ _id: old._id }, { $set: { status: "active" } }); // roll back
+    await Membership.updateOne(
+      { _id: old._id },
+      { $set: { status: "active" } },
+    ); // roll back
     throw e;
   }
 });

@@ -6,17 +6,43 @@ const { encrypt } = require("../utils/encryption");
 const { sanitizeInvoiceTemplate } = require("../utils/invoiceTemplate");
 
 // keep in sync with frontend/src/config/modules.ts
-const MODULE_KEYS = ["pos", "personalTraining", "classes", "workoutDiet", "lockers", "coupons", "expenses", "equipment", "announcements"];
+const MODULE_KEYS = [
+  "pos",
+  "personalTraining",
+  "classes",
+  "workoutDiet",
+  "lockers",
+  "coupons",
+  "expenses",
+  "equipment",
+  "announcements",
+  "staffAttendance",
+  "trainerAttendance",
+  "memberAttendance",
+];
 const sanitizeModules = (m) =>
-  Object.fromEntries(MODULE_KEYS.filter((k) => m && typeof m[k] === "boolean").map((k) => [k, m[k]]));
+  Object.fromEntries(
+    MODULE_KEYS.filter((k) => m && typeof m[k] === "boolean").map((k) => [
+      k,
+      m[k],
+    ]),
+  );
 
 // razorpayKeySecret (plain, write-only) -> razorpayKeySecretEnc; a client can never set the encrypted field directly
 const prepare = (body) => {
-  const { razorpayKeySecret, razorpayKeySecretEnc, razorpayWebhookSecret, razorpayWebhookSecretEnc, ...rest } = body || {};
+  const {
+    razorpayKeySecret,
+    razorpayKeySecretEnc,
+    razorpayWebhookSecret,
+    razorpayWebhookSecretEnc,
+    ...rest
+  } = body || {};
   if (razorpayKeySecret)
     rest.razorpayKeySecretEnc = encrypt(String(razorpayKeySecret).trim());
   if (razorpayWebhookSecret)
-    rest.razorpayWebhookSecretEnc = encrypt(String(razorpayWebhookSecret).trim());
+    rest.razorpayWebhookSecretEnc = encrypt(
+      String(razorpayWebhookSecret).trim(),
+    );
   return rest;
 };
 const safe = (doc) => {
@@ -30,7 +56,7 @@ const safe = (doc) => {
 const sanitizeReceiptDesign = (d) => {
   const str = (v, n) => String(v ?? "").slice(0, n);
   return {
-    style: d?.style === "cheque" ? "cheque" : "standard",
+    style: ["cheque", "designed"].includes(d?.style) ? d.style : "standard",
     accent: /^#[0-9a-f]{6}$/i.test(d?.accent) ? d.accent : "#024BAB",
     signatory: str(d?.signatory, 60),
     note: str(d?.note, 200),
@@ -48,7 +74,9 @@ const getSettings = asyncHandler(async (req, res) => {
     setting = await Setting.create(tenantFilter);
   }
 
-  const saved = await Setting.findOne(tenantFilter).select("+razorpayKeySecretEnc +razorpayWebhookSecretEnc");
+  const saved = await Setting.findOne(tenantFilter).select(
+    "+razorpayKeySecretEnc +razorpayWebhookSecretEnc",
+  );
   res.json({
     success: true,
     data: {
@@ -61,16 +89,42 @@ const getSettings = asyncHandler(async (req, res) => {
 
 const updateSettings = asyncHandler(async (req, res) => {
   const tenantFilter = { tenantId: req.user.tenantId || null };
-  if (req.body && "modules" in req.body) req.body.modules = sanitizeModules(req.body.modules);
+  if (req.body && "modules" in req.body)
+    req.body.modules = sanitizeModules(req.body.modules);
   if (req.body && req.body.receiptDesign != null)
     req.body.receiptDesign = sanitizeReceiptDesign(req.body.receiptDesign);
-  if (req.body && req.body.invoiceTemplate != null) {
-    try {
-      req.body.invoiceTemplate = sanitizeInvoiceTemplate(req.body.invoiceTemplate);
-    } catch (err) {
-      res.status(err.statusCode || 400);
-      throw err;
+  for (const f of [
+    "invoiceTemplate",
+    "receiptTemplate",
+    "workoutTemplate",
+    "dietTemplate",
+  ]) {
+    if (req.body && req.body[f] != null) {
+      try {
+        req.body[f] = sanitizeInvoiceTemplate(req.body[f]);
+      } catch (err) {
+        res.status(err.statusCode || 400);
+        throw err;
+      }
     }
+  }
+  if (req.body && req.body.attendanceGeo != null) {
+    const g = req.body.attendanceGeo;
+    const num = (v, lo, hi) =>
+      v !== "" &&
+      v !== null &&
+      v !== undefined &&
+      Number(v) >= lo &&
+      Number(v) <= hi
+        ? Number(v)
+        : null;
+    req.body.attendanceGeo = {
+      enabled: !!g.enabled,
+      requireFace: !!g.requireFace,
+      lat: num(g.lat, -90, 90),
+      lng: num(g.lng, -180, 180),
+      radiusMeters: Math.min(5000, Math.max(20, Number(g.radiusMeters) || 200)),
+    };
   }
   let setting = await Setting.findOne(tenantFilter);
 
@@ -86,7 +140,9 @@ const updateSettings = asyncHandler(async (req, res) => {
   invalidatePermissionsCache(req.user.tenantId);
   clearPolicyCache(req.user.tenantId);
 
-  const saved = await Setting.findOne(tenantFilter).select("+razorpayKeySecretEnc +razorpayWebhookSecretEnc");
+  const saved = await Setting.findOne(tenantFilter).select(
+    "+razorpayKeySecretEnc +razorpayWebhookSecretEnc",
+  );
   res.json({
     success: true,
     data: {

@@ -390,14 +390,15 @@ export function DesignerCanvas({
         );
 
       case "items": {
+        const pc: Record<string, string> = sample.invoice?.plan?.cols || {};
         const cols = [
           p.sno && ["sno", 24, "center", "S.No"],
           ["desc", 0, "left", p.descLabel],
-          p.hsn && ["hsn", 52, "center", "HSN/SAC"],
-          p.qty && ["qty", 34, "center", "Qty"],
-          p.rate && ["rate", 62, "right", "Rate (Rs.)"],
+          p.hsn && ["hsn", 52, "center", pc.hsn ?? "HSN/SAC"],
+          p.qty && ["qty", 34, "center", pc.qty ?? "Qty"],
+          p.rate && ["rate", 62, "right", pc.rate ?? "Rate (Rs.)"],
           p.discount && ["dis", 42, "right", "Disc."],
-          p.amount && ["amt", 70, "right", "Amount (Rs.)"],
+          p.amount && ["amt", 70, "right", pc.amt ?? "Amount (Rs.)"],
         ].filter(Boolean) as [
           string,
           number,
@@ -440,14 +441,40 @@ export function DesignerCanvas({
               ))}
             </div>
             {c.items.map((it, i) => {
-              const val: Record<string, React.ReactNode> = {
-                sno: i + 1,
-                hsn: it.hsn,
-                qty: it.qty,
-                rate: fmt(it.rate),
-                dis: it.disc > 0 ? fmt(it.disc) : "—",
-                amt: fmt(it.amt),
-              };
+              const val: Record<string, React.ReactNode> = it.cells
+                ? {
+                    sno: i + 1,
+                    hsn: "",
+                    qty: "",
+                    rate: "",
+                    dis: "",
+                    amt: "",
+                    ...it.cells,
+                  }
+                : {
+                    sno: i + 1,
+                    hsn: it.hsn,
+                    qty: it.qty,
+                    rate: fmt(it.rate),
+                    dis: it.disc > 0 ? fmt(it.disc) : "—",
+                    amt: fmt(it.amt),
+                  };
+              if (it.group)
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      padding: `${px(5)}px ${px(4)}px`,
+                      borderBottom: soft,
+                      background: T.headerBg,
+                      fontWeight: bold,
+                      fontSize: fs(8),
+                    }}
+                  >
+                    {it.description}
+                    {it.details ? `  ·  ${it.details}` : ""}
+                  </div>
+                );
               return (
                 <div
                   key={i}
@@ -495,6 +522,7 @@ export function DesignerCanvas({
       }
 
       case "words":
+        if (sample.invoice?.plan) return null;
         return (
           <div
             style={{
@@ -520,6 +548,7 @@ export function DesignerCanvas({
         );
 
       case "summary": {
+        if (sample.invoice?.plan) return null;
         const left = p.showBank || p.showTerms;
         const bank = company.bank;
         const row = (
@@ -655,6 +684,7 @@ export function DesignerCanvas({
       }
 
       case "taxSummary": {
+        if (sample.invoice?.plan) return null;
         if (c.taxAmt <= 0) return null;
         const cell = (v: string, b = false) => (
           <div

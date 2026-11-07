@@ -101,7 +101,10 @@ const userSchema = new mongoose.Schema(
       pincode: { type: String, trim: true },
       languages: [{ type: String, trim: true }],
       joiningDate: { type: Date },
-      employmentType: { type: String, enum: ["full_time", "part_time", "freelance", ""] },
+      employmentType: {
+        type: String,
+        enum: ["full_time", "part_time", "freelance", ""],
+      },
       emergencyContact: {
         name: { type: String, trim: true },
         phone: { type: String, trim: true },
@@ -125,7 +128,11 @@ userSchema.add({
   twoFactorEnabled: { type: Boolean, default: false },
   twoFactorFailedAttempts: { type: Number, default: 0 },
   twoFactorLockUntil: { type: Date },
-  backupCodes: { type: [{ hash: String, usedAt: Date }], default: [], select: false },
+  backupCodes: {
+    type: [{ hash: String, usedAt: Date }],
+    default: [],
+    select: false,
+  },
   backupCodesGeneratedAt: { type: Date },
   // WebAuthn passkeys; publicKey is base64url of the COSE key.
   passkeys: {
@@ -145,6 +152,28 @@ userSchema.add({
   },
   // Proven ownership of phone / email. Phone gates WhatsApp password reset; both reset on change.
   phoneVerified: { type: Boolean, default: false },
+  // attendance: 128-number face embedding (never sent to the browser) and the PIN used on a biometric device
+  faceDescriptor: { type: [Number], select: false },
+  biometricId: { type: String, trim: true },
+  // NestHR-style attendance tab of the staff / trainer form
+  attendanceProfile: {
+    workDaysPerWeek: { type: Number, enum: [5, 6, 7], default: 6 },
+    workScheduleType: {
+      type: String,
+      enum: ["standard", "custom"],
+      default: "standard",
+    },
+    customWorkDays: { type: [Number], default: [] }, // 0 = Sunday ... 6 = Saturday
+    shiftStart: { type: String, default: "" }, // "HH:mm"; empty = no late tracking
+    shiftEnd: { type: String, default: "" },
+    geofence: {
+      enabled: { type: Boolean, default: false },
+      mode: { type: String, enum: ["specific", "any"], default: "specific" }, // any = record the location, don't restrict it
+      lat: Number,
+      lng: Number,
+      radiusMeters: { type: Number, default: 200 },
+    },
+  },
   phoneVerifyOtp: { type: String, select: false },
   phoneVerifyOtpExpire: { type: Date, select: false },
   phoneVerifyOtpTries: { type: Number, default: 0, select: false },
@@ -161,6 +190,9 @@ userSchema.add({
   resetPasswordToken: { type: String, select: false },
   resetPasswordExpire: { type: Date, select: false },
   resetOtp: { type: String, select: false },
+  vaultOtp: { type: String, select: false },
+  vaultOtpExpire: { type: Date, select: false },
+  vaultOtpTries: { type: Number, default: 0, select: false },
   resetOtpExpire: { type: Date, select: false },
   resetOtpTries: { type: Number, default: 0, select: false },
 });

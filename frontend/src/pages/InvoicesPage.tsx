@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { gym } from "@/services/gymApi";
-import { useNotify } from "@/components/ui/Notification";
+import { useNotify, useConfirm } from "@/components/ui/Notification";
 import { usePermission } from "@/hooks/usePermission";
 import {
   ActionButton,
@@ -61,6 +61,7 @@ const newLine = () => ({
 
 export default function InvoicesPage() {
   const notify = useNotify();
+  const { confirm } = useConfirm();
   const qc = useQueryClient();
   const { can } = usePermission();
   const [page, setPage] = useState(1);
@@ -173,11 +174,24 @@ export default function InvoicesPage() {
       memberId = m._id;
     }
     if (!r.Description) throw new Error("Description is required");
-    const qty = Number(r.Qty) || 1, rate = Number(r.Rate) || 0, gst = Number(r["GST %"] ?? 18);
+    const qty = Number(r.Qty) || 1,
+      rate = Number(r.Rate) || 0,
+      gst = Number(r["GST %"] ?? 18);
     return gym.invoices.create({
       memberId,
-      items: [{ kind: "other", description: r.Description, quantity: qty, unitPrice: rate, gstPercent: gst }],
-      payNow: r.Paid === "" || r.Paid === undefined ? qty * rate * (1 + gst / 100) : Number(r.Paid),
+      items: [
+        {
+          kind: "other",
+          description: r.Description,
+          quantity: qty,
+          unitPrice: rate,
+          gstPercent: gst,
+        },
+      ],
+      payNow:
+        r.Paid === "" || r.Paid === undefined
+          ? qty * rate * (1 + gst / 100)
+          : Number(r.Paid),
       method: String(r.Method || "cash").toLowerCase(),
     });
   };
@@ -210,9 +224,12 @@ export default function InvoicesPage() {
 
   const voidInv = async (inv: any) => {
     if (
-      !window.confirm(
-        `Void ${inv.invoiceNumber}? Only unpaid invoices can be voided.`,
-      )
+      !(await confirm({
+        title: `Void ${inv.invoiceNumber}?`,
+        message: "Only unpaid invoices can be voided.",
+        confirmText: "Void",
+        tone: "danger",
+      }))
     )
       return;
     try {
@@ -272,35 +289,55 @@ export default function InvoicesPage() {
             <ExportImport
               name="invoices"
               fetchRows={async () =>
-                (await gym.invoices.list({ ...params, page: 1, limit: 5000 })).data
+                (await gym.invoices.list({ ...params, page: 1, limit: 5000 }))
+                  .data
               }
               cols={[
                 { header: "Invoice no", value: (v: any) => v.invoiceNumber },
-                { header: "Type", value: (v: any) => (TYPES[v.type] || TYPES.other)[0] },
-                { header: "Member ID", value: (v: any) => v.memberId?.memberCode || "Walk-in" },
+                {
+                  header: "Type",
+                  value: (v: any) => (TYPES[v.type] || TYPES.other)[0],
+                },
+                {
+                  header: "Member ID",
+                  value: (v: any) => v.memberId?.memberCode || "Walk-in",
+                },
                 { header: "Member", value: (v: any) => v.memberId?.name },
-                { header: "Date", value: (v: any) => (v.issuedAt || "").slice(0, 10) },
+                {
+                  header: "Date",
+                  value: (v: any) => (v.issuedAt || "").slice(0, 10),
+                },
                 { header: "Total", value: (v: any) => v.totalAmount },
                 { header: "Paid", value: (v: any) => v.paidAmount },
                 { header: "Balance", value: (v: any) => v.balance },
                 { header: "Status", value: (v: any) => v.status },
               ]}
               importTemplate={{
-                headers: ["Member ID", "Description", "Qty", "Rate", "GST %", "Paid", "Method"],
+                headers: [
+                  "Member ID",
+                  "Description",
+                  "Qty",
+                  "Rate",
+                  "GST %",
+                  "Paid",
+                  "Method",
+                ],
                 example: ["GYM-00001", "Day pass", 1, 200, 18, 236, "cash"],
               }}
               onImportRow={can("Invoices", "create") ? importRow : undefined}
-              onImported={() => qc.invalidateQueries({ queryKey: ["invoices"] })}
+              onImported={() =>
+                qc.invalidateQueries({ queryKey: ["invoices"] })
+              }
             />
             {can("Invoices", "create") && (
-            <>
-              <Btn light onClick={sendReminders}>
-                <Send className="w-4 h-4" /> Send pay-link reminders
-              </Btn>
-              <Btn onClick={() => setCreating(true)}>
-                <Plus className="w-4 h-4" /> New invoice
-              </Btn>
-            </>
+              <>
+                <Btn light onClick={sendReminders}>
+                  <Send className="w-4 h-4" /> Send pay-link reminders
+                </Btn>
+                <Btn onClick={() => setCreating(true)}>
+                  <Plus className="w-4 h-4" /> New invoice
+                </Btn>
+              </>
             )}
           </>
         }
@@ -382,15 +419,25 @@ export default function InvoicesPage() {
         {invoices.map((v, i) => (
           <Tr key={v._id} i={i}>
             <Td>
-              <p className="text-xs font-bold whitespace-nowrap">{v.invoiceNumber}</p>
+              <p className="text-xs font-bold whitespace-nowrap">
+                {v.invoiceNumber}
+              </p>
             </Td>
             <Td>
-              <span className={"text-[10px] font-bold uppercase px-1.5 py-0.5 border border-black/10 whitespace-nowrap " + (TYPES[v.type] || TYPES.other)[1]}>
+              <span
+                className={
+                  "text-[10px] font-bold uppercase px-1.5 py-0.5 border border-black/10 whitespace-nowrap " +
+                  (TYPES[v.type] || TYPES.other)[1]
+                }
+              >
                 {(TYPES[v.type] || TYPES.other)[0]}
               </span>
               {v.type === "product" && (
                 <p className="text-[10px] text-black/50 mt-1 max-w-[160px] truncate">
-                  {(v.items || []).filter((x: any) => x.kind === "product").map((x: any) => `${x.description} ×${x.quantity}`).join(", ")}
+                  {(v.items || [])
+                    .filter((x: any) => x.kind === "product")
+                    .map((x: any) => `${x.description} ×${x.quantity}`)
+                    .join(", ")}
                 </p>
               )}
             </Td>

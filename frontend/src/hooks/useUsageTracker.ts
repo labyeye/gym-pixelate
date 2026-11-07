@@ -4,7 +4,14 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
-type Ev = { type: "page" | "crash" | "error"; path: string; userId?: string; role?: string; message?: string; stack?: string };
+type Ev = {
+  type: "page" | "crash" | "error";
+  path: string;
+  userId?: string;
+  role?: string;
+  message?: string;
+  stack?: string;
+};
 
 const queue: Ev[] = [];
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -42,10 +49,20 @@ export function useUsageTracker() {
     if (hooked) return;
     hooked = true;
     window.addEventListener("error", (ev) =>
-      push({ type: "crash", path: location.pathname, message: ev.message, stack: ev.error?.stack }),
+      push({
+        type: "crash",
+        path: location.pathname,
+        message: ev.message,
+        stack: ev.error?.stack,
+      }),
     );
     window.addEventListener("unhandledrejection", (ev) =>
-      push({ type: "error", path: location.pathname, message: String(ev.reason?.message ?? ev.reason), stack: ev.reason?.stack }),
+      push({
+        type: "error",
+        path: location.pathname,
+        message: String(ev.reason?.message ?? ev.reason),
+        stack: ev.reason?.stack,
+      }),
     );
     window.addEventListener("pagehide", flush);
   }, []);

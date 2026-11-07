@@ -22,19 +22,39 @@ const TEMPLATE = {
   birthday: () => process.env.WHATSAPP_REMINDER_BIRTHDAY_TEMPLATE,
   anniversary: () => process.env.WHATSAPP_REMINDER_ANNIVERSARY_TEMPLATE,
 };
-const fmt = (d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+const fmt = (d) =>
+  new Date(d).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Kolkata",
+  });
 
 async function send(tenantId, gym, member, kind, refKey, dateText) {
-  const phone = member.whatsappOptIn !== false && !member.erasedAt && parsePhone(member.phone);
+  const phone =
+    member.whatsappOptIn !== false &&
+    !member.erasedAt &&
+    parsePhone(member.phone);
   if (!phone) return "skip";
   try {
-    await NotificationLog.create({ tenantId, memberId: member._id, kind, refKey });
+    await NotificationLog.create({
+      tenantId,
+      memberId: member._id,
+      kind,
+      refKey,
+    });
   } catch (e) {
     if (e.code === 11000) return "skip"; // already sent / in flight
     throw e;
   }
   try {
-    await sendPlatformTemplate(phone.e164, TEMPLATE[kind](), [member.name, gym, dateText || "-"], process.env.WHATSAPP_REMINDER_TEMPLATE_LANG || "en", { tenantId, kind });
+    await sendPlatformTemplate(
+      phone.e164,
+      TEMPLATE[kind](),
+      [member.name, gym, dateText || "-"],
+      process.env.WHATSAPP_REMINDER_TEMPLATE_LANG || "en",
+      { tenantId, kind },
+    );
     await NotificationLog.updateOne({ tenantId, refKey }, { status: "sent" });
     return "sent";
   } catch (err) {
@@ -43,7 +63,10 @@ async function send(tenantId, gym, member, kind, refKey, dateText) {
       await NotificationLog.deleteOne({ tenantId, refKey });
       throw err;
     }
-    await NotificationLog.updateOne({ tenantId, refKey }, { status: "failed", error: String(err.message).slice(0, 300) });
+    await NotificationLog.updateOne(
+      { tenantId, refKey },
+      { status: "failed", error: String(err.message).slice(0, 300) },
+    );
     return "failed";
   }
 }
@@ -53,24 +76,70 @@ async function runForGym(s, now = new Date()) {
   const on = s.reminders || {};
   const out = { sent: 0, failed: 0, skipped: 0 };
   if (s.whatsappEnabled === false) return out;
-  const bump = (r) => (out[r === "sent" ? "sent" : r === "failed" ? "failed" : "skipped"]++);
-  const gym = s.companyName || (await Tenant.findById(tenantId).select("name").lean())?.name || "your gym";
-  const member = (id) => Member.findById(id).select("name phone whatsappOptIn erasedAt status");
+  const bump = (r) =>
+    out[r === "sent" ? "sent" : r === "failed" ? "failed" : "skipped"]++;
+  const gym =
+    s.companyName ||
+    (await Tenant.findById(tenantId).select("name").lean())?.name ||
+    "your gym";
+  const member = (id) =>
+    Member.findById(id).select("name phone whatsappOptIn erasedAt status");
 
   if (on.expiring && TEMPLATE.expiring()) {
-    const list = await Membership.find({ tenantId, status: "active", endDate: { $gt: now, $lte: new Date(now.getTime() + 3 * DAY) } }).limit(500);
+    const list = await Membership.find({
+      tenantId,
+      status: "active",
+      endDate: { $gt: now, $lte: new Date(now.getTime() + 3 * DAY) },
+    }).limit(500);
     for (const ms of list) {
-      const next = await Membership.exists({ tenantId, memberId: ms.memberId, _id: { $ne: ms._id }, endDate: { $gt: ms.endDate }, status: { $in: ["active", "upcoming"] } });
+      const next = await Membership.exists({
+        tenantId,
+        memberId: ms.memberId,
+        _id: { $ne: ms._id },
+        endDate: { $gt: ms.endDate },
+        status: { $in: ["active", "upcoming"] },
+      });
       const m = !next && (await member(ms.memberId));
-      bump(m ? await send(tenantId, gym, m, "expiring", `expiring:${ms._id}`, fmt(ms.endDate)) : "skip");
+      bump(
+        m
+          ? await send(
+              tenantId,
+              gym,
+              m,
+              "expiring",
+              `expiring:${ms._id}`,
+              fmt(ms.endDate),
+            )
+          : "skip",
+      );
     }
   }
   if (on.expired && TEMPLATE.expired()) {
-    const list = await Membership.find({ tenantId, status: "expired", endDate: { $gte: new Date(now.getTime() - 3 * DAY), $lte: now } }).limit(500);
+    const list = await Membership.find({
+      tenantId,
+      status: "expired",
+      endDate: { $gte: new Date(now.getTime() - 3 * DAY), $lte: now },
+    }).limit(500);
     for (const ms of list) {
-      const later = await Membership.exists({ tenantId, memberId: ms.memberId, endDate: { $gt: now }, status: { $in: ["active", "upcoming", "frozen"] } });
+      const later = await Membership.exists({
+        tenantId,
+        memberId: ms.memberId,
+        endDate: { $gt: now },
+        status: { $in: ["active", "upcoming", "frozen"] },
+      });
       const m = !later && (await member(ms.memberId));
-      bump(m && m.status === "active" ? await send(tenantId, gym, m, "expired", `expired:${ms._id}`, fmt(ms.endDate)) : "skip");
+      bump(
+        m && m.status === "active"
+          ? await send(
+              tenantId,
+              gym,
+              m,
+              "expired",
+              `expired:${ms._id}`,
+              fmt(ms.endDate),
+            )
+          : "skip",
+      );
     }
   }
   if (on.birthday && TEMPLATE.birthday()) {
@@ -78,32 +147,80 @@ async function runForGym(s, now = new Date()) {
     const month = ist.getUTCMonth() + 1;
     const day = ist.getUTCDate();
     const list = await Member.find({
-      tenantId, status: "active", erasedAt: { $exists: false }, dob: { $ne: null },
-      $expr: { $and: [{ $eq: [{ $month: "$dob" }, month] }, { $eq: [{ $dayOfMonth: "$dob" }, day] }] },
-    }).select("name phone whatsappOptIn erasedAt status").limit(500);
-    for (const m of list) bump(await send(tenantId, gym, m, "birthday", `birthday:${m._id}:${ist.getUTCFullYear()}`, fmt(now)));
+      tenantId,
+      status: "active",
+      erasedAt: { $exists: false },
+      dob: { $ne: null },
+      $expr: {
+        $and: [
+          { $eq: [{ $month: "$dob" }, month] },
+          { $eq: [{ $dayOfMonth: "$dob" }, day] },
+        ],
+      },
+    })
+      .select("name phone whatsappOptIn erasedAt status")
+      .limit(500);
+    for (const m of list)
+      bump(
+        await send(
+          tenantId,
+          gym,
+          m,
+          "birthday",
+          `birthday:${m._id}:${ist.getUTCFullYear()}`,
+          fmt(now),
+        ),
+      );
   }
   if (on.anniversary && TEMPLATE.anniversary()) {
     const ist = new Date(now.getTime() + IST_MS);
     const month = ist.getUTCMonth() + 1;
     const day = ist.getUTCDate();
     const list = await Member.find({
-      tenantId, status: "active", erasedAt: { $exists: false }, anniversary: { $ne: null },
-      $expr: { $and: [{ $eq: [{ $month: "$anniversary" }, month] }, { $eq: [{ $dayOfMonth: "$anniversary" }, day] }] },
-    }).select("name phone whatsappOptIn erasedAt status").limit(500);
-    for (const m of list) bump(await send(tenantId, gym, m, "anniversary", `anniversary:${m._id}:${ist.getUTCFullYear()}`, fmt(now)));
+      tenantId,
+      status: "active",
+      erasedAt: { $exists: false },
+      anniversary: { $ne: null },
+      $expr: {
+        $and: [
+          { $eq: [{ $month: "$anniversary" }, month] },
+          { $eq: [{ $dayOfMonth: "$anniversary" }, day] },
+        ],
+      },
+    })
+      .select("name phone whatsappOptIn erasedAt status")
+      .limit(500);
+    for (const m of list)
+      bump(
+        await send(
+          tenantId,
+          gym,
+          m,
+          "anniversary",
+          `anniversary:${m._id}:${ist.getUTCFullYear()}`,
+          fmt(now),
+        ),
+      );
   }
   return out;
 }
 
 async function runAll() {
-  const gyms = await Setting.find({ $or: [{ "reminders.expiring": true }, { "reminders.expired": true }, { "reminders.birthday": true }, { "reminders.anniversary": true }] }).lean();
+  const gyms = await Setting.find({
+    $or: [
+      { "reminders.expiring": true },
+      { "reminders.expired": true },
+      { "reminders.birthday": true },
+      { "reminders.anniversary": true },
+    ],
+  }).lean();
   for (const s of gyms) {
     try {
       const r = await runWithTenant(s.tenantId, () => runForGym(s));
       if (r.sent || r.failed) console.log(`[reminders] ${s.tenantId}`, r);
     } catch (e) {
-      if (e.code === "NO_CREDITS") console.warn("[reminders]", s.tenantId, e.message);
+      if (e.code === "NO_CREDITS")
+        console.warn("[reminders]", s.tenantId, e.message);
       else console.error("[reminders]", s.tenantId, e.message);
     }
   }

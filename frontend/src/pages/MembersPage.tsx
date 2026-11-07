@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { gym } from "@/services/gymApi";
-import { useNotify } from "@/components/ui/Notification";
+import { useNotify, useConfirm } from "@/components/ui/Notification";
 import { usePermission } from "@/hooks/usePermission";
 import { waDigits } from "@/lib/countries";
 import {
@@ -141,6 +141,7 @@ const EMPTY = {
 export default function MembersPage() {
   const navigate = useNavigate();
   const notify = useNotify();
+  const { confirm } = useConfirm();
   const qc = useQueryClient();
   const { can } = usePermission();
   const [search, setSearch] = useState("");
@@ -214,10 +215,18 @@ export default function MembersPage() {
 
   const plan = salePlans.find((p: any) => p._id === planId);
   const planTotal = plan
-    ? Math.round((plan.price + (plan.priceIncludesGst ? 0 : (plan.price * (plan.gstPercent || 0)) / 100)) * 100) / 100
+    ? Math.round(
+        (plan.price +
+          (plan.priceIncludesGst
+            ? 0
+            : (plan.price * (plan.gstPercent || 0)) / 100)) *
+          100,
+      ) / 100
     : 0;
   const months = (d: number) =>
-    d >= 30 ? `${Math.round(d / 30)} month${Math.round(d / 30) > 1 ? "s" : ""}` : `${d} days`;
+    d >= 30
+      ? `${Math.round(d / 30)} month${Math.round(d / 30) > 1 ? "s" : ""}`
+      : `${d} days`;
   const tabs = editing === "new" ? [...TABS, "Membership plan"] : TABS;
 
   const save = async () => {
@@ -268,10 +277,21 @@ export default function MembersPage() {
   };
 
   const removeMember = async (m: any) => {
-    if (!window.confirm(`Delete ${m.name}? Members with invoices or plans are marked inactive instead.`)) return;
+    if (
+      !(await confirm({
+        title: `Delete ${m.name}?`,
+        message: "Members with invoices or plans are marked inactive instead.",
+        confirmText: "Delete",
+        tone: "danger",
+      }))
+    )
+      return;
     try {
       const r: any = await gym.members.remove(m._id);
-      notify.success(r.deactivated ? "Marked inactive (has history)" : "Member deleted", m.name);
+      notify.success(
+        r.deactivated ? "Marked inactive (has history)" : "Member deleted",
+        m.name,
+      );
       qc.invalidateQueries({ queryKey: ["members"] });
     } catch (e: any) {
       notify.error("Delete failed", e.message);
@@ -339,7 +359,10 @@ export default function MembersPage() {
                 { header: "DOB", value: (m: any) => toInputDate(m.dob) },
                 { header: "Goal", value: (m: any) => m.fitness?.goal },
                 { header: "Source", value: (m: any) => m.source },
-                { header: "Plan", value: (m: any) => m.currentMembership?.planName },
+                {
+                  header: "Plan",
+                  value: (m: any) => m.currentMembership?.planName,
+                },
                 {
                   header: "Plan status",
                   value: (m: any) => m.currentMembership?.status,
@@ -348,17 +371,39 @@ export default function MembersPage() {
                   header: "Valid till",
                   value: (m: any) => toInputDate(m.currentMembership?.endDate),
                 },
-                { header: "Dues", value: (m: any) => m.currentMembership?.due || 0 },
+                {
+                  header: "Dues",
+                  value: (m: any) => m.currentMembership?.due || 0,
+                },
                 { header: "Status", value: (m: any) => m.status },
               ]}
               importTemplate={{
-                headers: ["Name", "Phone", "Email", "Gender", "DOB", "City", "Goal", "Source"],
-                example: ["Rahul Sharma", "9876543210", "rahul@example.com", "male", "1995-04-21", "Patna", "weight_loss", "walk_in"],
+                headers: [
+                  "Name",
+                  "Phone",
+                  "Email",
+                  "Gender",
+                  "DOB",
+                  "City",
+                  "Goal",
+                  "Source",
+                ],
+                example: [
+                  "Rahul Sharma",
+                  "9876543210",
+                  "rahul@example.com",
+                  "male",
+                  "1995-04-21",
+                  "Patna",
+                  "weight_loss",
+                  "walk_in",
+                ],
               }}
               onImportRow={(r) => {
                 const name = String(r.Name || "").trim();
                 const phone = String(r.Phone || "").trim();
-                if (!name || !phone) throw new Error("Name and Phone are required");
+                if (!name || !phone)
+                  throw new Error("Name and Phone are required");
                 return gym.members.create({
                   name,
                   phone,
@@ -391,7 +436,11 @@ export default function MembersPage() {
         {(
           [
             ["status", "Status", ["active", "inactive", "blacklisted"]],
-            ["planStatus", "Plan status", ["active", "expiring", "expired", "dues", "none"]],
+            [
+              "planStatus",
+              "Plan status",
+              ["active", "expiring", "expired", "dues", "none"],
+            ],
             ["gender", "Gender", ["male", "female", "other"]],
             ["goal", "Goal", GOALS],
             ["source", "Source", SOURCES],
@@ -476,7 +525,11 @@ export default function MembersPage() {
                 <p className="text-xs text-black/50">{m.email}</p>
               </Td>
               <Td className="font-medium">
-                {c ? c.planName : <span className="text-black/30">No plan</span>}
+                {c ? (
+                  c.planName
+                ) : (
+                  <span className="text-black/30">No plan</span>
+                )}
               </Td>
               <Td>{c ? <Pill value={c.status} /> : "—"}</Td>
               <Td className="text-xs">
@@ -613,9 +666,13 @@ export default function MembersPage() {
               {...bind("gender")}
             />
             <TextInput label="Date of birth" type="date" {...bind("dob")} />
-            <TextInput label="Marriage anniversary" type="date" {...bind("anniversary")} />
+            <TextInput
+              label="Marriage anniversary"
+              type="date"
+              {...bind("anniversary")}
+            />
             <TextInput label="Occupation" {...bind("occupation")} />
-             <TextArea
+            <TextArea
               className="sm:col-span-2"
               label="Address"
               {...bind("address")}
@@ -623,7 +680,6 @@ export default function MembersPage() {
             <TextInput label="Pincode" {...bind("pincode")} />
             <TextInput label="City" {...bind("city")} />
             <TextInput label="State" {...bind("state")} />
-           
           </div>
         )}
         {tab === 1 && (
@@ -756,9 +812,20 @@ export default function MembersPage() {
               {...bind("source")}
             />
             {editing === "new" && (
-              <SelectInput label="Trainer (optional)" placeholder="No trainer" options={trainers} {...bind("trainerId")} />
+              <SelectInput
+                label="Trainer (optional)"
+                placeholder="No trainer"
+                options={trainers}
+                {...bind("trainerId")}
+              />
             )}
-            {editing === "new" && <TextInput label="Referred by (member code)" placeholder="GYM-00042" {...bind("referrerCode")} />}
+            {editing === "new" && (
+              <TextInput
+                label="Referred by (member code)"
+                placeholder="GYM-00042"
+                {...bind("referrerCode")}
+              />
+            )}
             <TextArea
               className="sm:col-span-2"
               label="Notes"
@@ -800,7 +867,8 @@ export default function MembersPage() {
         {tab === 4 && editing === "new" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <p className="sm:col-span-2 text-sm text-black/60">
-              Pick the plan this member is taking and its duration. Leave it empty to add the member now and sell a plan later.
+              Pick the plan this member is taking and its duration. Leave it
+              empty to add the member now and sell a plan later.
             </p>
             <div className="sm:col-span-2">
               <SelectInput
@@ -820,10 +888,21 @@ export default function MembersPage() {
             {plan && (
               <>
                 <div className="sm:col-span-2 border-2 border-black bg-[#EFF6FF] p-3 text-sm">
-                  <p className="flex justify-between"><span>Duration</span><b>{plan.durationDays} days ({months(plan.durationDays)})</b></p>
-                  <p className="flex justify-between"><span>Total with GST</span><b>₹{planTotal}</b></p>
+                  <p className="flex justify-between">
+                    <span>Duration</span>
+                    <b>
+                      {plan.durationDays} days ({months(plan.durationDays)})
+                    </b>
+                  </p>
+                  <p className="flex justify-between">
+                    <span>Total with GST</span>
+                    <b>₹{planTotal}</b>
+                  </p>
                   {!!plan.admissionFee && (
-                    <p className="text-xs text-black/60 mt-1">Joining fee of ₹{plan.admissionFee} is added automatically for new members.</p>
+                    <p className="text-xs text-black/60 mt-1">
+                      Joining fee of ₹{plan.admissionFee} is added automatically
+                      for new members.
+                    </p>
                   )}
                 </div>
                 <TextInput
@@ -835,9 +914,18 @@ export default function MembersPage() {
                 />
                 <SelectInput
                   label="Payment method"
-                  options={["cash", "upi", "card", "online", "bank_transfer", "cheque"]}
+                  options={[
+                    "cash",
+                    "upi",
+                    "card",
+                    "online",
+                    "bank_transfer",
+                    "cheque",
+                  ]}
                   value={payMethod}
-                  onChange={(e: any) => setPayMethod(e?.target ? e.target.value : e)}
+                  onChange={(e: any) =>
+                    setPayMethod(e?.target ? e.target.value : e)
+                  }
                 />
               </>
             )}

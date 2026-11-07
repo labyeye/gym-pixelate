@@ -42,6 +42,19 @@ export const resource = (path: string) => ({
     ),
 });
 
+// multipart POST: plain fields plus an optional photo (face / selfie); the server reads the photo from memory
+const form = (
+  url: string,
+  fields: Record<string, any>,
+  photo?: Blob | null,
+) => {
+  const f = new FormData();
+  Object.entries(fields || {}).forEach(
+    ([k, v]) => v !== undefined && v !== null && f.append(k, String(v)),
+  );
+  if (photo) f.append("photo", photo, "photo.jpg");
+  return request<any>(url, { method: "POST", body: f });
+};
 const post = (url: string, body?: any) =>
   request<any>(url, json("POST", body ?? {}));
 const get = (url: string, p?: Record<string, any>) =>
@@ -61,7 +74,8 @@ export const gym = {
     ...resource("memberships"),
     renew: (id: string, b: any) => post(`/memberships/${id}/renew`, b),
     upgrade: (id: string, b: any) => post(`/memberships/${id}/upgrade`, b),
-    upgradeQuote: (id: string, planId: string) => get(`/memberships/${id}/upgrade-quote`, { planId }),
+    upgradeQuote: (id: string, planId: string) =>
+      get(`/memberships/${id}/upgrade-quote`, { planId }),
     freeze: (id: string, b: any) => post(`/memberships/${id}/freeze`, b),
     unfreeze: (id: string) => post(`/memberships/${id}/unfreeze`),
     cancel: (id: string, b: any) => post(`/memberships/${id}/cancel`, b),
@@ -130,12 +144,53 @@ export const gym = {
     birthdays: (p?: any) => get("/reports/birthdays", p),
     gst: (p?: any) => get("/reports/gst", p),
     insights: (p?: any) => get("/reports/insights", p),
+    transactions: (p?: any) => get("/reports/transactions", p),
+    newMembers: (p?: any) => get("/reports/new-members", p),
+    customMeta: () => get("/reports/custom/meta"),
+    custom: (p?: any) => get("/reports/custom", p),
   },
   paymentLinks: {
     forInvoice: (id: string) => post(`/payment-links/invoice/${id}`),
     sendNow: () => post("/payment-links/send-now"),
   },
   users: { list: (p?: any) => get("/users", p) },
+  attendance: {
+    kioskFace: (photo: Blob) => form("/attendance/kiosk-face", {}, photo),
+    enroll: (kind: "staff" | "member", fields: any, photo?: Blob | null) =>
+      form(
+        kind === "member"
+          ? "/member-attendance/enroll"
+          : "/staff-attendance/enroll",
+        fields,
+        photo,
+      ),
+    devices: () => get("/attendance-devices"),
+    addDevice: (b: any) => post("/attendance-devices", b),
+    removeDevice: (id: string) =>
+      request<any>(`/attendance-devices/${id}`, json("DELETE")),
+  },
+  memberAtt: {
+    list: (p?: any) => get("/member-attendance", p),
+    checkIn: (memberId: string) =>
+      post("/member-attendance/check-in", { memberId }),
+    checkOut: (memberId: string) =>
+      post("/member-attendance/check-out", { memberId }),
+  },
+  staffHr: {
+    me: () => get("/staff-attendance/me"),
+    checkIn: (fields?: any, photo?: Blob | null) =>
+      form("/staff-attendance/check-in", fields || {}, photo),
+    checkOut: (fields?: any, photo?: Blob | null) =>
+      form("/staff-attendance/check-out", fields || {}, photo),
+    records: (month: string, group: string) =>
+      get("/staff-attendance/records", { month, group }),
+    mark: (b: any) => post("/staff-attendance", b),
+    leaves: () => get("/staff-leaves"),
+    requestLeave: (b: any) => post("/staff-leaves", b),
+    decide: (id: string, b: any) =>
+      request<any>(`/staff-leaves/${id}/decision`, json("PUT", b)),
+    cancelLeave: (id: string) => post(`/staff-leaves/${id}/cancel`),
+  },
   sweep: () => post("/memberships/sweep"),
   billing: {
     plans: () => get("/billing/plans"),

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { gym } from "@/services/gymApi";
-import { useNotify } from "@/components/ui/Notification";
+import { useNotify, useConfirm } from "@/components/ui/Notification";
 import { usePermission } from "@/hooks/usePermission";
 import {
   ActionButton,
@@ -80,6 +80,7 @@ const blank = {
 
 export default function ClassesPage() {
   const notify = useNotify();
+  const { confirm } = useConfirm();
   const qc = useQueryClient();
   const { can } = usePermission();
   const trainers = useTrainers();
@@ -407,8 +408,12 @@ export default function ClassesPage() {
                       label="Delete"
                       icon={Trash2}
                       tone="danger"
-                      onClick={() =>
-                        window.confirm(`Delete ${c.name}?`) &&
+                      onClick={async () =>
+                        (await confirm({
+                          title: `Delete ${c.name}?`,
+                          confirmText: "Delete",
+                          tone: "danger",
+                        })) &&
                         act(() => gym.classes.remove(c._id), "Class deleted")
                       }
                     />

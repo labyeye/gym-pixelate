@@ -3,12 +3,27 @@ import { useAuth } from "@/contexts/AuthContext";
 import img1 from "@/assets/onboarding/1.png";
 import img2 from "@/assets/onboarding/2.png";
 import img3 from "@/assets/onboarding/3.png";
-import nestgymlogo from "../assets/images/logo_long.png"
+import nestgymlogo from "../assets/images/logo_long.png";
 
 const SLIDES = [
-  { title: "Your whole gym, in one place", body: "Manage members, memberships, trainers, classes and billing from one simple workspace.", color: "#EAF2FF", image: img1 },
-  { title: "Keep members coming back", body: "Track renewals and dues, send payment links on WhatsApp and keep every member informed.", color: "#FFF1E8", image: img2 },
-  { title: "Grow with clear numbers", body: "See revenue, collections and member trends in clear reports, so you can run a stronger gym.", color: "#E9F9F3", image: img3 },
+  {
+    title: "Your whole gym, in one place",
+    body: "Manage members, memberships, trainers, classes and billing from one simple workspace.",
+    color: "#EAF2FF",
+    image: img1,
+  },
+  {
+    title: "Keep members coming back",
+    body: "Track renewals and dues, send payment links on WhatsApp and keep every member informed.",
+    color: "#FFF1E8",
+    image: img2,
+  },
+  {
+    title: "Grow with clear numbers",
+    body: "See revenue, collections and member trends in clear reports, so you can run a stronger gym.",
+    color: "#E9F9F3",
+    image: img3,
+  },
 ];
 
 const key = (id: string) => `nestgym:intro:${id}`;
@@ -26,7 +41,8 @@ export default function IntroOnboarding() {
   } catch {
     // storage blocked: skip rather than nag every load
   }
-  if (!isAuthenticated || seen || done || (user as any)?.role === "member") return null;
+  if (!isAuthenticated || seen || done || (user as any)?.role === "member")
+    return null;
 
   const finish = () => {
     try {
@@ -40,10 +56,17 @@ export default function IntroOnboarding() {
   const s = SLIDES[step];
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-white text-slate-900" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-[100] flex flex-col bg-white text-slate-900"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="flex items-center justify-between px-6 py-4">
-        <img src={nestgymlogo} className="h-20"/>
-        <button onClick={finish} className="text-sm font-semibold text-slate-500 hover:text-slate-800">
+        <img src={nestgymlogo} className="h-20" />
+        <button
+          onClick={finish}
+          className="text-sm font-semibold text-slate-500 hover:text-slate-800"
+        >
           Skip
         </button>
       </div>

@@ -97,6 +97,15 @@ export const gym = {
     ...resource('products'),
     sell: (b: any) => post('/products/sell', b),
     stock: (id: string, b: any) => post(`/products/${id}/stock`, b),
+    sales: (p?: any) => get('/products/sales', p),
+  },
+  purchases: {
+    list: (p?: any) => get('/purchases', p),
+    create: (b: any) => post('/purchases', b),
+    receive: (id: string) => post(`/purchases/${id}/receive`),
+    cancel: (id: string) => post(`/purchases/${id}/cancel`),
+    setBill: (id: string, b: any) =>
+      request<any>(`/purchases/${id}/bill`, json('PUT', b)),
   },
   expenses: resource('expenses'),
   coupons: resource('coupons'),

@@ -30,6 +30,8 @@ import MembershipsScreen from '../screens/MembershipsScreen';
 import InvoiceDetailScreen from '../screens/InvoiceDetailScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import SupportScreen from '../screens/SupportScreen';
+import VaultScreen from '../screens/VaultScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import CreditsScreen from '../screens/CreditsScreen';
 import MemberPortalScreen from '../screens/MemberPortalScreen';
@@ -75,6 +77,8 @@ const MORE_SCREENS: Record<string, React.ComponentType<any>> = {
   Announcements: AnnouncementsScreen,
   Subscription: SubscriptionScreen,
   Credits: CreditsScreen,
+  Support: SupportScreen,
+  Vault: VaultScreen,
   Settings: SettingsScreen,
   Security: SecurityScreen,
 };
@@ -199,6 +203,7 @@ export default function RootNavigator() {
               .filter(
                 ([route]) =>
                   route === 'Settings' ||
+                  route === 'Support' ||
                   route === 'Security' ||
                   canOpen(user!.role, route, modules),
               )

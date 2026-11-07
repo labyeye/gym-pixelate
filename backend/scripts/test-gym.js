@@ -493,7 +493,10 @@ const ok = async (fn, user, req) => {
       (await Membership.findById(data._id)).status,
       "upgraded",
     );
-    assert.ok(Math.abs(up.invoice.discount - 1000) < 0.02, `discount ${up.invoice.discount}`);
+    assert.ok(
+      Math.abs(up.invoice.discount - 1000) < 0.02,
+      `discount ${up.invoice.discount}`,
+    );
     const cx = await ok(MS.cancelMembership, A.owner, {
       params: { id: String(up.data._id) },
       body: { reason: "moving city", refundAmount: 0 },
@@ -511,15 +514,27 @@ const ok = async (fn, user, req) => {
     const late = await ok(MS.createMembership, A.owner, {
       body: { memberId: m3._id, planId: A.monthly._id, payNow: 1770 },
     });
-    await Membership.collection.updateOne({ _id: late.data._id }, { $set: { createdAt: new Date(Date.now() - 30 * 3600 * 1000) } });
-    const desk = await User.findOne({ tenantId: A.owner.tenantId, role: "receptionist" });
+    await Membership.collection.updateOne(
+      { _id: late.data._id },
+      { $set: { createdAt: new Date(Date.now() - 30 * 3600 * 1000) } },
+    );
+    const desk = await User.findOne({
+      tenantId: A.owner.tenantId,
+      role: "receptionist",
+    });
     if (desk) {
       await rejects(
-        ok(MS.upgradeMembership, desk, { params: { id: String(late.data._id) }, body: { planId: A.annual._id } }),
+        ok(MS.upgradeMembership, desk, {
+          params: { id: String(late.data._id) },
+          body: { planId: A.annual._id },
+        }),
         403,
       );
     }
-    const lateUp = await ok(MS.upgradeMembership, A.owner, { params: { id: String(late.data._id) }, body: { planId: A.annual._id } });
+    const lateUp = await ok(MS.upgradeMembership, A.owner, {
+      params: { id: String(late.data._id) },
+      body: { planId: A.annual._id },
+    });
     assert.ok(lateUp.credit < 1180, `prorated credit ${lateUp.credit}`);
     // refund path
     const m2 = await mkMember(A, "Refundee", "9500000007");
@@ -804,6 +819,255 @@ const ok = async (fn, user, req) => {
     const r = await ok(REP.renewals, owner, { query: { days: "7" } });
     assert.strictEqual(r.count, 1);
     assert.ok(r.data[0].whatsapp.startsWith("https://wa.me/919990000001"));
+  });
+
+  console.log("\nStaff self check-in & leave (optional module)");
+  await test("check-in/out, half day, leave request -> approval marks attendance, module off blocks all", async () => {
+    const SS = require("../controllers/staffSelfController");
+    const SA = require("../models/StaffAttendance");
+    const Set_ = require("../models/Setting");
+    const trainer = A.trainer;
+    const state = await ok(SS.me, trainer);
+    assert.strictEqual(state.data.today, null);
+    await ok(SS.checkIn, trainer);
+    await rejects(ok(SS.checkIn, trainer), 400, /Already checked in/);
+    const out = await ok(SS.checkOut, trainer);
+    assert.strictEqual(out.data.status, "half_day"); // out within minutes of in
+    await rejects(ok(SS.checkOut, trainer), 400, /Already checked out/);
+    const d = (n) =>
+      new Date(Date.now() + n * 86400000 + 5.5 * 3600000)
+        .toISOString()
+        .slice(0, 10);
+    const lv = await ok(SS.createLeave, trainer, {
+      body: {
+        leaveType: "casual",
+        startDate: d(10),
+        endDate: d(12),
+        reason: "family",
+      },
+    });
+    assert.strictEqual(lv.data.days, 3);
+    await rejects(
+      ok(SS.createLeave, trainer, {
+        body: { leaveType: "casual", startDate: d(11), reason: "x" },
+      }),
+      400,
+      /already have/,
+    );
+    await rejects(
+      ok(SS.createLeave, trainer, {
+        body: {
+          leaveType: "casual",
+          startDate: d(20),
+          endDate: d(30),
+          reason: "x",
+        },
+      }),
+      400,
+      /left this year/,
+    );
+    await rejects(
+      ok(SS.decideLeave, trainer, {
+        params: { id: lv.data._id },
+        body: { status: "approved" },
+      }),
+      403,
+      /own leave/,
+    );
+    await ok(SS.decideLeave, A.owner, {
+      params: { id: lv.data._id },
+      body: { status: "approved" },
+    });
+    assert.strictEqual(
+      await runWithTenant(A.tid, () =>
+        SA.countDocuments({ userId: trainer._id, status: "paid_leave" }),
+      ),
+      3,
+    );
+    await rejects(
+      ok(SS.decideLeave, A.owner, {
+        params: { id: lv.data._id },
+        body: { status: "rejected" },
+      }),
+      400,
+      /Already approved/,
+    );
+    await Set_.updateOne(
+      { tenantId: A.tid },
+      { $set: { "modules.trainerAttendance": false } },
+      { upsert: true },
+    );
+    await rejects(ok(SS.me, trainer), 403, /turned off/);
+    await Set_.updateOne(
+      { tenantId: A.tid },
+      { $unset: { "modules.trainerAttendance": 1 } },
+    );
+  });
+
+  console.log("\nMember attendance + per-role switches");
+  await test("member desk check-in needs an active plan, once a day; each group switch is independent", async () => {
+    const MA = require("../controllers/memberAttendanceController");
+    const SS = require("../controllers/staffSelfController");
+    const Set_ = require("../models/Setting");
+    const Mem = require("../models/Member");
+    const Ms = require("../models/Membership");
+    const m = await Mem.findOne({ tenantId: A.tid, status: "active" });
+    const active = await Ms.findOne({
+      tenantId: A.tid,
+      memberId: m._id,
+      status: "active",
+      endDate: { $gt: new Date() },
+    });
+    if (active) {
+      await ok(MA.checkIn, A.owner, { body: { memberId: m._id } });
+      await rejects(
+        ok(MA.checkIn, A.owner, { body: { memberId: m._id } }),
+        400,
+        /Already checked in/,
+      );
+      await ok(MA.checkOut, A.owner, { body: { memberId: m._id } });
+      await rejects(
+        ok(MA.checkOut, A.owner, { body: { memberId: m._id } }),
+        400,
+        /Already checked out/,
+      );
+      const l = await ok(MA.list, A.owner);
+      assert.strictEqual(l.count, 1);
+    } else {
+      await rejects(
+        ok(MA.checkIn, A.owner, { body: { memberId: m._id } }),
+        400,
+        /active membership/,
+      );
+    }
+    await Set_.updateOne(
+      { tenantId: A.tid },
+      { $set: { "modules.memberAttendance": false } },
+      { upsert: true },
+    );
+    await rejects(ok(MA.list, A.owner), 403, /turned off/);
+    await ok(SS.me, A.trainer); // trainer switch still on
+    await Set_.updateOne(
+      { tenantId: A.tid },
+      {
+        $set: { "modules.trainerAttendance": false },
+        $unset: { "modules.memberAttendance": 1 },
+      },
+    );
+    await rejects(ok(SS.me, A.trainer), 403, /turned off/);
+    await Set_.updateOne(
+      { tenantId: A.tid },
+      { $unset: { "modules.trainerAttendance": 1 } },
+    );
+  });
+
+  console.log("\nGeofence + biometric device");
+  await test("geofence blocks far check-in and records near one; ADMS device push checks in once and ignores resends", async () => {
+    const SS = require("../controllers/staffSelfController");
+    const SA = require("../models/StaffAttendance");
+    const Set_ = require("../models/Setting");
+    const Dev = require("../models/AttendanceDevice");
+    const desk = await User.create({
+      name: "Geo Desk",
+      email: "geo.desk@alpha.test",
+      password: "Kx7#mQv29!",
+      role: "receptionist",
+      tenantId: A.tid,
+      biometricId: "77",
+    });
+    await Set_.updateOne(
+      { tenantId: A.tid },
+      {
+        $set: {
+          attendanceGeo: {
+            enabled: true,
+            requireFace: false,
+            lat: 28.6139,
+            lng: 77.209,
+            radiusMeters: 200,
+          },
+        },
+      },
+      { upsert: true },
+    );
+    await rejects(ok(SS.checkIn, desk, { body: {} }), 400, /location/);
+    await rejects(
+      ok(SS.checkIn, desk, { body: { lat: "28.7", lng: "77.3" } }),
+      403,
+      /away from the gym/,
+    );
+    const near = await ok(SS.checkIn, desk, {
+      body: { lat: "28.6140", lng: "77.2091" },
+    });
+    assert.strictEqual(near.data.verifyMode, "geo");
+    assert.ok(near.data.checkInLocation.distanceMeters < 50);
+    await Set_.updateOne(
+      { tenantId: A.tid },
+      {
+        $set: {
+          "attendanceGeo.enabled": false,
+          "attendanceGeo.requireFace": true,
+        },
+      },
+    );
+    await rejects(ok(SS.checkOut, desk, { body: {} }), 400, /Selfie/);
+    await Set_.updateOne(
+      { tenantId: A.tid },
+      { $set: { "attendanceGeo.requireFace": false } },
+    );
+    // biometric terminal
+    const express = require("express");
+    const app = express();
+    app.use("/iclock", require("../routes/admsRoutes"));
+    const srv = app.listen(0);
+    const base = `http://127.0.0.1:${srv.address().port}/iclock`;
+    try {
+      assert.strictEqual(
+        (await fetch(`${base}/cdata?SN=NOPE1234`)).status,
+        404,
+      );
+      await Dev.create({
+        tenantId: A.tid,
+        name: "Front door",
+        serialNumber: "SN12345678",
+      });
+      assert.strictEqual(
+        (await fetch(`${base}/cdata?SN=SN12345678`)).status,
+        200,
+      );
+      const day = new Date(Date.now() + 5.5 * 3600000 - 86400000)
+        .toISOString()
+        .slice(0, 10);
+      await User.updateOne({ _id: desk._id }, { biometricId: "78" });
+      const other = await User.create({
+        name: "Dev Desk",
+        email: "dev.desk@alpha.test",
+        password: "Kx7#mQv29!",
+        role: "receptionist",
+        tenantId: A.tid,
+        biometricId: "79",
+      });
+      const line = `79\t${day} 06:30:00\t0\t15\n`;
+      const push = () =>
+        fetch(`${base}/cdata?SN=SN12345678&table=ATTLOG`, {
+          method: "POST",
+          body: line,
+          headers: { "content-type": "text/plain" },
+        });
+      assert.strictEqual(await (await push()).text(), "OK:1");
+      assert.strictEqual(await (await push()).text(), "OK:0"); // resend of the same punch is skipped
+      const row = await runWithTenant(A.tid, () =>
+        SA.findOne({ userId: other._id }),
+      );
+      assert.strictEqual(row.verifyMode, "biometric");
+      assert.strictEqual(row.checkIn, "06:30");
+    } finally {
+      srv.close();
+      await Set_.updateOne(
+        { tenantId: A.tid },
+        { $unset: { attendanceGeo: 1 } },
+      );
+    }
   });
 
   console.log("\nStaff attendance & payroll");
@@ -1162,34 +1426,73 @@ const ok = async (fn, user, req) => {
     const d = await L.details(link.token);
     assert.strictEqual(d.status, "pending");
     assert.strictEqual(d.amount, owed);
-    pay.api.createOrder = async (_c, p) => ({ id: "order_L1", amount: p.amount, currency: "INR" });
+    pay.api.createOrder = async (_c, p) => ({
+      id: "order_L1",
+      amount: p.amount,
+      currency: "INR",
+    });
     const o = await L.start(link.token);
     assert.strictEqual(o.amount, Math.round(owed * 100));
     assert.strictEqual(o.key, "rzp_test_abc");
 
-    const sig = (oid, pid) => crypto.createHmac("sha256", "super-secret-key").update(`${oid}|${pid}`).digest("hex");
-    const body = { razorpayOrderId: "order_L1", razorpayPaymentId: "pay_L1", razorpaySignature: sig("order_L1", "pay_L1") };
-    await rejects(L.confirm(link.token, { ...body, razorpaySignature: "forged" }), 400);
-    await rejects(L.confirm(link.token, { ...body, razorpayOrderId: "order_other" }), 400);
-    pay.api.fetchPayment = async () => ({ order_id: "order_L1", status: "failed", amount: Math.round(owed * 100), notes: {} });
+    const sig = (oid, pid) =>
+      crypto
+        .createHmac("sha256", "super-secret-key")
+        .update(`${oid}|${pid}`)
+        .digest("hex");
+    const body = {
+      razorpayOrderId: "order_L1",
+      razorpayPaymentId: "pay_L1",
+      razorpaySignature: sig("order_L1", "pay_L1"),
+    };
+    await rejects(
+      L.confirm(link.token, { ...body, razorpaySignature: "forged" }),
+      400,
+    );
+    await rejects(
+      L.confirm(link.token, { ...body, razorpayOrderId: "order_other" }),
+      400,
+    );
+    pay.api.fetchPayment = async () => ({
+      order_id: "order_L1",
+      status: "failed",
+      amount: Math.round(owed * 100),
+      notes: {},
+    });
     await rejects(L.confirm(link.token, body), 400);
-    pay.api.fetchPayment = async () => ({ order_id: "order_L1", status: "captured", amount: Math.round(owed * 100), notes: { invoiceId: String(inv._id) } });
+    pay.api.fetchPayment = async () => ({
+      order_id: "order_L1",
+      status: "captured",
+      amount: Math.round(owed * 100),
+      notes: { invoiceId: String(inv._id) },
+    });
 
     // monthly WhatsApp send happens once per invoice per month (fetch is stubbed; no real network)
     process.env.WHATSAPP_PLATFORM_ACCESS_TOKEN = "t";
     process.env.WHATSAPP_PLATFORM_PHONE_NUMBER_ID = "1";
     const realFetch = global.fetch;
     const sent = [];
-    global.fetch = async (_u, o) => { sent.push(JSON.parse(o.body)); return { ok: true, json: async () => ({}) }; };
+    global.fetch = async (_u, o) => {
+      sent.push(JSON.parse(o.body));
+      return { ok: true, json: async () => ({}) };
+    };
     try {
       const s1 = await runWithTenant(A.tid, () => L.sendDue(A.tid));
       assert.ok(s1.sent >= 1);
       const mine = sent.find((x) => x.to === "919666000001");
       assert.ok(mine, "sent to the member's number");
-      assert.ok(mine.template.components[0].parameters.some((p) => p.text.includes(link.token)));
+      assert.ok(
+        mine.template.components[0].parameters.some((p) =>
+          p.text.includes(link.token),
+        ),
+      );
       const n = sent.length;
       await runWithTenant(A.tid, () => L.sendDue(A.tid));
-      assert.strictEqual(sent.length, n, "second run in the same month sends nothing");
+      assert.strictEqual(
+        sent.length,
+        n,
+        "second run in the same month sends nothing",
+      );
     } finally {
       global.fetch = realFetch;
     }
@@ -1202,24 +1505,68 @@ const ok = async (fn, user, req) => {
     assert.strictEqual(after.status, "paid");
     assert.strictEqual((await L.details(link.token)).status, "paid");
     await rejects(L.start(link.token), 409);
-    await rejects(runWithTenant(A.tid, () => L.ensureLink(A.tid, after)), 409);
+    await rejects(
+      runWithTenant(A.tid, () => L.ensureLink(A.tid, after)),
+      409,
+    );
   });
 
   console.log("\nTrainer on new member");
   await test("trainer picked while adding a member is assigned; a full or foreign trainer rejects the form", async () => {
     const TA = require("../models/TrainerAssignment");
     const r = await ok(MEM.createMember, A.owner, {
-      body: { name: "Coached Cara", phone: "9777000001", branchId: A.branch._id, trainerId: A.trainer._id },
+      body: {
+        name: "Coached Cara",
+        phone: "9777000001",
+        branchId: A.branch._id,
+        trainerId: A.trainer._id,
+      },
     });
     const asg = await TA.findOne({ memberId: r.data._id, isActive: true });
     assert.ok(asg && String(asg.trainerId) === String(A.trainer._id));
-    await rejects(call(MEM.createMember, A.owner, { body: { name: "Ghost", phone: "9777000002", branchId: A.branch._id, trainerId: String(B.trainer._id) } }).then((x) => { if (x.code >= 400) { const e = new Error(x.message); e.status = x.code; throw e; } }), 404);
-    assert.strictEqual(await Member.countDocuments({ tenantId: A.tid, phone: "9777000002" }), 0, "no member created");
-    await User.updateOne({ _id: A.trainer._id }, { "trainerProfile.maxClients": 1 });
-    const full = await call(MEM.createMember, A.owner, { body: { name: "Overflow", phone: "9777000003", branchId: A.branch._id, trainerId: A.trainer._id } });
+    await rejects(
+      call(MEM.createMember, A.owner, {
+        body: {
+          name: "Ghost",
+          phone: "9777000002",
+          branchId: A.branch._id,
+          trainerId: String(B.trainer._id),
+        },
+      }).then((x) => {
+        if (x.code >= 400) {
+          const e = new Error(x.message);
+          e.status = x.code;
+          throw e;
+        }
+      }),
+      404,
+    );
+    assert.strictEqual(
+      await Member.countDocuments({ tenantId: A.tid, phone: "9777000002" }),
+      0,
+      "no member created",
+    );
+    await User.updateOne(
+      { _id: A.trainer._id },
+      { "trainerProfile.maxClients": 1 },
+    );
+    const full = await call(MEM.createMember, A.owner, {
+      body: {
+        name: "Overflow",
+        phone: "9777000003",
+        branchId: A.branch._id,
+        trainerId: A.trainer._id,
+      },
+    });
     assert.strictEqual(full.code, 409);
-    assert.strictEqual(await Member.countDocuments({ tenantId: A.tid, phone: "9777000003" }), 0);
-    await User.updateOne({ _id: A.trainer._id }, { $unset: { "trainerProfile.maxClients": 1 } });
+    assert.strictEqual(
+      await Member.countDocuments({ tenantId: A.tid, phone: "9777000003" }),
+      0,
+    );
+    await User.updateOne(
+      { _id: A.trainer._id },
+      { $unset: { "trainerProfile.maxClients": 1 } },
+    );
   });
 
   console.log("\nDates");

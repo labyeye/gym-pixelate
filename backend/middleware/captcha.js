@@ -8,17 +8,31 @@ module.exports = async (req, res, next) => {
   let ok = false;
   if (token) {
     try {
-      const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ secret, response: String(token), remoteip: req.ip || "" }),
-        signal: AbortSignal.timeout(5000),
-      });
+      const r = await fetch(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            secret,
+            response: String(token),
+            remoteip: req.ip || "",
+          }),
+          signal: AbortSignal.timeout(5000),
+        },
+      );
       ok = !!(await r.json()).success;
     } catch {
       ok = false; // fail closed
     }
   }
-  if (!ok) return res.status(400).json({ success: false, code: "CAPTCHA", message: "Please complete the verification and try again." });
+  if (!ok)
+    return res
+      .status(400)
+      .json({
+        success: false,
+        code: "CAPTCHA",
+        message: "Please complete the verification and try again.",
+      });
   next();
 };

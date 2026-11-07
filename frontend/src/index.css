@@ -321,8 +321,8 @@
       )
       > :is(div, section, header, form, table):first-child
   ) {
-    border-top-left-radius: inherit;
-    border-top-right-radius: inherit;
+    border-top-left-radius: calc(var(--nb-radius) - 2px);
+    border-top-right-radius: calc(var(--nb-radius) - 2px);
   }
   :where(
     .border-2:not(
@@ -357,8 +357,8 @@
       )
       > :is(div, section, footer, form, table):last-child
   ) {
-    border-bottom-left-radius: inherit;
-    border-bottom-right-radius: inherit;
+    border-bottom-left-radius: calc(var(--nb-radius) - 2px);
+    border-bottom-right-radius: calc(var(--nb-radius) - 2px);
   }
 
   :where(
@@ -1080,7 +1080,6 @@ main
     transition: none !important;
   }
 }
-
 
 /* App-wide cap: no text heavier than regular (400), whatever Tailwind weight class or inline style is used. */
 *,

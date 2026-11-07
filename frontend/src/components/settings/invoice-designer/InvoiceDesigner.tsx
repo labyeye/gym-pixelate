@@ -23,7 +23,10 @@ import {
   PAGE_H,
   PAGE_W,
   PRESETS,
+  MONEY_BLOCKS,
+  TEMPLATE_FIELD,
   defaultTemplate,
+  isPlanKind,
   localize,
   newBlock,
   newFloat,
@@ -36,6 +39,7 @@ import {
   type Theme,
 } from "@/lib/invoiceTemplate";
 import { QUOTATION_LABELS } from "@/lib/quotationPdf";
+import { PLAN_SAMPLES } from "@/lib/planPdf";
 import { useHistoryState } from "@/hooks/useHistoryState";
 import { settingsAPI } from "@/services/api";
 import { useNotify } from "@/components/ui/Notification";
@@ -110,6 +114,21 @@ const ADDABLE: BlockType[] = [
   "footer",
 ];
 
+const DESIGN_NAME = {
+  invoice: "Invoice",
+  quotation: "Quotation",
+  receipt: "Receipt",
+  workout: "Workout chart",
+  diet: "Diet chart",
+};
+const DESIGN_USED = {
+  invoice: "New invoices, sales orders and purchase orders will use it.",
+  quotation: "New quotation PDFs will use it.",
+  receipt: "Receipts printed with the Designed style will use it.",
+  workout: "Workout PDFs you download or send on WhatsApp will use it.",
+  diet: "Diet PDFs you download or send on WhatsApp will use it.",
+};
+
 const blockHint = (b: InvoiceTemplate["blocks"][number]) =>
   b.type === "note" ? String(b.props.text || "").slice(0, 24) : "";
 
@@ -134,8 +153,9 @@ export default function InvoiceDesigner({
   onSaved: (t: InvoiceTemplate) => void;
 }) {
   const quotation = kind === "quotation";
-  const field = quotation ? "quotationTemplate" : "invoiceTemplate";
-  const sample = useMemo(
+  const plan = isPlanKind(kind);
+  const field = TEMPLATE_FIELD[kind];
+  const sample: any = useMemo(
     () =>
       quotation
         ? {
@@ -144,15 +164,37 @@ export default function InvoiceDesigner({
             labels: QUOTATION_LABELS,
             invoice: { ...SAMPLE.invoice, invoiceNo: "QT-0001" },
           }
-        : SAMPLE,
-    [quotation, settings?.quotationTitle],
+        : kind === "receipt"
+          ? {
+              ...SAMPLE,
+              title: "PAYMENT RECEIPT",
+              labels: {
+                number: "Receipt No.",
+                date: "Receipt Date",
+                due: "Due Date",
+              },
+              invoice: { ...SAMPLE.invoice, invoiceNo: "RCT-0001" },
+            }
+          : plan
+            ? PLAN_SAMPLES[kind as "workout" | "diet"]()
+            : SAMPLE,
+    [quotation, plan, kind, settings?.quotationTitle],
   );
+  const addable = plan
+    ? ADDABLE.filter((t) => !MONEY_BLOCKS.includes(t))
+    : ADDABLE;
   const fresh = () =>
     localize(defaultTemplate(), kind, settings?.quotationFooter);
   const notify = useNotify();
   // the editor was written against the shadcn toast; route it to NestGym's notifications
-  const toast = (o: { title: string; description?: string; variant?: string }) =>
-    o.variant === "destructive" ? notify.error(o.title, o.description) : notify.success(o.title, o.description);
+  const toast = (o: {
+    title: string;
+    description?: string;
+    variant?: string;
+  }) =>
+    o.variant === "destructive"
+      ? notify.error(o.title, o.description)
+      : notify.success(o.title, o.description);
   const initial = useMemo(
     () => templateFor(kind, settings?.[field], settings?.quotationFooter),
     [],
@@ -303,10 +345,8 @@ export default function InvoiceDesigner({
       savedRef.current = tpl;
       onSaved(stored);
       toast({
-        title: quotation ? "Quotation design saved" : "Invoice design saved",
-        description: quotation
-          ? "New quotation PDFs will use it."
-          : "New invoices, sales orders and purchase orders will use it.",
+        title: `${DESIGN_NAME[kind]} design saved`,
+        description: DESIGN_USED[kind],
       });
     } catch (e: any) {
       toast({
@@ -586,7 +626,7 @@ export default function InvoiceDesigner({
               aria-label="Add a block"
             >
               <option value="">+ Add block…</option>
-              {ADDABLE.map((t) => (
+              {addable.map((t) => (
                 <option key={t} value={t}>
                   {BLOCK_LABELS[t]}
                 </option>

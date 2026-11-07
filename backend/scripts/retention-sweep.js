@@ -20,15 +20,30 @@ mongoose.plugin(tenantScopePlugin);
   for (const s of await Setting.find({ retentionMonths: { $gt: 0 } }).lean()) {
     const cutoff = new Date();
     cutoff.setMonth(cutoff.getMonth() - s.retentionMonths);
-    const members = await Member.find({ tenantId: s.tenantId, erasedAt: { $exists: false }, createdAt: { $lt: cutoff } });
+    const members = await Member.find({
+      tenantId: s.tenantId,
+      erasedAt: { $exists: false },
+      createdAt: { $lt: cutoff },
+    });
     for (const m of members) {
-      const recent = await Membership.exists({ memberId: m._id, endDate: { $gte: cutoff } });
+      const recent = await Membership.exists({
+        memberId: m._id,
+        endDate: { $gte: cutoff },
+      });
       if (recent) continue;
       total++;
-      console.log(`${apply ? "erase" : "would erase"}  tenant=${s.tenantId} member=${m._id}`);
+      console.log(
+        `${apply ? "erase" : "would erase"}  tenant=${s.tenantId} member=${m._id}`,
+      );
       if (apply) {
         await anonymizeMember(m);
-        await ConsentLog.create({ tenantId: m.tenantId, memberId: m._id, purpose: "data_processing", granted: false, source: "retention" });
+        await ConsentLog.create({
+          tenantId: m.tenantId,
+          memberId: m._id,
+          purpose: "data_processing",
+          granted: false,
+          source: "retention",
+        });
       }
     }
   }

@@ -282,88 +282,99 @@ router.post(
         const saga = new Saga();
         saga.amount = payment.amount / 100;
         try {
-        const subscription = await Subscription.findOne({
-          tenant: req.user.tenantId,
-        });
+          const subscription = await Subscription.findOne({
+            tenant: req.user.tenantId,
+          });
 
-        if (!subscription?.pendingOrder) {
-          throw new Error("Order not found for this payment");
-        }
+          if (!subscription?.pendingOrder) {
+            throw new Error("Order not found for this payment");
+          }
 
-        const { plan, billingCycle, amount } = subscription.pendingOrder;
-        saga.amount = amount;
-        const beforeSub = subscription.toObject();
-        saga.onRollback("restore subscription", () => Subscription.replaceOne({ _id: subscription._id }, beforeSub));
-        const amountPaise = Math.round(amount * 100);
+          const { plan, billingCycle, amount } = subscription.pendingOrder;
+          saga.amount = amount;
+          const beforeSub = subscription.toObject();
+          saga.onRollback("restore subscription", () =>
+            Subscription.replaceOne({ _id: subscription._id }, beforeSub),
+          );
+          const amountPaise = Math.round(amount * 100);
 
-        const invoiceNumber = await nextBillNumber();
+          const invoiceNumber = await nextBillNumber();
 
-        const updatedSubscription = await Subscription.findOneAndUpdate(
-          { tenant: req.user.tenantId },
-          {
-            plan,
-            billingCycle,
-            status: "active",
-            startDate: new Date(),
-            nextBillingDate: addTerm(new Date(), billingCycle),
-            amount,
-            paymentMethod: "razorpay",
-            paymentDetails: {
-              razorpayOrderId,
-              razorpayPaymentId,
-              status: payment.status,
-            },
-            $unset: { pendingOrder: 1 },
-            $push: {
-              invoices: {
-                invoiceNumber,
-                razorpayPaymentId,
+          const updatedSubscription = await Subscription.findOneAndUpdate(
+            { tenant: req.user.tenantId },
+            {
+              plan,
+              billingCycle,
+              status: "active",
+              startDate: new Date(),
+              nextBillingDate: addTerm(new Date(), billingCycle),
+              amount,
+              paymentMethod: "razorpay",
+              paymentDetails: {
                 razorpayOrderId,
-                amount: amountPaise,
-                plan,
-                billingCycle,
-                status: "paid",
-                paidAt: new Date(),
+                razorpayPaymentId,
+                status: payment.status,
+              },
+              $unset: { pendingOrder: 1 },
+              $push: {
+                invoices: {
+                  invoiceNumber,
+                  razorpayPaymentId,
+                  razorpayOrderId,
+                  amount: amountPaise,
+                  plan,
+                  billingCycle,
+                  status: "paid",
+                  paidAt: new Date(),
+                },
               },
             },
-          },
-          { new: true },
-        );
+            { new: true },
+          );
 
-        const beforeTenant = await Tenant.findById(req.user.tenantId).lean();
-        saga.onRollback("restore tenant", () => Tenant.replaceOne({ _id: req.user.tenantId }, beforeTenant));
-        const updatedTenant = await Tenant.findByIdAndUpdate(
-          req.user.tenantId,
-          {
-            plan,
-            planExpiresAt: addTerm(new Date(), billingCycle),
-            status: "active",
-            limits: limitsFor(plan),
-          },
-          { new: true },
-        );
+          const beforeTenant = await Tenant.findById(req.user.tenantId).lean();
+          saga.onRollback("restore tenant", () =>
+            Tenant.replaceOne({ _id: req.user.tenantId }, beforeTenant),
+          );
+          const updatedTenant = await Tenant.findByIdAndUpdate(
+            req.user.tenantId,
+            {
+              plan,
+              planExpiresAt: addTerm(new Date(), billingCycle),
+              status: "active",
+              limits: limitsFor(plan),
+            },
+            { new: true },
+          );
 
-        require("../utils/credits").onSubscriptionPaid(req.user.tenantId, { amountPaid: amount, refId: razorpayPaymentId }).catch((err) => console.error("[Credits]", err.message));
-        sendWelcomeEmail({
-          to: updatedTenant?.email || req.user.email,
-          companyName: updatedTenant?.name || req.user.name || "Team",
-          userName: req.user.name || "there",
-          plan,
-          billingCycle,
-          amountRupees: amount,
-          paymentId: razorpayPaymentId,
-          invoiceNumber,
-        }).catch((err) => console.error("Welcome email failed:", err.message));
-
-        res.json({
-          success: true,
-          message: "Payment successful",
-          data: {
+          require("../utils/credits")
+            .onSubscriptionPaid(req.user.tenantId, {
+              amountPaid: amount,
+              refId: razorpayPaymentId,
+            })
+            .catch((err) => console.error("[Credits]", err.message));
+          sendWelcomeEmail({
+            to: updatedTenant?.email || req.user.email,
+            companyName: updatedTenant?.name || req.user.name || "Team",
+            userName: req.user.name || "there",
             plan,
             billingCycle,
-            status: updatedSubscription.status,
-          },
-        });
+            amountRupees: amount,
+            paymentId: razorpayPaymentId,
+            invoiceNumber,
+          }).catch((err) =>
+            console.error("Welcome email failed:", err.message),
+          );
+
+          res.json({
+            success: true,
+            message: "Payment successful",
+            data: {
+              plan,
+              billingCycle,
+              status: updatedSubscription.status,
+            },
+          });
         } catch (err) {
           const undone = await saga.rollback();
           try {
@@ -381,7 +392,10 @@ router.post(
               undone,
             );
           } catch (e) {
-            if (e.refund) return res.status(409).json({ success: false, refund: true, message: e.message });
+            if (e.refund)
+              return res
+                .status(409)
+                .json({ success: false, refund: true, message: e.message });
             throw e;
           }
         }
@@ -416,7 +430,9 @@ router.post(
 // Activates a paid Razorpay order without a signed-in browser (used when only the webhook told us about the payment).
 // Same steps and the same refund protection as the browser's verify call above.
 async function provisionRazorpay({ orderId, paymentId }) {
-  const subscription = await Subscription.findOne({ "pendingOrder.razorpayOrderId": orderId });
+  const subscription = await Subscription.findOne({
+    "pendingOrder.razorpayOrderId": orderId,
+  });
   if (!subscription) throw new Error(`No pending order for ${orderId}`);
   const tenantId = subscription.tenant;
   const { plan, billingCycle, amount } = subscription.pendingOrder;
@@ -425,7 +441,9 @@ async function provisionRazorpay({ orderId, paymentId }) {
   saga.amount = amount;
   try {
     const beforeSub = subscription.toObject();
-    saga.onRollback("restore subscription", () => Subscription.replaceOne({ _id: subscription._id }, beforeSub));
+    saga.onRollback("restore subscription", () =>
+      Subscription.replaceOne({ _id: subscription._id }, beforeSub),
+    );
     const invoiceNumber = await nextBillNumber();
     await Subscription.findOneAndUpdate(
       { tenant: tenantId },
@@ -437,20 +455,44 @@ async function provisionRazorpay({ orderId, paymentId }) {
         nextBillingDate: addTerm(new Date(), billingCycle),
         amount,
         paymentMethod: "razorpay",
-        paymentDetails: { razorpayOrderId: orderId, razorpayPaymentId: paymentId, status: "captured" },
+        paymentDetails: {
+          razorpayOrderId: orderId,
+          razorpayPaymentId: paymentId,
+          status: "captured",
+        },
         $unset: { pendingOrder: 1 },
-        $push: { invoices: { invoiceNumber, razorpayPaymentId: paymentId, razorpayOrderId: orderId, amount: amountPaise, plan, billingCycle, status: "paid", paidAt: new Date() } },
+        $push: {
+          invoices: {
+            invoiceNumber,
+            razorpayPaymentId: paymentId,
+            razorpayOrderId: orderId,
+            amount: amountPaise,
+            plan,
+            billingCycle,
+            status: "paid",
+            paidAt: new Date(),
+          },
+        },
       },
       { new: true },
     );
     const beforeTenant = await Tenant.findById(tenantId).lean();
-    saga.onRollback("restore tenant", () => Tenant.replaceOne({ _id: tenantId }, beforeTenant));
+    saga.onRollback("restore tenant", () =>
+      Tenant.replaceOne({ _id: tenantId }, beforeTenant),
+    );
     const tenant = await Tenant.findByIdAndUpdate(
       tenantId,
-      { plan, planExpiresAt: addTerm(new Date(), billingCycle), status: "active", limits: limitsFor(plan) },
+      {
+        plan,
+        planExpiresAt: addTerm(new Date(), billingCycle),
+        status: "active",
+        limits: limitsFor(plan),
+      },
       { new: true },
     );
-    require("../utils/credits").onSubscriptionPaid(tenantId, { amountPaid: amount, refId: paymentId }).catch((err) => console.error("[Credits]", err.message));
+    require("../utils/credits")
+      .onSubscriptionPaid(tenantId, { amountPaid: amount, refId: paymentId })
+      .catch((err) => console.error("[Credits]", err.message));
     sendWelcomeEmail({
       to: tenant?.email,
       companyName: tenant?.name || "Team",
@@ -463,10 +505,20 @@ async function provisionRazorpay({ orderId, paymentId }) {
     }).catch((err) => console.error("Welcome email failed:", err.message));
   } catch (err) {
     const undone = await saga.rollback();
-    await refundAfterFailure({ gateway: "razorpay", paymentId, orderId, amount, product: "NestGym subscription", ownerId: tenantId }, err, undone);
+    await refundAfterFailure(
+      {
+        gateway: "razorpay",
+        paymentId,
+        orderId,
+        amount,
+        product: "NestGym subscription",
+        ownerId: tenantId,
+      },
+      err,
+      undone,
+    );
   }
 }
 
 module.exports = router;
 module.exports.provisionRazorpay = provisionRazorpay;
-

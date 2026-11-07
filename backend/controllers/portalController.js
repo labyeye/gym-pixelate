@@ -18,7 +18,13 @@ const ops = require("./opsController");
 const logActivity = require("../utils/activityLogger");
 const pay = require("../utils/gymPay");
 const GymClass = require("../models/GymClass");
-const { fail, r2, recordPayment, createInvoice, sellMembership } = require("../utils/gym");
+const {
+  fail,
+  r2,
+  recordPayment,
+  createInvoice,
+  sellMembership,
+} = require("../utils/gym");
 const MembershipPlan = require("../models/MembershipPlan");
 const membershipCtl = require("./membershipController");
 
@@ -100,37 +106,29 @@ const mine = async (req) => {
 
 const overview = asyncHandler(async (req, res) => {
   const member = await mine(req);
-  const [
-    memberships,
-    invoices,
-    trainers,
-    locker,
-    pt,
-    workout,
-    diet,
-    setting,
-  ] = await Promise.all([
-    Membership.find({ memberId: member._id }).sort("-startDate").limit(5),
-    Invoice.find({
-      memberId: member._id,
-      status: { $in: ["pending", "partial"] },
-    }),
-    TrainerAssignment.find({ memberId: member._id, isActive: true }).populate(
-      "trainerId",
-      "name phone",
-    ),
-    Locker.findOne({ memberId: member._id, status: "assigned" }).select(
-      "number validTill",
-    ),
-    PTPackage.find({ memberId: member._id, status: "active" })
-      .populate("trainerId", "name")
-      .select("name totalSessions sessions trainerId validTill"),
-    WorkoutPlan.exists({ memberId: member._id, status: "active" }),
-    DietPlan.exists({ memberId: member._id, status: "active" }),
-    Setting.findOne({}).select(
-      "companyName companyPhone companyAddress onlinePaymentsEnabled gymTiming",
-    ),
-  ]);
+  const [memberships, invoices, trainers, locker, pt, workout, diet, setting] =
+    await Promise.all([
+      Membership.find({ memberId: member._id }).sort("-startDate").limit(5),
+      Invoice.find({
+        memberId: member._id,
+        status: { $in: ["pending", "partial"] },
+      }),
+      TrainerAssignment.find({ memberId: member._id, isActive: true }).populate(
+        "trainerId",
+        "name phone",
+      ),
+      Locker.findOne({ memberId: member._id, status: "assigned" }).select(
+        "number validTill",
+      ),
+      PTPackage.find({ memberId: member._id, status: "active" })
+        .populate("trainerId", "name")
+        .select("name totalSessions sessions trainerId validTill"),
+      WorkoutPlan.exists({ memberId: member._id, status: "active" }),
+      DietPlan.exists({ memberId: member._id, status: "active" }),
+      Setting.findOne({}).select(
+        "companyName companyPhone companyAddress onlinePaymentsEnabled gymTiming",
+      ),
+    ]);
   // Membership status shown on the member's home card (no gate/check-in any more, just "is my plan running").
   const now = new Date();
   const current = memberships.find(
@@ -141,10 +139,13 @@ const overview = asyncHandler(async (req, res) => {
     const daysLeft = Math.ceil((current.endDate - now) / 86400000);
     if (current.status === "frozen") warnings.push("Membership is frozen");
     else if (daysLeft <= 7)
-      warnings.push(`Membership expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`);
+      warnings.push(
+        `Membership expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`,
+      );
   }
   const access = {
-    allowed: !!current && current.status === "active" && member.status === "active",
+    allowed:
+      !!current && current.status === "active" && member.status === "active",
     reason: current ? undefined : "No active membership",
     warnings,
     membership: current || null,
@@ -224,11 +225,22 @@ const plans = asyncHandler(async (req, res) => {
 const addFeedback = asyncHandler(async (req, res) => {
   const member = await mine(req);
   const score = Number(req.body?.score);
-  if (!Number.isInteger(score) || score < 0 || score > 10) throw fail(400, "Pick a score from 0 to 10");
+  if (!Number.isInteger(score) || score < 0 || score > 10)
+    throw fail(400, "Pick a score from 0 to 10");
   const Feedback = require("../models/Feedback");
-  if (await Feedback.exists({ memberId: member._id, createdAt: { $gt: new Date(Date.now() - 30 * 86400000) } }))
+  if (
+    await Feedback.exists({
+      memberId: member._id,
+      createdAt: { $gt: new Date(Date.now() - 30 * 86400000) },
+    })
+  )
     throw fail(429, "Thanks, you already rated us this month");
-  await Feedback.create({ tenantId: member.tenantId, memberId: member._id, score, comment: String(req.body?.comment || "").slice(0, 500) });
+  await Feedback.create({
+    tenantId: member.tenantId,
+    memberId: member._id,
+    score,
+    comment: String(req.body?.comment || "").slice(0, 500),
+  });
   res.status(201).json({ success: true });
 });
 
@@ -276,7 +288,10 @@ const myBookings = asyncHandler(async (req, res) => {
 
 // active memberships (with what the plan includes) that can cover a class on a given date
 const classCover = async (memberId) =>
-  Membership.find({ memberId, status: "active" }).populate("planId", "includes");
+  Membership.find({ memberId, status: "active" }).populate(
+    "planId",
+    "includes",
+  );
 const covers = (list, when) =>
   list.filter((m) => m.startDate <= when && m.endDate >= when);
 
@@ -286,7 +301,9 @@ const sessions = asyncHandler(async (req, res) => {
   const [out, ms, s] = await Promise.all([
     classes.buildSessions(req),
     classCover(member._id),
-    Setting.findOne({ tenantId: member.tenantId }).select("onlinePaymentsEnabled").lean(),
+    Setting.findOne({ tenantId: member.tenantId })
+      .select("onlinePaymentsEnabled")
+      .lean(),
   ]);
   for (const x of out) {
     const live = covers(ms, new Date(x.sessionDate));
@@ -294,7 +311,12 @@ const sessions = asyncHandler(async (req, res) => {
     x.hasMembership = live.length > 0;
     x.price = included ? 0 : x.dropInPrice;
   }
-  res.json({ success: true, count: out.length, onlinePayments: !!s?.onlinePaymentsEnabled, data: out });
+  res.json({
+    success: true,
+    count: out.length,
+    onlinePayments: !!s?.onlinePaymentsEnabled,
+    data: out,
+  });
 });
 
 // Pay the drop-in fee for one session with the gym's own Razorpay, then book it (see classPayVerify).
@@ -305,16 +327,27 @@ const classPayOrder = asyncHandler(async (req, res) => {
   if (!cls) throw fail(404, "Class not found");
   if (!(cls.dropInPrice > 0)) throw fail(400, "This class has no drop-in fee");
   if (when < new Date()) throw fail(400, "That session has already started");
-  if (!classes.isScheduled(cls, when)) throw fail(400, `${cls.name} does not run at that time`);
+  if (!classes.isScheduled(cls, when))
+    throw fail(400, `${cls.name} does not run at that time`);
   const live = covers(await classCover(member._id), when);
-  if (!live.length) throw fail(403, "You need an active membership on that date");
-  if (live.some((m) => m.planId?.includes?.classes)) throw fail(409, "This class is already included in your plan, just book it");
+  if (!live.length)
+    throw fail(403, "You need an active membership on that date");
+  if (live.some((m) => m.planId?.includes?.classes))
+    throw fail(
+      409,
+      "This class is already included in your plan, just book it",
+    );
   const creds = await pay.getCreds(member.tenantId);
   const order = await pay.api.createOrder(creds, {
     amount: Math.round(cls.dropInPrice * 100),
     currency: "INR",
     receipt: `CLS${Date.now()}`.slice(0, 40),
-    notes: { kind: "class", classId: String(cls._id), memberId: String(member._id), sessionDate: when.toISOString() },
+    notes: {
+      kind: "class",
+      classId: String(cls._id),
+      memberId: String(member._id),
+      sessionDate: when.toISOString(),
+    },
   });
   res.json({
     success: true,
@@ -334,32 +367,70 @@ const classPayOrder = asyncHandler(async (req, res) => {
 const classPayVerify = asyncHandler(async (req, res) => {
   const member = await mine(req);
   const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
-  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) throw fail(400, "Missing payment details");
+  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature)
+    throw fail(400, "Missing payment details");
   const creds = await pay.getCreds(member.tenantId);
-  if (!pay.verifySignature(creds.keySecret, razorpayOrderId, razorpayPaymentId, razorpaySignature)) throw fail(400, "Payment signature is invalid");
+  if (
+    !pay.verifySignature(
+      creds.keySecret,
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    )
+  )
+    throw fail(400, "Payment signature is invalid");
   const p = await pay.api.fetchPayment(creds, razorpayPaymentId);
-  if (!p || p.order_id !== razorpayOrderId || !["captured", "authorized"].includes(p.status)) throw fail(400, "Payment was not completed");
+  if (
+    !p ||
+    p.order_id !== razorpayOrderId ||
+    !["captured", "authorized"].includes(p.status)
+  )
+    throw fail(400, "Payment was not completed");
   const n = p.notes || {};
-  if (n.kind !== "class" || String(n.memberId) !== String(member._id)) throw fail(400, "Payment does not belong to this booking");
+  if (n.kind !== "class" || String(n.memberId) !== String(member._id))
+    throw fail(400, "Payment does not belong to this booking");
   const dup = await ClassBooking.findOne({ paymentId: razorpayPaymentId });
-  if (dup) return res.json({ success: true, data: dup, waitlisted: dup.status === "waitlisted" });
+  if (dup)
+    return res.json({
+      success: true,
+      data: dup,
+      waitlisted: dup.status === "waitlisted",
+    });
   const cls = await GymClass.findById(n.classId);
   if (!cls) throw fail(404, "Class not found");
-  if (Math.round(cls.dropInPrice * 100) !== Number(p.amount)) throw fail(400, "Paid amount does not match the class fee");
+  if (Math.round(cls.dropInPrice * 100) !== Number(p.amount))
+    throw fail(400, "Paid amount does not match the class fee");
   const when = new Date(n.sessionDate);
   const invoice = await createInvoice({
     tenantId: member.tenantId,
     branchId: cls.branchId,
     memberId: member._id,
-    items: [{ kind: "other", description: `${cls.name} drop-in (${when.toLocaleDateString("en-IN")})`, quantity: 1, unitPrice: cls.dropInPrice, gstPercent: 0 }],
+    items: [
+      {
+        kind: "other",
+        description: `${cls.name} drop-in (${when.toLocaleDateString("en-IN")})`,
+        quantity: 1,
+        unitPrice: cls.dropInPrice,
+        gstPercent: 0,
+      },
+    ],
     payFull: true,
     method: "online",
     reference: razorpayPaymentId,
     userId: member.userId,
     idempotencyKey: `rzp-class:${razorpayPaymentId}`,
   });
-  const booking = await classes.placeBooking(cls, member._id, when, { paymentId: razorpayPaymentId, invoiceId: invoice._id });
-  res.status(201).json({ success: true, data: booking, waitlisted: booking.status === "waitlisted" });
+  const booking = await classes.placeBooking(cls, member._id, when, {
+    paymentId: razorpayPaymentId,
+    invoiceId: invoice._id,
+  });
+  res
+    .status(201)
+    .json({
+      success: true,
+      data: booking,
+      waitlisted: booking.status === "waitlisted",
+    });
 });
 
 const book = asyncHandler(async (req, res, next) => {
@@ -393,21 +464,30 @@ const announcements = asyncHandler(async (req, res, next) => {
 // Members may switch to a dearer plan within 24 h of buying; they pay only the difference.
 // After that the gym owner / manager does it (and the member is told so).
 const currentActive = (memberId) =>
-  Membership.findOne({ memberId, status: "active", endDate: { $gt: new Date() } }).sort("-createdAt");
+  Membership.findOne({
+    memberId,
+    status: "active",
+    endDate: { $gt: new Date() },
+  }).sort("-createdAt");
 
 const changeOptions = asyncHandler(async (req, res) => {
   const member = await mine(req);
   const cur = await currentActive(member._id);
   if (!cur)
-    return res.json({ success: true, data: { canChange: false, reason: "You have no running membership." } });
-  const withinWindow = Date.now() - cur.createdAt <= membershipCtl.CHANGE_WINDOW_MS;
+    return res.json({
+      success: true,
+      data: { canChange: false, reason: "You have no running membership." },
+    });
+  const withinWindow =
+    Date.now() - cur.createdAt <= membershipCtl.CHANGE_WINDOW_MS;
   if (!withinWindow)
     return res.json({
       success: true,
       data: {
         canChange: false,
         current: { planName: cur.planName },
-        reason: "Plan changes after 24 hours are handled by the gym. Please contact the front desk.",
+        reason:
+          "Plan changes after 24 hours are handled by the gym. Please contact the front desk.",
       },
     });
   const plans = await MembershipPlan.find({
@@ -433,7 +513,9 @@ const changeOptions = asyncHandler(async (req, res) => {
     data: {
       canChange: true,
       current: { planName: cur.planName, paid: cur.paidAmount },
-      windowEndsAt: new Date(cur.createdAt.getTime() + membershipCtl.CHANGE_WINDOW_MS),
+      windowEndsAt: new Date(
+        cur.createdAt.getTime() + membershipCtl.CHANGE_WINDOW_MS,
+      ),
       options,
     },
   });
@@ -442,12 +524,18 @@ const changeOptions = asyncHandler(async (req, res) => {
 // Creates the new membership with only the difference billed; the member then pays that invoice online or at the desk.
 const changePlan = asyncHandler(async (req, res) => {
   const member = await mine(req);
-  const plan = await MembershipPlan.findOne({ _id: req.body.planId, isActive: true });
+  const plan = await MembershipPlan.findOne({
+    _id: req.body.planId,
+    isActive: true,
+  });
   if (!plan) throw fail(404, "Plan not found");
   const cur = await currentActive(member._id);
   if (!cur) throw fail(409, "You have no running membership to change");
   if (Date.now() - cur.createdAt > membershipCtl.CHANGE_WINDOW_MS)
-    throw fail(403, "Plan changes after 24 hours are handled by the gym. Please contact the front desk.");
+    throw fail(
+      403,
+      "Plan changes after 24 hours are handled by the gym. Please contact the front desk.",
+    );
   if (String(cur.planId) === String(plan._id) || plan.price < cur.price)
     throw fail(400, "Pick a higher plan than your current one");
   const old = await Membership.findOneAndUpdate(
@@ -473,10 +561,18 @@ const changePlan = asyncHandler(async (req, res) => {
     });
     res.status(201).json({
       success: true,
-      data: { membership: r.membership, invoice: r.invoice, credit: r.credit, payable: r.payable },
+      data: {
+        membership: r.membership,
+        invoice: r.invoice,
+        credit: r.credit,
+        payable: r.payable,
+      },
     });
   } catch (e) {
-    await Membership.updateOne({ _id: old._id }, { $set: { status: "active" } });
+    await Membership.updateOne(
+      { _id: old._id },
+      { $set: { status: "active" } },
+    );
     throw e;
   }
 });
@@ -485,12 +581,20 @@ const changePlan = asyncHandler(async (req, res) => {
 // Open to a member who has no running membership; any active plan can be picked (their last one first).
 const LIVE = ["active", "frozen", "upcoming"];
 const runningFor = (memberId) =>
-  Membership.findOne({ memberId, status: { $in: LIVE }, endDate: { $gt: new Date() } });
+  Membership.findOne({
+    memberId,
+    status: { $in: LIVE },
+    endDate: { $gt: new Date() },
+  });
 
 const renewOptions = asyncHandler(async (req, res) => {
   const member = await mine(req);
-  if (await runningFor(member._id)) return res.json({ success: true, data: { canRenew: false } });
-  const last = await Membership.findOne({ memberId: member._id, status: { $in: [...LIVE, "expired"] } }).sort("-endDate");
+  if (await runningFor(member._id))
+    return res.json({ success: true, data: { canRenew: false } });
+  const last = await Membership.findOne({
+    memberId: member._id,
+    status: { $in: [...LIVE, "expired"] },
+  }).sort("-endDate");
   const plans = await MembershipPlan.find({ isActive: true }).sort("price");
   const options = plans.map((p) => {
     const g = p.gstPercent || 0;
@@ -507,17 +611,29 @@ const renewOptions = asyncHandler(async (req, res) => {
   options.sort((a, b) => Number(b.last) - Number(a.last));
   res.json({
     success: true,
-    data: { canRenew: options.length > 0, expiredOn: last?.endDate || null, lastPlan: last?.planName || null, options },
+    data: {
+      canRenew: options.length > 0,
+      expiredOn: last?.endDate || null,
+      lastPlan: last?.planName || null,
+      options,
+    },
   });
 });
 
 // Bills the plan and starts it now; the member pays the invoice online or at the desk.
 const renewPlan = asyncHandler(async (req, res) => {
   const member = await mine(req);
-  if (await runningFor(member._id)) throw fail(409, "Your membership is still running");
-  const plan = await MembershipPlan.findOne({ _id: req.body.planId, isActive: true });
+  if (await runningFor(member._id))
+    throw fail(409, "Your membership is still running");
+  const plan = await MembershipPlan.findOne({
+    _id: req.body.planId,
+    isActive: true,
+  });
   if (!plan) throw fail(404, "Plan not found");
-  const last = await Membership.findOne({ memberId: member._id, status: { $in: [...LIVE, "expired"] } }).sort("-endDate");
+  const last = await Membership.findOne({
+    memberId: member._id,
+    status: { $in: [...LIVE, "expired"] },
+  }).sort("-endDate");
   const { membership, invoice } = await sellMembership({
     tenantId: member.tenantId,
     branchId: last?.branchId,

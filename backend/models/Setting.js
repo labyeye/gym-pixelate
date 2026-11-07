@@ -67,7 +67,23 @@ const settingSchema = new mongoose.Schema(
       expired: { type: Boolean, default: false },
       birthday: { type: Boolean, default: false },
       anniversary: { type: Boolean, default: false },
+      // staff attendance & leave messages (utils/staffHr.js)
+      staffCheckin: { type: Boolean, default: false },
+      staffLeave: { type: Boolean, default: false },
+      staffAbsent: { type: Boolean, default: false },
+      memberCheckin: { type: Boolean, default: false },
     },
+    // attendance rules: GPS fence around the gym for self check-in (lat/lng null = record the location but don't restrict it),
+    // and whether a self check-in also needs a matching selfie
+    attendanceGeo: {
+      enabled: { type: Boolean, default: false },
+      requireFace: { type: Boolean, default: false },
+      lat: { type: Number, default: null },
+      lng: { type: Number, default: null },
+      radiusMeters: { type: Number, default: 200 },
+    },
+    // yearly leave days per type for trainers / staff (Leave page); missing types use the defaults in staffLeaveController
+    leaveAllowance: { type: mongoose.Schema.Types.Mixed, default: null },
     // wipe personal data of members whose last membership ended this many months ago (0 = never)
     retentionMonths: { type: Number, default: 0, min: 0, max: 120 },
     razorpayKeyId: { type: String, default: "" },
@@ -84,6 +100,11 @@ const settingSchema = new mongoose.Schema(
 
     // invoice layout from the Invoice Designer (validated by utils/invoiceTemplate.js); null = the classic layout
     invoiceTemplate: { type: mongoose.Schema.Types.Mixed, default: null },
+
+    // block-designer layouts for member receipts and workout / diet charts (same shape + validation as invoiceTemplate)
+    receiptTemplate: { type: mongoose.Schema.Types.Mixed, default: null },
+    workoutTemplate: { type: mongoose.Schema.Types.Mixed, default: null },
+    dietTemplate: { type: mongoose.Schema.Types.Mixed, default: null },
 
     // member receipt look (cheque-style or standard), sanitised in settingController
     receiptDesign: { type: mongoose.Schema.Types.Mixed, default: null },

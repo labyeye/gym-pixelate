@@ -557,9 +557,17 @@ async function sendSecurityMail({ to, subject, html, text }) {
   const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
   const masked = String(to).replace(/^(.).*(@.*)$/, "$1***$2");
   try {
-    await createTransport().sendMail({ from: `"${fromName}" <${fromEmail}>`, to, subject, html, text });
+    await createTransport().sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to,
+      subject,
+      html,
+      text,
+    });
   } catch (err) {
-    console.error(`[security-mail] FAILED to ${masked}: ${err.code || ""} ${err.message}`);
+    console.error(
+      `[security-mail] FAILED to ${masked}: ${err.code || ""} ${err.message}`,
+    );
     throw err;
   }
 }
@@ -567,7 +575,9 @@ async function sendSecurityMail({ to, subject, html, text }) {
 // One-time code emails: purpose "login" (sign in / unlock) or "verify-email".
 async function sendOtpEmail({ to, name, otp, purpose }) {
   const verify = purpose === "verify-email";
-  const subject = verify ? "NestGym - Verify your email" : "NestGym - Your sign-in code";
+  const subject = verify
+    ? "NestGym - Verify your email"
+    : "NestGym - Your sign-in code";
   const intro = verify
     ? "Use this code to verify your email address."
     : "Use this code to sign in to your account. It also unlocks your account if it was temporarily locked.";
@@ -578,7 +588,12 @@ async function sendOtpEmail({ to, name, otp, purpose }) {
 <p style="text-align:center;font-size:34px;font-weight:900;letter-spacing:8px;color:#024BAB;margin:24px 0">${esc(otp)}</p>
 <p style="font-size:12px;color:#888;line-height:1.6">This code expires in 10 minutes. If you didn't request it, ignore this email: nobody can sign in without it.</p>`,
   );
-  await sendSecurityMail({ to, subject, html, text: `Your NestGym code is ${otp}. It expires in 10 minutes.` });
+  await sendSecurityMail({
+    to,
+    subject,
+    html,
+    text: `Your NestGym code is ${otp}. It expires in 10 minutes.`,
+  });
 }
 
 async function sendPasswordResetEmail({ toEmail, toName, resetUrl }) {
@@ -590,7 +605,12 @@ async function sendPasswordResetEmail({ toEmail, toName, resetUrl }) {
 <p style="text-align:center;margin:24px 0"><a href="${esc(resetUrl)}" style="background:#024BAB;color:#fff;padding:12px 24px;text-decoration:none;font-weight:700;border:2px solid #000">Reset password</a></p>
 <p style="font-size:12px;color:#888;line-height:1.6">If you didn't ask for this, ignore this email. Your password stays the same.</p>`,
   );
-  await sendSecurityMail({ to: toEmail, subject, html, text: `Reset your NestGym password (valid 1 hour): ${resetUrl}` });
+  await sendSecurityMail({
+    to: toEmail,
+    subject,
+    html,
+    text: `Reset your NestGym password (valid 1 hour): ${resetUrl}`,
+  });
 }
 
 // Heads-up after a security-relevant change. Best effort: never blocks the action.
@@ -612,7 +632,9 @@ async function sendSecurityAlertEmail({ to, name, what }) {
 // Heads-up that WhatsApp credits are low / finished. Best effort: never blocks the send that triggered it.
 async function sendLowCreditsEmail({ to, name, credits, zero }) {
   try {
-    const subject = zero ? "NestGym - WhatsApp credits finished, messages are paused" : "NestGym - WhatsApp credits are running low";
+    const subject = zero
+      ? "NestGym - WhatsApp credits finished, messages are paused"
+      : "NestGym - WhatsApp credits are running low";
     const line = zero
       ? "Your WhatsApp credits are <b>0</b>. Renewal reminders, due-fee links and other messages to your members are paused until you add credits. Login OTPs are not affected."
       : `You have <b>${esc(credits)}</b> WhatsApp credits left. Add credits so messages to your members don't stop.`;
@@ -622,10 +644,23 @@ async function sendLowCreditsEmail({ to, name, credits, zero }) {
 <p style="font-size:14px;color:#555;line-height:1.6">${line}</p>
 <p style="font-size:12px;color:#888;line-height:1.6">Open NestGym &rarr; Credits to add more.</p>`,
     );
-    await sendSecurityMail({ to, subject, html, text: zero ? "Your NestGym WhatsApp credits are 0." : `You have ${credits} NestGym WhatsApp credits left.` });
+    await sendSecurityMail({
+      to,
+      subject,
+      html,
+      text: zero
+        ? "Your NestGym WhatsApp credits are 0."
+        : `You have ${credits} NestGym WhatsApp credits left.`,
+    });
   } catch {
     /* logged in sendSecurityMail */
   }
 }
 
-module.exports = { sendWelcomeEmail, sendOtpEmail, sendPasswordResetEmail, sendSecurityAlertEmail, sendLowCreditsEmail };
+module.exports = {
+  sendWelcomeEmail,
+  sendOtpEmail,
+  sendPasswordResetEmail,
+  sendSecurityAlertEmail,
+  sendLowCreditsEmail,
+};

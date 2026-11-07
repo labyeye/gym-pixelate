@@ -11,10 +11,18 @@ export default function RefundNotice() {
   }, []);
   if (!msg) return null;
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4" role="alertdialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4"
+      role="alertdialog"
+      aria-modal="true"
+    >
       <div className="bg-white border-2 border-black shadow-[6px_6px_0px_#0a0a0a] max-w-md w-full p-6">
-        <div className="w-12 h-12 rounded-full bg-amber-100 border-2 border-black flex items-center justify-center text-2xl mb-4">₹</div>
-        <h2 className="text-xl font-bold text-black mb-2">Payment received, refund on the way</h2>
+        <div className="w-12 h-12 rounded-full bg-amber-100 border-2 border-black flex items-center justify-center text-2xl mb-4">
+          ₹
+        </div>
+        <h2 className="text-xl font-bold text-black mb-2">
+          Payment received, refund on the way
+        </h2>
         <p className="text-sm text-gray-700 leading-relaxed">{msg}</p>
         <button
           onClick={() => setMsg(null)}

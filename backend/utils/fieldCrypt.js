@@ -11,9 +11,15 @@ const crypto = require("crypto");
 const PREFIX = "enc1:";
 
 const key = () => {
-  const secret = process.env.FIELD_ENCRYPTION_KEY || process.env.ENCRYPTION_SECRET || process.env.JWT_SECRET;
+  const secret =
+    process.env.FIELD_ENCRYPTION_KEY ||
+    process.env.ENCRYPTION_SECRET ||
+    process.env.JWT_SECRET;
   if (!secret) throw new Error("FIELD_ENCRYPTION_KEY is not set");
-  return crypto.createHash("sha256").update("nestgym-field-v1|" + secret).digest();
+  return crypto
+    .createHash("sha256")
+    .update("nestgym-field-v1|" + secret)
+    .digest();
 };
 
 const b64 = (b) => b.toString("base64url");
@@ -30,7 +36,10 @@ function encryptValue(v) {
 
 function decryptValue(v) {
   if (typeof v !== "string" || !v.startsWith(PREFIX)) return v; // plaintext / legacy / empty
-  const [iv, tag, ct] = v.slice(PREFIX.length).split(".").map((x) => Buffer.from(x, "base64url"));
+  const [iv, tag, ct] = v
+    .slice(PREFIX.length)
+    .split(".")
+    .map((x) => Buffer.from(x, "base64url"));
   const d = crypto.createDecipheriv("aes-256-gcm", key(), iv);
   d.setAuthTag(tag);
   return Buffer.concat([d.update(ct), d.final()]).toString("utf8");
@@ -46,11 +55,33 @@ function encryptOnSave(schema, paths) {
   schema.pre("save", function () {
     for (const p of paths) {
       const v = this.get(p, null, { getters: false });
-      if (Array.isArray(v) ? v.some((x) => typeof x === "string" && x && !isEncrypted(x)) : typeof v === "string" && v && !isEncrypted(v)) this.set(p, Array.isArray(v) ? [...v] : v);
+      if (
+        Array.isArray(v)
+          ? v.some((x) => typeof x === "string" && x && !isEncrypted(x))
+          : typeof v === "string" && v && !isEncrypted(v)
+      )
+        this.set(p, Array.isArray(v) ? [...v] : v);
     }
   });
 }
 
-const SENSITIVE_MEMBER_PATHS = ["idProof.number", "emergencyContact.name", "emergencyContact.phone", "health.injuries", "health.allergies", "health.medications", "health.conditions", "medicalNotes"];
+const SENSITIVE_MEMBER_PATHS = [
+  "idProof.number",
+  "emergencyContact.name",
+  "emergencyContact.phone",
+  "health.injuries",
+  "health.allergies",
+  "health.medications",
+  "health.conditions",
+  "medicalNotes",
+];
 
-module.exports = { SENSITIVE_MEMBER_PATHS, encryptOnSave, FIELD, encryptValue, decryptValue, isEncrypted, PREFIX };
+module.exports = {
+  SENSITIVE_MEMBER_PATHS,
+  encryptOnSave,
+  FIELD,
+  encryptValue,
+  decryptValue,
+  isEncrypted,
+  PREFIX,
+};

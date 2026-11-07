@@ -9,7 +9,13 @@ export const fmt = (n: number) =>
 export const fmtDate = (v: any) => {
   if (!v) return "—";
   try {
-    return new Date(v).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-");
+    return new Date(v)
+      .toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+      .replace(/\//g, "-");
   } catch {
     return String(v);
   }
@@ -112,6 +118,8 @@ export function numToWords(n: number): string {
 export interface CalcItem {
   description: string;
   details?: string;
+  cells?: Record<string, string>; // plan charts: text for the hsn/qty/rate/amt columns
+  group?: boolean; // plan charts: a section heading row (Day 1, Breakfast...)
   hsn: string;
   qty: number;
   rate: number;
@@ -134,6 +142,8 @@ export function computeInvoice(
     return {
       description: it?.description || it?.name || "Professional Service",
       details: it?.details,
+      cells: it?.cells,
+      group: !!it?.group,
       hsn: it?.hsn ?? it?.sac ?? it?.hsnCode ?? hsnDefault,
       qty,
       rate,
@@ -212,7 +222,9 @@ export function computeInvoice(
       .join(", "),
     invNo: invoice?.invoiceNo ?? invoice?.id ?? invoice?._id ?? "—",
     invDate: fmtDate(invoice?.createdAt ?? new Date()),
-    dueDate: invoice?.dueDate ? fmtDate(invoice.dueDate) : "On Receipt",
+    dueDate:
+      invoice?.dueText ??
+      (invoice?.dueDate ? fmtDate(invoice.dueDate) : "On Receipt"),
   };
 }
 

@@ -12,6 +12,11 @@ module.exports = require("./crmTenantAdapter")({
     { key: "staff", label: "Staff limit", path: "limits.staff" },
   ],
   defaultLimits: { members: 500, branches: 1, staff: 10 },
-  createTenant: (b, { email, phone }) => ({ email, phone: phone || "", onboarded: true }),
-  usage: (t, users) => `limits: ${t.limits?.members ?? "—"} members · ${t.limits?.branches ?? "—"} branches · ${users} logins`,
+  createTenant: (b, { email, phone }) => ({
+    email,
+    phone: phone || "",
+    onboarded: true,
+  }),
+  usage: (t, users) =>
+    `limits: ${t.limits?.members ?? "—"} members · ${t.limits?.branches ?? "—"} branches · ${users} logins`,
 });

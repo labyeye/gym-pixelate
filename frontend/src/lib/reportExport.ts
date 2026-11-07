@@ -4,7 +4,7 @@ import { downloadSheet } from "@/lib/spreadsheet";
 // Print windows are same-origin and the login token lives in localStorage, so every
 // interpolated value is escaped and the document gets a CSP that forbids scripts.
 const CSP =
-  '<meta http-equiv="Content-Security-Policy" content="script-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">';
+  "<meta http-equiv=\"Content-Security-Policy\" content=\"script-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'\">";
 
 const esc = (v: unknown) =>
   String(v ?? "")
@@ -31,18 +31,38 @@ export function exportXLSX({ headers, rows, filename }: ReportSpec) {
   void downloadSheet(filename, [headers, ...rows], "xlsx", "Report");
 }
 
-export function printReport({ title, period = "", headers, rows, company }: ReportSpec) {
+export function printReport({
+  title,
+  period = "",
+  headers,
+  rows,
+  company,
+}: ReportSpec) {
   const win = window.open("", "_blank");
   if (!win) return;
-  const now = new Date().toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(/\//g, "-");
+  const now = new Date()
+    .toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+    .replace(/\//g, "-");
   const th = headers
-    .map((h) => `<th style="background:#024BAB;color:#fff;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">${esc(h)}</th>`)
+    .map(
+      (h) =>
+        `<th style="background:#024BAB;color:#fff;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">${esc(h)}</th>`,
+    )
     .join("");
   const tr = rows
     .map(
       (r, i) =>
         `<tr style="background:${i % 2 ? "#F8FAFF" : "#fff"}">${r
-          .map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #E5E7EB;font-size:11px;white-space:nowrap">${esc(c)}</td>`)
+          .map(
+            (c) =>
+              `<td style="padding:7px 10px;border-bottom:1px solid #E5E7EB;font-size:11px;white-space:nowrap">${esc(c)}</td>`,
+          )
           .join("")}</tr>`,
     )
     .join("");

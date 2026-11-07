@@ -70,10 +70,25 @@ const blank = {
 };
 const TABS = ["Basic", "Personal", "Professional", "Pay & ID"];
 const BLOOD = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
-const ID_TYPES = ["aadhaar", "pan", "driving_license", "passport", "voter_id", "other"];
+const ID_TYPES = [
+  "aadhaar",
+  "pan",
+  "driving_license",
+  "passport",
+  "voter_id",
+  "other",
+];
 const dateOnly = (d?: string) => (d ? String(d).slice(0, 10) : "");
 const fmtD = (d?: string) =>
-  d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-") : "";
+  d
+    ? new Date(d)
+        .toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })
+        .replace(/\//g, "-")
+    : "";
 
 const list = (s: string) =>
   s
@@ -180,7 +195,11 @@ export default function TrainersTeamPage() {
       languages: list(f.languages),
       joiningDate: f.joiningDate || undefined,
       employmentType: f.employmentType,
-      emergencyContact: { name: f.emergencyName, phone: f.emergencyPhone, relation: f.emergencyRelation },
+      emergencyContact: {
+        name: f.emergencyName,
+        phone: f.emergencyPhone,
+        relation: f.emergencyRelation,
+      },
       idProof: { type: f.idType, number: f.idNumber },
     };
     try {
@@ -283,6 +302,7 @@ export default function TrainersTeamPage() {
         head={[
           "Trainer",
           "Specialisation",
+          "Shift",
           "Clients",
           "PT packages",
           "PT rate",
@@ -321,9 +341,9 @@ export default function TrainersTeamPage() {
               </Td>
               <Td className="text-xs font-bold">
                 {(t.trainerProfile?.specializations || []).join(", ") || "—"}
-                {t.trainerProfile?.shift && (
-                  <p className="text-black/50">{t.trainerProfile.shift}</p>
-                )}
+              </Td>
+              <Td className="text-xs font-bold">
+                {t.trainerProfile?.shift || "�"}
               </Td>
               <Td className="font-black">
                 {c}
@@ -384,7 +404,15 @@ export default function TrainersTeamPage() {
         {cur && (
           <div className="flex gap-4 border-b-2 border-black pb-4">
             <div className="w-20 h-20 border-2 border-black bg-[#024BAB] text-white flex items-center justify-center text-2xl font-black overflow-hidden shrink-0">
-              {cur.avatar ? <img src={cur.avatar} alt="" className="w-full h-full object-cover" /> : cur.name?.[0]}
+              {cur.avatar ? (
+                <img
+                  src={cur.avatar}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                cur.name?.[0]
+              )}
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs min-w-0">
               {(
@@ -394,15 +422,28 @@ export default function TrainersTeamPage() {
                   ["Date of birth", fmtD(cur.trainerProfile?.dob)],
                   ["Gender", cur.trainerProfile?.gender],
                   ["Joined", fmtD(cur.trainerProfile?.joiningDate)],
-                  ["Experience", cur.trainerProfile?.experienceYears != null ? `${cur.trainerProfile.experienceYears} yrs` : ""],
-                  ["Certifications", (cur.trainerProfile?.certifications || []).join(", ")],
-                  ["Languages", (cur.trainerProfile?.languages || []).join(", ")],
+                  [
+                    "Experience",
+                    cur.trainerProfile?.experienceYears != null
+                      ? `${cur.trainerProfile.experienceYears} yrs`
+                      : "",
+                  ],
+                  [
+                    "Certifications",
+                    (cur.trainerProfile?.certifications || []).join(", "),
+                  ],
+                  [
+                    "Languages",
+                    (cur.trainerProfile?.languages || []).join(", "),
+                  ],
                 ] as [string, string][]
               )
                 .filter(([, v]) => v)
                 .map(([k, v]) => (
                   <div key={k} className="min-w-0">
-                    <dt className="font-black uppercase tracking-wider text-black/50">{k}</dt>
+                    <dt className="font-black uppercase tracking-wider text-black/50">
+                      {k}
+                    </dt>
                     <dd className="font-bold truncate">{v}</dd>
                   </div>
                 ))}
@@ -491,7 +532,10 @@ export default function TrainersTeamPage() {
               <Btn
                 busy={busy}
                 onClick={save}
-                disabled={!f.name || (edit === "new" && (!f.email || f.password.length < 6))}
+                disabled={
+                  !f.name ||
+                  (edit === "new" && (!f.email || f.password.length < 6))
+                }
               >
                 Save trainer
               </Btn>
@@ -501,14 +545,42 @@ export default function TrainersTeamPage() {
       >
         {ftab === 0 && (
           <>
-            <PhotoUpload value={f.avatar} name={f.name} onChange={(url) => setF({ ...f, avatar: url })} />
+            <PhotoUpload
+              value={f.avatar}
+              name={f.name}
+              onChange={(url) => setF({ ...f, avatar: url })}
+            />
             <div className="grid sm:grid-cols-2 gap-4">
-              <TextInput label="Name" required value={f.name} onChange={(e: any) => setF({ ...f, name: e.target.value })} />
-              <PhoneField label="Phone" value={f.phone} onChange={(v) => setF({ ...f, phone: v })} />
+              <TextInput
+                label="Name"
+                required
+                value={f.name}
+                onChange={(e: any) => setF({ ...f, name: e.target.value })}
+              />
+              <PhoneField
+                label="Phone"
+                value={f.phone}
+                onChange={(v) => setF({ ...f, phone: v })}
+              />
               {edit === "new" && (
                 <>
-                  <TextInput label="Login email" type="email" required value={f.email} onChange={(e: any) => setF({ ...f, email: e.target.value })} />
-                  <TextInput label="Password" type="password" required hint="Min 6 characters" value={f.password} onChange={(e: any) => setF({ ...f, password: e.target.value })} />
+                  <TextInput
+                    label="Login email"
+                    type="email"
+                    required
+                    value={f.email}
+                    onChange={(e: any) => setF({ ...f, email: e.target.value })}
+                  />
+                  <TextInput
+                    label="Password"
+                    type="password"
+                    required
+                    hint="Min 6 characters"
+                    value={f.password}
+                    onChange={(e: any) =>
+                      setF({ ...f, password: e.target.value })
+                    }
+                  />
                 </>
               )}
             </div>
@@ -518,18 +590,73 @@ export default function TrainersTeamPage() {
         {ftab === 1 && (
           <>
             <div className="grid sm:grid-cols-2 gap-4">
-              <TextInput label="Date of birth" type="date" max={new Date().toISOString().slice(0, 10)} value={f.dob} onChange={(e: any) => setF({ ...f, dob: e.target.value })} />
-              <SelectInput label="Gender" placeholder="Select gender" options={["male", "female", "other"]} value={f.gender} onChange={(v: string) => setF({ ...f, gender: v })} />
-              <SelectInput label="Blood group" placeholder="Select blood group" options={BLOOD} value={f.bloodGroup} onChange={(v: string) => setF({ ...f, bloodGroup: v })} />
-              <TextInput label="Languages" value={f.languages} onChange={(e: any) => setF({ ...f, languages: e.target.value })} hint="Comma separated: English, Hindi" />
-              <TextInput label="City" value={f.city} onChange={(e: any) => setF({ ...f, city: e.target.value })} />
-              <TextInput label="Pincode" inputMode="numeric" maxLength={6} value={f.pincode} onChange={(e: any) => setF({ ...f, pincode: e.target.value.replace(/[^0-9]/g, "") })} />
+              <TextInput
+                label="Date of birth"
+                type="date"
+                max={new Date().toISOString().slice(0, 10)}
+                value={f.dob}
+                onChange={(e: any) => setF({ ...f, dob: e.target.value })}
+              />
+              <SelectInput
+                label="Gender"
+                placeholder="Select gender"
+                options={["male", "female", "other"]}
+                value={f.gender}
+                onChange={(v: string) => setF({ ...f, gender: v })}
+              />
+              <SelectInput
+                label="Blood group"
+                placeholder="Select blood group"
+                options={BLOOD}
+                value={f.bloodGroup}
+                onChange={(v: string) => setF({ ...f, bloodGroup: v })}
+              />
+              <TextInput
+                label="Languages"
+                value={f.languages}
+                onChange={(e: any) => setF({ ...f, languages: e.target.value })}
+                hint="Comma separated: English, Hindi"
+              />
+              <TextInput
+                label="City"
+                value={f.city}
+                onChange={(e: any) => setF({ ...f, city: e.target.value })}
+              />
+              <TextInput
+                label="Pincode"
+                inputMode="numeric"
+                maxLength={6}
+                value={f.pincode}
+                onChange={(e: any) =>
+                  setF({ ...f, pincode: e.target.value.replace(/[^0-9]/g, "") })
+                }
+              />
             </div>
-            <TextArea label="Address" value={f.address} onChange={(e: any) => setF({ ...f, address: e.target.value })} />
+            <TextArea
+              label="Address"
+              value={f.address}
+              onChange={(e: any) => setF({ ...f, address: e.target.value })}
+            />
             <div className="grid sm:grid-cols-3 gap-4">
-              <TextInput label="Emergency contact name" value={f.emergencyName} onChange={(e: any) => setF({ ...f, emergencyName: e.target.value })} />
-              <PhoneField label="Emergency contact phone" value={f.emergencyPhone} onChange={(v) => setF({ ...f, emergencyPhone: v })} />
-              <TextInput label="Relation" value={f.emergencyRelation} onChange={(e: any) => setF({ ...f, emergencyRelation: e.target.value })} />
+              <TextInput
+                label="Emergency contact name"
+                value={f.emergencyName}
+                onChange={(e: any) =>
+                  setF({ ...f, emergencyName: e.target.value })
+                }
+              />
+              <PhoneField
+                label="Emergency contact phone"
+                value={f.emergencyPhone}
+                onChange={(v) => setF({ ...f, emergencyPhone: v })}
+              />
+              <TextInput
+                label="Relation"
+                value={f.emergencyRelation}
+                onChange={(e: any) =>
+                  setF({ ...f, emergencyRelation: e.target.value })
+                }
+              />
             </div>
           </>
         )}
@@ -537,19 +664,65 @@ export default function TrainersTeamPage() {
         {ftab === 2 && (
           <>
             <div className="grid sm:grid-cols-2 gap-4">
-              <TextInput label="Specialisations" value={f.specializations} onChange={(e: any) => setF({ ...f, specializations: e.target.value })} hint="Comma separated: weight training, yoga" />
-              <TextInput label="Certifications" value={f.certifications} onChange={(e: any) => setF({ ...f, certifications: e.target.value })} hint="ACE, ISSA, NASM…" />
-              <TextInput label="Experience (years)" type="number" min={0} value={f.experienceYears} onChange={(e: any) => setF({ ...f, experienceYears: e.target.value })} />
-              <TextInput label="Shift" value={f.shift} onChange={(e: any) => setF({ ...f, shift: e.target.value })} placeholder="06:00-14:00" />
-              <TextInput label="Max clients" type="number" min={0} value={f.maxClients} onChange={(e: any) => setF({ ...f, maxClients: e.target.value })} hint="Blocks assigning beyond this" />
+              <TextInput
+                label="Specialisations"
+                value={f.specializations}
+                onChange={(e: any) =>
+                  setF({ ...f, specializations: e.target.value })
+                }
+                hint="Comma separated: weight training, yoga"
+              />
+              <TextInput
+                label="Certifications"
+                value={f.certifications}
+                onChange={(e: any) =>
+                  setF({ ...f, certifications: e.target.value })
+                }
+                hint="ACE, ISSA, NASM…"
+              />
+              <TextInput
+                label="Experience (years)"
+                type="number"
+                min={0}
+                value={f.experienceYears}
+                onChange={(e: any) =>
+                  setF({ ...f, experienceYears: e.target.value })
+                }
+              />
+              <TextInput
+                label="Shift"
+                value={f.shift}
+                onChange={(e: any) => setF({ ...f, shift: e.target.value })}
+                placeholder="06:00-14:00"
+              />
+              <TextInput
+                label="Max clients"
+                type="number"
+                min={0}
+                value={f.maxClients}
+                onChange={(e: any) =>
+                  setF({ ...f, maxClients: e.target.value })
+                }
+                hint="Blocks assigning beyond this"
+              />
             </div>
-            <TextArea label="Bio" rows={3} value={f.bio} onChange={(e: any) => setF({ ...f, bio: e.target.value })} />
+            <TextArea
+              label="Bio"
+              rows={3}
+              value={f.bio}
+              onChange={(e: any) => setF({ ...f, bio: e.target.value })}
+            />
           </>
         )}
 
         {ftab === 3 && (
           <div className="grid sm:grid-cols-2 gap-4">
-            <TextInput label="Joining date" type="date" value={f.joiningDate} onChange={(e: any) => setF({ ...f, joiningDate: e.target.value })} />
+            <TextInput
+              label="Joining date"
+              type="date"
+              value={f.joiningDate}
+              onChange={(e: any) => setF({ ...f, joiningDate: e.target.value })}
+            />
             <SelectInput
               label="Employment type"
               placeholder="Select type"
@@ -561,12 +734,46 @@ export default function TrainersTeamPage() {
               value={f.employmentType}
               onChange={(v: string) => setF({ ...f, employmentType: v })}
             />
-            <TextInput label="Monthly salary (₹)" type="number" min={0} value={f.monthlySalary} onChange={(e: any) => setF({ ...f, monthlySalary: e.target.value })} hint="Used by payroll" />
-            <TextInput label="PT rate / session (₹)" type="number" min={0} value={f.ptRate} onChange={(e: any) => setF({ ...f, ptRate: e.target.value })} />
-            <TextInput label="Default commission %" type="number" min={0} max={100} value={f.commissionPercent} onChange={(e: any) => setF({ ...f, commissionPercent: e.target.value })} />
+            <TextInput
+              label="Monthly salary (₹)"
+              type="number"
+              min={0}
+              value={f.monthlySalary}
+              onChange={(e: any) =>
+                setF({ ...f, monthlySalary: e.target.value })
+              }
+              hint="Used by payroll"
+            />
+            <TextInput
+              label="PT rate / session (₹)"
+              type="number"
+              min={0}
+              value={f.ptRate}
+              onChange={(e: any) => setF({ ...f, ptRate: e.target.value })}
+            />
+            <TextInput
+              label="Default commission %"
+              type="number"
+              min={0}
+              max={100}
+              value={f.commissionPercent}
+              onChange={(e: any) =>
+                setF({ ...f, commissionPercent: e.target.value })
+              }
+            />
             <div />
-            <SelectInput label="ID proof" placeholder="Select ID proof" options={ID_TYPES} value={f.idType} onChange={(v: string) => setF({ ...f, idType: v })} />
-            <TextInput label="ID number" value={f.idNumber} onChange={(e: any) => setF({ ...f, idNumber: e.target.value })} />
+            <SelectInput
+              label="ID proof"
+              placeholder="Select ID proof"
+              options={ID_TYPES}
+              value={f.idType}
+              onChange={(v: string) => setF({ ...f, idType: v })}
+            />
+            <TextInput
+              label="ID number"
+              value={f.idNumber}
+              onChange={(e: any) => setF({ ...f, idNumber: e.target.value })}
+            />
           </div>
         )}
       </Modal>
