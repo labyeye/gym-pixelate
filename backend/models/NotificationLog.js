@@ -6,7 +6,7 @@ const notificationLogSchema = new mongoose.Schema(
   {
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: "Tenant", required: true },
     memberId: { type: mongoose.Schema.Types.ObjectId, ref: "Member", index: true },
-    kind: { type: String, enum: ["expiring", "expired", "birthday"], required: true },
+    kind: { type: String, enum: ["expiring", "expired", "birthday", "anniversary"], required: true },
     channel: { type: String, default: "whatsapp" },
     refKey: { type: String, required: true },
     status: { type: String, enum: ["sending", "sent", "failed"], default: "sending" },

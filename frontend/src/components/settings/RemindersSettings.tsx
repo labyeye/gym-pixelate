@@ -11,6 +11,7 @@ const KINDS = [
   { key: "expiring", label: "Plan expiring in 3 days", desc: "Reminds the member to renew before the plan ends.", def: false },
   { key: "expired", label: "Plan expired (not renewed)", desc: "Follow-up in the 3 days after the plan ended.", def: false },
   { key: "birthday", label: "Birthday wishes", desc: "A wish on the member's birthday. Costs more credits.", def: false },
+  { key: "anniversary", label: "Marriage anniversary wishes", desc: "A wish on the member's marriage anniversary (if filled in). Costs more credits.", def: false },
 ] as const;
 
 function Switch({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -48,7 +49,7 @@ export default function RemindersSettings() {
   };
   const toggle = async (key: string, value: boolean) => {
     try {
-      await settingsAPI.update({ reminders: { paymentLink: true, expiring: false, expired: false, birthday: false, ...on, [key]: value } });
+      await settingsAPI.update({ reminders: { paymentLink: true, expiring: false, expired: false, birthday: false, anniversary: false, ...on, [key]: value } });
       qc.invalidateQueries({ queryKey: ["settings"] });
     } catch (e: any) {
       notify.error("Failed", e.message);

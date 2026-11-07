@@ -9,9 +9,9 @@ const { sendPlatformTemplate } = require("./whatsappOtp");
 
 /*
  * Automatic member reminders on the platform WhatsApp number: plan expiring in 3 days, plan expired in the
- * last 3 days (and not renewed), birthday. Each gym switches each kind on in Settings (all off by default).
+ * last 3 days (and not renewed), birthday, marriage anniversary. Each gym switches each kind on in Settings (all off by default).
  * Templates (3 text params: member name, gym name, date / blank) come from env:
- *   WHATSAPP_REMINDER_EXPIRING_TEMPLATE, WHATSAPP_REMINDER_EXPIRED_TEMPLATE, WHATSAPP_REMINDER_BIRTHDAY_TEMPLATE
+ *   WHATSAPP_REMINDER_EXPIRING_TEMPLATE, WHATSAPP_REMINDER_EXPIRED_TEMPLATE, WHATSAPP_REMINDER_BIRTHDAY_TEMPLATE, WHATSAPP_REMINDER_ANNIVERSARY_TEMPLATE
  * A kind without its template configured is skipped.
  */
 const DAY = 86400000;
@@ -20,6 +20,7 @@ const TEMPLATE = {
   expiring: () => process.env.WHATSAPP_REMINDER_EXPIRING_TEMPLATE,
   expired: () => process.env.WHATSAPP_REMINDER_EXPIRED_TEMPLATE,
   birthday: () => process.env.WHATSAPP_REMINDER_BIRTHDAY_TEMPLATE,
+  anniversary: () => process.env.WHATSAPP_REMINDER_ANNIVERSARY_TEMPLATE,
 };
 const fmt = (d) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 
@@ -80,13 +81,23 @@ async function runForGym(s, now = new Date()) {
       tenantId, status: "active", erasedAt: { $exists: false }, dob: { $ne: null },
       $expr: { $and: [{ $eq: [{ $month: "$dob" }, month] }, { $eq: [{ $dayOfMonth: "$dob" }, day] }] },
     }).select("name phone whatsappOptIn erasedAt status").limit(500);
-    for (const m of list) bump(await send(tenantId, gym, m, "birthday", `birthday:${m._id}:${ist.getUTCFullYear()}`));
+    for (const m of list) bump(await send(tenantId, gym, m, "birthday", `birthday:${m._id}:${ist.getUTCFullYear()}`, fmt(now)));
+  }
+  if (on.anniversary && TEMPLATE.anniversary()) {
+    const ist = new Date(now.getTime() + IST_MS);
+    const month = ist.getUTCMonth() + 1;
+    const day = ist.getUTCDate();
+    const list = await Member.find({
+      tenantId, status: "active", erasedAt: { $exists: false }, anniversary: { $ne: null },
+      $expr: { $and: [{ $eq: [{ $month: "$anniversary" }, month] }, { $eq: [{ $dayOfMonth: "$anniversary" }, day] }] },
+    }).select("name phone whatsappOptIn erasedAt status").limit(500);
+    for (const m of list) bump(await send(tenantId, gym, m, "anniversary", `anniversary:${m._id}:${ist.getUTCFullYear()}`, fmt(now)));
   }
   return out;
 }
 
 async function runAll() {
-  const gyms = await Setting.find({ $or: [{ "reminders.expiring": true }, { "reminders.expired": true }, { "reminders.birthday": true }] }).lean();
+  const gyms = await Setting.find({ $or: [{ "reminders.expiring": true }, { "reminders.expired": true }, { "reminders.birthday": true }, { "reminders.anniversary": true }] }).lean();
   for (const s of gyms) {
     try {
       const r = await runWithTenant(s.tenantId, () => runForGym(s));

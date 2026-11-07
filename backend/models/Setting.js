@@ -66,6 +66,7 @@ const settingSchema = new mongoose.Schema(
       expiring: { type: Boolean, default: false },
       expired: { type: Boolean, default: false },
       birthday: { type: Boolean, default: false },
+      anniversary: { type: Boolean, default: false },
     },
     // wipe personal data of members whose last membership ended this many months ago (0 = never)
     retentionMonths: { type: Number, default: 0, min: 0, max: 120 },

@@ -106,6 +106,7 @@ const EMPTY = {
   email: "",
   gender: "male",
   dob: "",
+  anniversary: "",
   occupation: "",
   address: "",
   city: "",
@@ -200,6 +201,7 @@ export default function MembersPage() {
       }),
     );
     f.dob = toInputDate(m.dob);
+    f.anniversary = toInputDate(m.anniversary);
     setForm(f);
     setTab(0);
     setEditing(m);
@@ -228,6 +230,7 @@ export default function MembersPage() {
       body.fitness[k] =
         body.fitness[k] === "" ? undefined : Number(body.fitness[k]);
     if (!body.dob) delete body.dob;
+    if (!body.anniversary) delete body.anniversary;
     if (!body.trainerId || editing !== "new") delete body.trainerId; // trainer is picked only when adding; change later from Trainers
     if (!body.idProof.type) delete body.idProof;
     try {
@@ -610,6 +613,7 @@ export default function MembersPage() {
               {...bind("gender")}
             />
             <TextInput label="Date of birth" type="date" {...bind("dob")} />
+            <TextInput label="Marriage anniversary" type="date" {...bind("anniversary")} />
             <TextInput label="Occupation" {...bind("occupation")} />
              <TextArea
               className="sm:col-span-2"

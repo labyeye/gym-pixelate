@@ -4,7 +4,7 @@ module.exports = {
   UNIT: 100,
   DEFAULT_RATE: 0.2, // credits per message; renewal / due reminders are UTILITY templates
   // per message kind (see utils/reminders.js, utils/paymentLinks.js). Birthday wishes are promotional, so they cost more.
-  RATES: { birthday: 1 },
+  RATES: { birthday: 1, anniversary: 1 },
   GST_PCT: 18,
   // price = what the gym pays before GST, credits = what it gets
   PACKS: [
