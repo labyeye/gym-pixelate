@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useUsageTracker } from "@/hooks/useUsageTracker";
 import TermsGate from "@/components/TermsGate";
 import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
+import { TopLoader } from "@/components/ui/TopLoader";
 import { pathEnabled } from "@/config/modules";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -315,6 +316,7 @@ const App = () => (
       <AuthProvider>
         <CreditsProvider>
         <BrowserRouter>
+          <TopLoader />
           <NotificationProvider>
             <AppRoutes />
             <TermsGate />
