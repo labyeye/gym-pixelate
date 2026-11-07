@@ -168,6 +168,7 @@ app.use("/api/memberships", require("./routes/membershipRoutes"));
 app.use("/api/invoices", require("./routes/invoiceRoutes"));
 app.use("/api/trainers", require("./routes/trainerRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
+app.use("/api/celebrations", require("./routes/celebrationRoutes"));
 app.use("/api/settings", require("./routes/settingRoutes"));
 app.use("/api/activity", require("./routes/activityRoutes"));
 app.use("/api/api-keys", require("./routes/apiKeyRoutes"));

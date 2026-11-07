@@ -344,3 +344,7 @@ export const legalAPI = {
     return r.data ?? r;
   },
 };
+
+export const celebrationsAPI = {
+  today: () => request<{ success: boolean; data: any[] }>("/celebrations"),
+};
