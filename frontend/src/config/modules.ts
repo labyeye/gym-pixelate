@@ -128,7 +128,7 @@ export function moduleOfPath(path: string): GymModule | undefined {
 // the attendance page is open while any of its three groups is on
 const ATTENDANCE = ["trainerAttendance", "staffAttendance", "memberAttendance"];
 export const pathEnabled = (flags: ModuleFlags, path: string) => {
-  if (path === "/staff-attendance")
+  if (["/staff-attendance", "/leave", "/biometric"].includes(path))
     return ATTENDANCE.some((k) => moduleOn(flags, k));
   const m = moduleOfPath(path);
   return !m || moduleOn(flags, m.key);

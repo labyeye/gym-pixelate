@@ -28,6 +28,8 @@ import {
   UserCheck,
   Headphones,
   ShieldCheck,
+  Palmtree,
+  Fingerprint,
 } from "lucide-react";
 
 export type NavIconComponent =
@@ -78,6 +80,18 @@ const allGroups: NavGroup[] = [
           "trainer",
           "accountant",
         ],
+      },
+      {
+        title: "Leave",
+        href: "/leave",
+        icon: Palmtree,
+        roles: ["gym_owner", "branch_manager", "receptionist", "trainer", "accountant"],
+      },
+      {
+        title: "Biometric",
+        href: "/biometric",
+        icon: Fingerprint,
+        roles: ["gym_owner", "branch_manager"],
       },
     ],
   },

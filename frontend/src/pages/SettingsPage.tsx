@@ -48,6 +48,7 @@ import { TEMPLATE_FIELD } from "@/lib/invoiceTemplate";
 import InvoiceDesigner from "@/components/settings/invoice-designer/InvoiceDesigner";
 import RemindersSettings from "@/components/settings/RemindersSettings";
 import AttendanceSettings from "@/components/settings/AttendanceSettings";
+import AttendanceProfileFields, { emptyProfile, saveProfile, type AttProfile } from "@/components/attendance/AttendanceProfileFields";
 import TrashSettings from "@/components/settings/TrashSettings";
 import SecuritySettings from "@/components/settings/SecuritySettings";
 
@@ -107,6 +108,8 @@ export default function SettingsPage() {
   const [branchPhone, setBranchPhone] = useState("");
 
   const [staffModalOpen, setStaffModalOpen] = useState(false);
+  const [staffTab, setStaffTab] = useState(0);
+  const [staffAtt, setStaffAtt] = useState<AttProfile>(emptyProfile);
   const [staffForm, setStaffForm] = useState({
     name: "",
     email: "",
@@ -242,10 +245,13 @@ export default function SettingsPage() {
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await usersAPI.create(staffForm);
+      const created = await usersAPI.create(staffForm);
+      if (created.data?._id) await saveProfile(created.data._id, staffAtt);
       notify.success("Staff Invited");
       setStaffModalOpen(false);
       setStaffForm({ name: "", email: "", password: "", role: "receptionist" });
+      setStaffAtt(emptyProfile);
+      setStaffTab(0);
       queryClient.invalidateQueries({ queryKey: ["staff-users"] });
     } catch (error: any) {
       notify.error("Save Failed", error.message);
@@ -953,14 +959,26 @@ export default function SettingsPage() {
                       <Plus className="w-4 h-4" /> Add Branch
                     </button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-md border-2 border-black p-0 gap-0">
+                  <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto border-2 border-black p-0 gap-0">
                     <form onSubmit={handleAddBranch}>
                       <DialogHeader className="border-b-2 border-black bg-[#024BAB] px-5 py-4">
                         <DialogTitle className="text-white font-black uppercase tracking-wider text-base">
                           Add Branch
                         </DialogTitle>
                       </DialogHeader>
-                      <div className="grid gap-4 p-5 bg-white">
+                      <div className="flex border-b-2 border-black bg-white">
+                        {["Basic Info", "Attendance"].map((t, i) => (
+                          <button key={t} type="button" onClick={() => setStaffTab(i)} className={`flex-1 py-2.5 text-xs font-black uppercase tracking-wider ${staffTab === i ? "bg-[#024BAB] text-white" : "bg-white text-black"}`}>
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                      {staffTab === 1 && (
+                        <div className="p-5 bg-white">
+                          <AttendanceProfileFields value={staffAtt} onChange={setStaffAtt} />
+                        </div>
+                      )}
+                      <div className={`grid gap-4 p-5 bg-white ${staffTab === 1 ? "hidden" : ""}`}>
                         <input
                           className="border-2 w-full px-3 py-2.5 text-sm"
                           placeholder="Branch name"

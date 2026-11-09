@@ -173,69 +173,8 @@ export default function AttendanceSettings() {
       <section className={box}>
         <h3 className="font-display font-bold text-lg">Biometric devices</h3>
         <p className="text-xs text-gray-600">
-          ZKTeco / eSSL fingerprint or face terminals. On the device set{" "}
-          <b>Cloud Server / ADMS</b> to this server&apos;s address (path{" "}
-          <code>/iclock</code>), then register its serial number here. Give each
-          person the same <b>Biometric ID</b> they have on the device
-          (Attendance → Face &amp; device ID).
+          Fingerprint / face terminals are set up on the <a href="/biometric" className="font-bold text-[#024BAB] underline">Biometric</a> page: locations &amp; devices, ADMS sync steps and activity logs.
         </p>
-        {(devices.data || []).map((d: any) => (
-          <div
-            key={d._id}
-            className="flex items-center justify-between border-2 border-gray-200 p-3"
-          >
-            <div>
-              <p className="font-bold text-sm">
-                {d.name}{" "}
-                <span className="text-xs text-gray-500">
-                  · {d.serialNumber}
-                </span>
-              </p>
-              <p className="text-xs text-gray-500">
-                {d.lastSeenAt
-                  ? `Last seen ${new Date(d.lastSeenAt).toLocaleString("en-IN")}`
-                  : "Never connected"}
-              </p>
-            </div>
-            <button
-              aria-label="Remove device"
-              onClick={async () => {
-                if (window.confirm(`Remove ${d.name}?`)) {
-                  await gym.attendance.removeDevice(d._id);
-                  qc.invalidateQueries({ queryKey: ["att-devices"] });
-                }
-              }}
-            >
-              <Trash2 className="w-4 h-4 text-red-600" />
-            </button>
-          </div>
-        ))}
-        <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
-          <label className="text-xs font-bold uppercase tracking-wider">
-            Name
-            <input
-              className={input}
-              placeholder="Front door"
-              value={dev.name}
-              onChange={(e) => setDev({ ...dev, name: e.target.value })}
-            />
-          </label>
-          <label className="text-xs font-bold uppercase tracking-wider">
-            Serial number
-            <input
-              className={input}
-              value={dev.serialNumber}
-              onChange={(e) => setDev({ ...dev, serialNumber: e.target.value })}
-            />
-          </label>
-          <button
-            onClick={addDevice}
-            disabled={!dev.name || !dev.serialNumber}
-            className="nb-btn bg-[#024BAB] text-white px-4 py-2 text-sm disabled:opacity-50"
-          >
-            Add device
-          </button>
-        </div>
       </section>
     </div>
   );

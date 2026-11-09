@@ -1070,6 +1070,61 @@ const ok = async (fn, user, req) => {
     }
   });
 
+  console.log("\nAttendance profile, leave management, device logs");
+  await test("shift makes late, leave allowance/half day/paid-unpaid/cancel, biometric IDs, not-checked-in members, device log", async () => {
+    const FC = require("../controllers/attendanceFaceController");
+    const LC = require("../controllers/staffLeaveController");
+    const MA = require("../controllers/memberAttendanceController");
+    const { staffPunch } = require("../utils/punch");
+    const SA = require("../models/StaffAttendance");
+    const SLeave = require("../models/StaffLeave");
+    const DevLog = require("../models/AttendanceDeviceLog");
+    const mk = (n) => User.create({ name: n, email: `${n.replace(/\W/g, "").toLowerCase()}@alpha.test`, password: "Kx7#mQv29!", role: "receptionist", tenantId: A.tid });
+    // work schedule + shift saved from the form's Attendance tab; late rule: >15 min late = late, >2 h = half day
+    const a = await mk("Late One");
+    await ok(FC.saveProfile, A.owner, { params: { id: a._id }, body: { biometricId: "501", attendanceProfile: { workDaysPerWeek: 5, shiftStart: "09:00", shiftEnd: "18:00" } } });
+    const b = await mk("Late Two");
+    await rejects(ok(FC.saveProfile, A.owner, { params: { id: b._id }, body: { biometricId: "501" } }), 409, /already used/);
+    const fresh = await User.findById(a._id);
+    assert.strictEqual(fresh.attendanceProfile.workDaysPerWeek, 5);
+    const at = (hhmm) => new Date(`${new Date(Date.now() + 5.5 * 3600000).toISOString().slice(0, 10)}T${hhmm}:00+05:30`);
+    assert.strictEqual((await runWithTenant(A.tid, () => staffPunch(fresh, { action: "check_in", at: at("09:10") }))).row.status, "present");
+    await SA.deleteMany({ userId: a._id });
+    assert.strictEqual((await runWithTenant(A.tid, () => staffPunch(fresh, { action: "check_in", at: at("09:40") }))).row.status, "late");
+    await SA.deleteMany({ userId: a._id });
+    assert.strictEqual((await runWithTenant(A.tid, () => staffPunch(fresh, { action: "check_in", at: at("11:30") }))).row.status, "half_day");
+    // auto-assign gives the rest the next free numbers
+    const r = await ok(FC.assignIds, A.owner);
+    assert.ok(r.assigned >= 1);
+    assert.ok((await User.findById(b._id)).biometricId);
+    // leave: allowance edit, half day, paid vs unpaid approval, cancel approved gives the days back
+    const staff = await mk("Leave Person");
+    await ok(LC.setAllowance, A.owner, { body: { casual: 5, sick: 2, earned: 0 } });
+    const d = (n) => new Date(Date.now() + n * 86400000 + 5.5 * 3600000).toISOString().slice(0, 10);
+    await rejects(ok(LC.createLeave, staff, { body: { leaveType: "earned", startDate: d(40), reason: "x" } }), 400, /left this year/);
+    await rejects(ok(LC.createLeave, staff, { body: { leaveType: "casual", startDate: d(40), endDate: d(41), isHalfDay: true, reason: "x" } }), 400, /single date/);
+    const half = await ok(LC.createLeave, staff, { body: { leaveType: "casual", startDate: d(40), isHalfDay: true, halfDayType: "second_half", reason: "doctor" } });
+    assert.strictEqual(half.data.days, 0.5);
+    await ok(LC.decideLeave, A.owner, { params: { id: half.data._id }, body: { status: "approved", paid: false } });
+    assert.strictEqual((await SLeave.findById(half.data._id)).paid, false);
+    const trip = await ok(LC.createLeave, A.owner, { body: { userId: staff._id, leaveType: "casual", startDate: d(50), endDate: d(52), reason: "trip" } }); // owner applies for staff
+    await ok(LC.decideLeave, A.owner, { params: { id: trip.data._id }, body: { status: "approved", paid: true } });
+    const marked = () => runWithTenant(A.tid, () => SA.countDocuments({ userId: staff._id, leaveId: trip.data._id }));
+    assert.strictEqual(await marked(), 3);
+    await rejects(ok(LC.cancelLeave, A.owner, { params: { id: trip.data._id }, body: {} }), 400, /reason/);
+    await ok(LC.cancelLeave, A.owner, { params: { id: trip.data._id }, body: { reason: "plans changed" } });
+    assert.strictEqual(await marked(), 0);
+    await require("../models/Setting").updateOne({ tenantId: A.tid }, { $unset: { leaveAllowance: 1 } });
+    // members with a running plan and no visit show up as not checked in
+    const nci = await ok(MA.notCheckedIn, A.owner);
+    assert.ok(Array.isArray(nci.data));
+    // device protocol log is tenant scoped
+    await DevLog.create({ tenantId: A.tid, serialNumber: "SN1", kind: "punches", received: 2, marked: 1, skipped: 1, detail: "1x already checked in" });
+    const logs = await ok(FC.deviceLogs, A.owner);
+    assert.ok(logs.data.length >= 1);
+    assert.strictEqual((await ok(FC.deviceLogs, B.owner)).data.length, 0);
+  });
+
   console.log("\nStaff attendance & payroll");
   await test("attendance is pro-rated, half days count 0.5, trainer commission added, other gyms isolated", async () => {
     const ST = require("../controllers/staffController");

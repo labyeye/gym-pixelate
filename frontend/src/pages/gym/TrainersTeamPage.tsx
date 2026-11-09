@@ -37,6 +37,7 @@ import {
 } from "@/components/gym/kit";
 import { MemberPicker } from "@/components/gym/pickers";
 import { PhotoUpload } from "@/components/gym/PhotoUpload";
+import AttendanceProfileFields, { emptyProfile, profileOf, saveProfile, type AttProfile } from "@/components/attendance/AttendanceProfileFields";
 
 const blank = {
   name: "",
@@ -68,7 +69,7 @@ const blank = {
   idType: "",
   idNumber: "",
 };
-const TABS = ["Basic", "Personal", "Professional", "Pay & ID"];
+const TABS = ["Basic", "Personal", "Professional", "Pay & ID", "Attendance"];
 const BLOOD = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 const ID_TYPES = [
   "aadhaar",
@@ -105,6 +106,7 @@ export default function TrainersTeamPage() {
   const [member, setMember] = useState<any>(null);
   const [edit, setEdit] = useState<any>(null);
   const [f, setF] = useState<any>(blank);
+  const [att, setAtt] = useState<AttProfile>(emptyProfile);
   const [ftab, setFtab] = useState(0);
   const [busy, setBusy] = useState(false);
 
@@ -138,6 +140,7 @@ export default function TrainersTeamPage() {
 
   const openEdit = (t?: any) => {
     const p = t?.trainerProfile || {};
+    setAtt(t ? profileOf(t) : emptyProfile);
     setF(
       t
         ? {
@@ -204,8 +207,9 @@ export default function TrainersTeamPage() {
     };
     try {
       setBusy(true);
+      let savedId: string = edit === "new" ? "" : edit._id;
       if (edit === "new")
-        await usersAPI.create({
+        savedId = (await usersAPI.create({
           name: f.name,
           email: f.email,
           password: f.password,
@@ -214,7 +218,7 @@ export default function TrainersTeamPage() {
           avatar: f.avatar || undefined,
           monthlySalary: num(f.monthlySalary),
           trainerProfile,
-        });
+        })).data?._id;
       else
         await usersAPI.update(edit._id, {
           name: f.name,
@@ -223,6 +227,7 @@ export default function TrainersTeamPage() {
           monthlySalary: num(f.monthlySalary) ?? 0,
           trainerProfile,
         });
+      if (savedId) await saveProfile(savedId, att);
       notify.success("Trainer saved");
       setEdit(null);
       refresh();
@@ -715,6 +720,9 @@ export default function TrainersTeamPage() {
           </>
         )}
 
+        {ftab === 4 && (
+          <AttendanceProfileFields value={att} onChange={setAtt} personId={edit !== "new" && edit ? edit._id : undefined} />
+        )}
         {ftab === 3 && (
           <div className="grid sm:grid-cols-2 gap-4">
             <TextInput

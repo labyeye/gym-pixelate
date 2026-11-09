@@ -41,6 +41,8 @@ import WorkoutDietPage from "./pages/gym/WorkoutDietPage";
 import TrainersTeamPage from "./pages/gym/TrainersTeamPage";
 import SupportPage from "./pages/gym/SupportPage";
 import StaffAttendancePage from "./pages/gym/StaffAttendancePage";
+import LeavePage from "./pages/gym/LeavePage";
+import BiometricPage from "./pages/gym/BiometricPage";
 import PosPage from "./pages/gym/PosPage";
 import MemberPortal from "./pages/portal/MemberPortal";
 import ReportsPage from "./pages/gym/ReportsPage";
@@ -229,6 +231,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <WorkoutDietPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/leave"
+        element={
+          <ProtectedRoute>
+            <LeavePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/biometric"
+        element={
+          <ProtectedRoute>
+            <BiometricPage />
           </ProtectedRoute>
         }
       />

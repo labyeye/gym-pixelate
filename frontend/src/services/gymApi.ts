@@ -164,6 +164,9 @@ export const gym = {
         fields,
         photo,
       ),
+    saveProfile: (id: string, b: any) => request<any>(`/staff-attendance/profile/${id}`, json("PUT", b)),
+    assignIds: () => post("/attendance/assign-ids"),
+    deviceLogs: (p?: any) => get("/attendance-devices/logs", p),
     devices: () => get("/attendance-devices"),
     addDevice: (b: any) => post("/attendance-devices", b),
     removeDevice: (id: string) =>
@@ -171,6 +174,7 @@ export const gym = {
   },
   memberAtt: {
     list: (p?: any) => get("/member-attendance", p),
+    notCheckedIn: (date: string) => get("/member-attendance/not-checked-in", { date }),
     checkIn: (memberId: string) =>
       post("/member-attendance/check-in", { memberId }),
     checkOut: (memberId: string) =>
@@ -189,7 +193,10 @@ export const gym = {
     requestLeave: (b: any) => post("/staff-leaves", b),
     decide: (id: string, b: any) =>
       request<any>(`/staff-leaves/${id}/decision`, json("PUT", b)),
-    cancelLeave: (id: string) => post(`/staff-leaves/${id}/cancel`),
+    cancelLeave: (id: string, reason?: string) => post(`/staff-leaves/${id}/cancel`, { reason }),
+    editLeave: (id: string, b: any) => request<any>(`/staff-leaves/${id}`, json("PUT", b)),
+    allowance: () => get("/staff-leaves/allowance"),
+    setAllowance: (b: any) => request<any>("/staff-leaves/allowance", json("PUT", b)),
   },
   sweep: () => post("/memberships/sweep"),
   billing: {
