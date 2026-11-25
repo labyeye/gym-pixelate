@@ -1,3 +1,4 @@
+import { AnimatedValue } from "@/components/gym/AnimatedValue";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Check, CheckCircle, Clock, Pencil, Plus, Settings2, XCircle, X } from "lucide-react";
@@ -7,7 +8,7 @@ import { useNotify } from "@/components/ui/Notification";
 import { usePermission } from "@/hooks/usePermission";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { Btn, Modal, SelectInput, StatCard, TextArea, TextInput } from "@/components/gym/kit";
+import { Btn, Modal, SelectInput, TextArea, TextInput } from "@/components/gym/kit";
 
 // Leave Management for trainers and staff, laid out like NestHR's Leave page: apply, balances, filter, approve / reject /
 // edit / cancel with the same prompts. Allowances are yearly and set here by the owner. No payroll deduction.
@@ -99,20 +100,13 @@ export default function LeavePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3 mb-5">
-        <StatCard label="Pending" value={count("pending")} icon={Clock} color="#FA731C" active={filter === "pending"} onClick={() => setFilter(filter === "pending" ? "" : "pending")} />
-        <StatCard label="Approved" value={count("approved")} icon={CheckCircle} color="#00C48C" active={filter === "approved"} onClick={() => setFilter(filter === "approved" ? "" : "approved")} />
-        <StatCard label="Rejected" value={count("rejected")} icon={XCircle} color="#EF4444" active={filter === "rejected"} onClick={() => setFilter(filter === "rejected" ? "" : "rejected")} />
-        <StatCard label="Cancelled" value={count("cancelled")} icon={Ban} color="#6B7280" active={filter === "cancelled"} onClick={() => setFilter(filter === "cancelled" ? "" : "cancelled")} />
-      </div>
-
       <div className="mb-5 border-2 border-black bg-white p-4">
         <p className="text-xs font-bold uppercase tracking-wider text-[#024BAB] mb-2">My leave balance this year</p>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
           {Object.entries(balance).filter(([, b]: any) => b.total > 0).map(([t, b]: any) => (
             <div key={t} className="border-2 border-black p-3">
               <p className="text-[10px] font-bold uppercase text-gray-500">{TYPE_LABEL[t] || t}</p>
-              <p className="text-xl font-bold text-[#024BAB]">{b.left}<span className="text-sm text-gray-500">/{b.total}</span></p>
+              <p className="text-xl font-bold text-[#024BAB]"><AnimatedValue value={b.left} /><span className="text-sm text-gray-500">/{b.total}</span></p>
               <p className="text-[10px] text-gray-500">{b.used} used or pending</p>
             </div>
           ))}

@@ -18,6 +18,7 @@ import {
   ShoppingBag,
   Tag,
   BarChart3,
+  TrendingUp,
   Wallet,
   Wrench,
   Megaphone,
@@ -86,6 +87,12 @@ const allGroups: NavGroup[] = [
         href: "/leave",
         icon: Palmtree,
         roles: ["gym_owner", "branch_manager", "receptionist", "trainer", "accountant"],
+      },
+      {
+        title: "Payroll",
+        href: "/payroll",
+        icon: Wallet,
+        roles: ["gym_owner", "branch_manager", "accountant"],
       },
       {
         title: "Biometric",
@@ -191,6 +198,7 @@ const allGroups: NavGroup[] = [
         icon: BarChart3,
         roles: MONEY,
       },
+      { title: "Insights", href: "/insights", icon: TrendingUp, roles: MONEY },
       { title: "Expenses", href: "/expenses", icon: Wallet, roles: MONEY },
       {
         title: "Equipment",

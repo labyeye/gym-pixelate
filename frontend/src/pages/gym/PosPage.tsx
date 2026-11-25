@@ -25,8 +25,6 @@ import {
   RowActions,
   SearchBox,
   SelectInput,
-  StatCard,
-  StatGrid,
   Tabs,
   Td,
   Thumb,
@@ -198,32 +196,6 @@ export default function PosPage() {
 
   return (
     <AppLayout title="Shop / POS">
-      <StatGrid>
-        <StatCard
-          label="Products"
-          value={data?.total ?? 0}
-          icon={Boxes}
-          color="#024BAB"
-        />
-        <StatCard
-          label="Low stock"
-          value={low.length}
-          icon={AlertTriangle}
-          color={low.length ? "#EF4444" : "#14B8A6"}
-        />
-        <StatCard
-          label="Stock value (cost)"
-          value={inr(value)}
-          icon={Wallet}
-          color="#A855F7"
-        />
-        <StatCard
-          label="In cart"
-          value={Object.values(cart).reduce((s, n) => s + n, 0)}
-          icon={ShoppingCart}
-          color="#FA731C"
-        />
-      </StatGrid>
       <Tabs
         value={tab}
         onChange={setTab}
@@ -444,17 +416,8 @@ export default function PosPage() {
                       : undefined
                   }
                   onImported={refresh}
+                  add={can("Products", "create") ? { label: "Add product", onClick: () => { setForm(blank); setEdit("new"); } } : undefined}
                 />
-                {can("Products", "create") && (
-                  <Btn
-                    onClick={() => {
-                      setForm(blank);
-                      setEdit("new");
-                    }}
-                  >
-                    <Plus className="w-4 h-4" /> Add product
-                  </Btn>
-                )}
               </>
             }
           >

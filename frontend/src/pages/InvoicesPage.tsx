@@ -1,3 +1,4 @@
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -5,7 +6,6 @@ import {
   CreditCard,
   FileText,
   IndianRupee,
-  MessageCircle,
   Plus,
   Printer,
   Send,
@@ -27,8 +27,6 @@ import {
   RowActions,
   SearchBox,
   SelectInput,
-  StatCard,
-  StatGrid,
   Td,
   Thumb,
   TextInput,
@@ -249,40 +247,6 @@ export default function InvoicesPage() {
   };
   return (
     <AppLayout title="Invoices & Payments">
-      <StatGrid>
-        <StatCard
-          label="Collected today"
-          value={inr(s.todayRevenue)}
-          icon={IndianRupee}
-          color="#00C48C"
-        />
-        <StatCard
-          label="Collected this month"
-          value={inr(s.monthlyRevenue)}
-          icon={Wallet}
-          color="#024BAB"
-        />
-        <StatCard
-          label="Outstanding dues"
-          value={inr(s.pendingPayments)}
-          icon={CreditCard}
-          color={s.pendingPayments > 0 ? "#EF4444" : "#14B8A6"}
-          sub={`${s.membersWithDues ?? 0} invoices`}
-          onClick={() => setStatus("partial")}
-        />
-        <StatCard
-          label="Invoices"
-          value={data?.total ?? 0}
-          icon={FileText}
-          color="#A855F7"
-          sub={
-            data?.totalDue
-              ? `${inr(data.totalDue)} due in this view`
-              : undefined
-          }
-        />
-      </StatGrid>
-
       <Toolbar
         right={
           <>
@@ -328,14 +292,12 @@ export default function InvoicesPage() {
               onImported={() =>
                 qc.invalidateQueries({ queryKey: ["invoices"] })
               }
+              add={can("Invoices", "create") ? { label: "New invoice", onClick: () => setCreating(true) } : undefined}
             />
             {can("Invoices", "create") && (
               <>
                 <Btn light onClick={sendReminders}>
                   <Send className="w-4 h-4" /> Send pay-link reminders
-                </Btn>
-                <Btn onClick={() => setCreating(true)}>
-                  <Plus className="w-4 h-4" /> New invoice
                 </Btn>
               </>
             )}
@@ -494,7 +456,7 @@ export default function InvoicesPage() {
                   can("Invoices", "create") && (
                     <ActionButton
                       label="Send payment link on WhatsApp"
-                      icon={MessageCircle}
+                      icon={WhatsAppIcon}
                       onClick={() => sendLink(v)}
                     />
                   )}

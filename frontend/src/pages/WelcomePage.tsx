@@ -77,9 +77,7 @@ export default function WelcomePage() {
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 mb-0.5">
-                  {tenant?.plan === "trial"
-                    ? "Free trial started"
-                    : "Subscription active"}
+                  Subscription active
                 </p>
                 <p className="text-white font-bold text-lg leading-tight">
                   {tenant?.name || "Your gym"} is ready to go

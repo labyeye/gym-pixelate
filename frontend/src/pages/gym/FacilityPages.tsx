@@ -21,8 +21,6 @@ import {
   Btn,
   Modal,
   Pill,
-  StatCard,
-  StatGrid,
   TextArea,
   TextInput,
   SelectInput,
@@ -70,41 +68,6 @@ export function LockersPage() {
         },
         { key: "zone", label: "zones", options: ["men", "women", "unisex"] },
       ]}
-      stats={(rows, total) => (
-        <StatGrid>
-          <StatCard
-            label="Total lockers"
-            value={total}
-            icon={LockKeyhole}
-            color="#024BAB"
-          />
-          <StatCard
-            label="Available"
-            value={rows.filter((r) => r.status === "available").length}
-            icon={Unlock}
-            color="#00C48C"
-          />
-          <StatCard
-            label="Assigned"
-            value={rows.filter((r) => r.status === "assigned").length}
-            icon={KeyRound}
-            color="#A855F7"
-          />
-          <StatCard
-            label="Expiring ≤ 7 days"
-            value={
-              rows.filter(
-                (r) =>
-                  r.status === "assigned" &&
-                  r.validTill &&
-                  new Date(r.validTill).getTime() - Date.now() < 7 * 86400000,
-              ).length
-            }
-            icon={AlertTriangle}
-            color="#FA731C"
-          />
-        </StatGrid>
-      )}
       columns={[
         {
           label: "Locker",
@@ -256,41 +219,6 @@ export function ExpensesPage() {
       api={gym.expenses}
       queryKey="expenses"
       filters={[{ key: "category", label: "categories", options: cats }]}
-      stats={(rows, total) => {
-        const sum = rows.reduce((s, r) => s + r.amount, 0);
-        const top = Object.entries(
-          rows.reduce(
-            (m: any, r) => ({
-              ...m,
-              [r.category]: (m[r.category] || 0) + r.amount,
-            }),
-            {},
-          ),
-        ).sort((a: any, b: any) => b[1] - a[1])[0] as any;
-        return (
-          <StatGrid cols={3}>
-            <StatCard
-              label="Entries"
-              value={total}
-              icon={Receipt}
-              color="#024BAB"
-            />
-            <StatCard
-              label="Spend (this page)"
-              value={inr(sum)}
-              icon={Wallet}
-              color="#EF4444"
-            />
-            <StatCard
-              label="Biggest category"
-              value={top ? titleCase(top[0]) : "—"}
-              sub={top ? inr(top[1]) : undefined}
-              icon={BadgeIndianRupee}
-              color="#FA731C"
-            />
-          </StatGrid>
-        );
-      }}
       columns={[
         {
           label: "Date",
@@ -369,29 +297,6 @@ export function CouponsPage() {
       permission="Coupons"
       api={gym.coupons}
       queryKey="coupons"
-      stats={(rows, total) => (
-        <StatGrid cols={3}>
-          <StatCard label="Coupons" value={total} icon={Tag} color="#024BAB" />
-          <StatCard
-            label="Active"
-            value={
-              rows.filter(
-                (r) =>
-                  r.isActive &&
-                  (!r.validTill || new Date(r.validTill) > new Date()),
-              ).length
-            }
-            icon={CalendarCheck}
-            color="#00C48C"
-          />
-          <StatCard
-            label="Redeemed"
-            value={rows.reduce((s, r) => s + r.usedCount, 0)}
-            icon={BadgeIndianRupee}
-            color="#FA731C"
-          />
-        </StatGrid>
-      )}
       columns={[
         {
           label: "Code",
@@ -495,34 +400,6 @@ export function AnnouncementsPage() {
       permission="Announcements"
       api={gym.announcements}
       queryKey="announcements"
-      stats={(rows, total) => (
-        <StatGrid cols={3}>
-          <StatCard
-            label="Announcements"
-            value={total}
-            icon={Megaphone}
-            color="#024BAB"
-          />
-          <StatCard
-            label="Pinned"
-            value={rows.filter((r) => r.pinned).length}
-            icon={Tag}
-            color="#FA731C"
-          />
-          <StatCard
-            label="Live now"
-            value={
-              rows.filter(
-                (r) =>
-                  new Date(r.publishAt) <= new Date() &&
-                  (!r.expiresAt || new Date(r.expiresAt) > new Date()),
-              ).length
-            }
-            icon={CalendarCheck}
-            color="#00C48C"
-          />
-        </StatGrid>
-      )}
       columns={[
         {
           label: "Title",
@@ -623,38 +500,6 @@ export function EquipmentPage() {
           ],
         },
       ]}
-      stats={(rows, total) => (
-        <StatGrid>
-          <StatCard
-            label="Equipment"
-            value={total}
-            icon={Boxes}
-            color="#024BAB"
-          />
-          <StatCard
-            label="Working"
-            value={rows.filter((r) => r.status === "working").length}
-            icon={CalendarCheck}
-            color="#00C48C"
-          />
-          <StatCard
-            label="Out of order"
-            value={
-              rows.filter((r) =>
-                ["out_of_order", "under_maintenance"].includes(r.status),
-              ).length
-            }
-            icon={Wrench}
-            color="#EF4444"
-          />
-          <StatCard
-            label="Service due ≤ 7d"
-            value={rows.filter(due).length}
-            icon={AlertTriangle}
-            color="#FA731C"
-          />
-        </StatGrid>
-      )}
       columns={[
         {
           label: "Code",

@@ -81,6 +81,7 @@ export const gym = {
     cancel: (id: string, b: any) => post(`/memberships/${id}/cancel`, b),
     transfer: (id: string, b: any) => post(`/memberships/${id}/transfer`, b),
   },
+  payroll: (p?: any) => get("/payroll", p),
   invoices: {
     ...resource("invoices"),
     pay: (id: string, b: any) => post(`/invoices/${id}/payments`, b),
@@ -144,6 +145,7 @@ export const gym = {
     birthdays: (p?: any) => get("/reports/birthdays", p),
     gst: (p?: any) => get("/reports/gst", p),
     insights: (p?: any) => get("/reports/insights", p),
+    analytics: (p?: any) => get("/reports/analytics", p),
     transactions: (p?: any) => get("/reports/transactions", p),
     newMembers: (p?: any) => get("/reports/new-members", p),
     customMeta: () => get("/reports/custom/meta"),

@@ -41,7 +41,7 @@ export function AppHeader({ title, onMenuOpen }: AppHeaderProps) {
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuOpen}
-          className="lg:hidden w-9 h-9 border-2 border-black bg-white flex items-center justify-center hover:bg-[#024BAB] transition-colors"
+          className="lg:hidden w-9 h-9 border-2 border-black bg-white flex items-center justify-center hover:bg-[#024BAB]/10 transition-colors"
           aria-label="Open menu"
         >
           <Menu className="w-[18px] h-[18px] text-black" />
@@ -66,12 +66,12 @@ export function AppHeader({ title, onMenuOpen }: AppHeaderProps) {
         <div className="relative" ref={panelRef}>
           <button
             onClick={() => setOpen((v) => !v)}
-            className="relative w-9 h-9 border-2 border-black bg-white flex items-center justify-center hover:bg-[#024BAB] transition-colors"
+            className="relative w-9 h-9 border-2 border-black bg-white flex items-center justify-center hover:bg-[#024BAB]/10 transition-colors"
             aria-label="Notifications"
           >
             <Bell className="w-[18px] h-[18px] text-black" />
             {items.length > 0 && (
-              <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-red-500 border border-black" />
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-[#FA731C] border border-black rounded-xl text-[9px] font-bold text-white flex items-center justify-center">{items.length > 9 ? "9+" : items.length}</span>
             )}
           </button>
           {open && (

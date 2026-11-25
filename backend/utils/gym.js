@@ -331,6 +331,10 @@ async function recordPayment(
   }
   await Invoice.updateOne({ _id: invoiceId }, statusPipeline);
   await syncMembershipPaid(updated);
+  // WhatsApp the PDF receipt (opt-in per gym); never blocks or fails the payment
+  require("./receiptSend")
+    .sendReceipt(tenantId, invoiceId)
+    .catch((e) => console.error("[receipt]", e.message));
   return Invoice.findById(invoiceId);
 }
 

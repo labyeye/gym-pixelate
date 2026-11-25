@@ -1,4 +1,5 @@
 import { gym } from "@/services/gymApi";
+import { API_BASE, getToken } from "@/services/api";
 import { chequeReceiptHtml, DEFAULT_RECEIPT_DESIGN } from "@/lib/chequeReceipt";
 import {
   gymInvoiceForPdf,
@@ -139,4 +140,38 @@ export async function printInvoice(inv: any, member?: any) {
     tab?.close();
     return printInvoiceHtml(inv, member);
   }
+}
+
+/** Downloads the cheque-style PDF receipt for an invoice (built on the server, same file the member gets on WhatsApp). */
+export const downloadReceipt = (invoiceId: string, number?: string) =>
+  downloadPdf(
+    `/invoices/${invoiceId}/pdf`,
+    `Receipt_${(number || invoiceId).replace(/[^\w-]/g, "_")}.pdf`,
+  );
+
+/** Fetches a PDF from the API with the session token and saves it. */
+export async function downloadPdf(endpoint: string, filename: string) {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    credentials: "include",
+    headers: {
+      "X-Requested-With": "XMLHttpRequest",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    let msg = "Could not download the receipt";
+    try {
+      msg = (await res.json())?.message || msg;
+    } catch {}
+    throw new Error(msg);
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }

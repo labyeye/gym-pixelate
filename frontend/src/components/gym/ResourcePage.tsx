@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowUpDown, Filter, Pencil, Plus, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useNotify, useConfirm } from "@/components/ui/Notification";
 import { usePermission } from "@/hooks/usePermission";
@@ -128,6 +128,8 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<Record<string, string>>({});
+  const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
+  const [panel, setPanel] = useState<"" | "sort" | "filter">("");
   const [editing, setEditing] = useState<any | null>(null); // row | "new"
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
@@ -143,7 +145,23 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
     queryKey: [p.queryKey, params],
     queryFn: () => p.api.list(params),
   });
-  const rows = (data?.data || []) as T[];
+  const raw = (data?.data || []) as T[];
+  // ponytail: sorts the loaded page only (API has no sort param); add server-side sort if lists outgrow 25/page
+  const rows = useMemo(() => {
+    if (!sort) return raw;
+    const k = (r: any) => {
+      const v = getPath(r, sort.key);
+      return v && typeof v === "object" ? v.name || v.label || "" : v ?? "";
+    };
+    const d = sort.dir === "asc" ? 1 : -1;
+    return [...raw].sort((a, b) => {
+      const x = k(a), y = k(b);
+      return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })) * d;
+    });
+  }, [raw, sort]);
+  const nFilters = Object.values(filter).filter(Boolean).length;
+  const tb =
+    "flex items-center gap-1.5 px-3 py-2 bg-white text-black font-medium uppercase text-xs tracking-widest border-2 border-black whitespace-nowrap";
   const refresh = () => qc.invalidateQueries({ queryKey: [p.queryKey] });
 
   const openNew = () => {
@@ -413,6 +431,11 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
         right={
           <>
             {p.toolbarRight}
+            {p.noExportImport && can(p.permission, "create") && (
+              <Btn onClick={openNew}>
+                <Plus className="w-4 h-4" /> Add {p.noun}
+              </Btn>
+            )}
             {!p.noExportImport && (
               <ExportImport
                 name={p.noun.replace(/\s+/g, "_")}
@@ -445,12 +468,8 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
                   can(p.permission, "create") ? importRow : undefined
                 }
                 onImported={refresh}
+                add={can(p.permission, "create") ? { label: `Add ${p.noun}`, onClick: openNew } : undefined}
               />
-            )}
-            {can(p.permission, "create") && (
-              <Btn onClick={openNew}>
-                <Plus className="w-4 h-4" /> Add {p.noun}
-              </Btn>
             )}
           </>
         }
@@ -465,24 +484,14 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
             placeholder={`Search ${p.noun}s…`}
           />
         )}
-        {p.filters?.map((f) => (
-          <select
-            key={f.key}
-            className={inputCls + " sm:w-44 font-bold"}
-            value={filter[f.key] || ""}
-            onChange={(e) => {
-              setFilter((s) => ({ ...s, [f.key]: e.target.value }));
-              setPage(1);
-            }}
-          >
-            <option value="">All {f.label}</option>
-            {f.options.map((o) => (
-              <option key={o} value={o}>
-                {o.replace(/_/g, " ")}
-              </option>
-            ))}
-          </select>
-        ))}
+        <button type="button" className={tb} onClick={() => setPanel("sort")}>
+          <ArrowUpDown className="w-3.5 h-3.5" /> Sort{sort ? " (1)" : ""}
+        </button>
+        {!!p.filters?.length && (
+          <button type="button" className={tb} onClick={() => setPanel("filter")}>
+            <Filter className="w-3.5 h-3.5" /> Filter{nFilters ? ` (${nFilters})` : ""}
+          </button>
+        )}
       </Toolbar>
 
       <DataTable head={head} loading={isLoading} empty={rows.length === 0}>
@@ -518,6 +527,76 @@ export function ResourcePage<T extends { _id: string }>(p: Props<T>) {
       </DataTable>
       <Pager page={page} pages={data?.pages || 1} onPage={setPage} />
       {p.after}
+
+      <Modal
+        open={panel === "sort"}
+        title="Sort"
+        onClose={() => setPanel("")}
+        footer={
+          <>
+            <Btn light onClick={() => { setSort(null); setPanel(""); }}>Clear</Btn>
+            <Btn onClick={() => setPanel("")}>Apply</Btn>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <Field label="Sort by">
+            <select
+              className={inputCls + " font-bold"}
+              value={sort?.key || ""}
+              onChange={(e) => setSort(e.target.value ? { key: e.target.value, dir: sort?.dir || "asc" } : null)}
+            >
+              <option value="">Default order</option>
+              {p.fields.filter((f) => f.type !== "textarea" && f.type !== "photo").map((f) => (
+                <option key={f.key} value={f.key}>{f.label}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Direction">
+            <select
+              className={inputCls + " font-bold"}
+              value={sort?.dir || "asc"}
+              disabled={!sort}
+              onChange={(e) => sort && setSort({ ...sort, dir: e.target.value as "asc" | "desc" })}
+            >
+              <option value="asc">A → Z / Low → High</option>
+              <option value="desc">Z → A / High → Low</option>
+            </select>
+          </Field>
+        </div>
+      </Modal>
+
+      <Modal
+        open={panel === "filter"}
+        title="Filter"
+        onClose={() => setPanel("")}
+        footer={
+          <>
+            <Btn light onClick={() => { setFilter({}); setPage(1); setPanel(""); }}>Clear</Btn>
+            <Btn onClick={() => setPanel("")}>Apply</Btn>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          {p.filters?.map((f) => (
+            <Field key={f.key} label={f.label}>
+              <select
+                className={inputCls + " font-bold"}
+                value={filter[f.key] || ""}
+                onChange={(e) => {
+                  setFilter((s) => ({ ...s, [f.key]: e.target.value }));
+                  setPage(1);
+                }}
+              >
+                <option value="">All {f.label}</option>
+                {f.options.map((o) => (
+                  <option key={o} value={o}>{o.replace(/_/g, " ")}</option>
+                ))}
+              </select>
+            </Field>
+          ))}
+        </div>
+      </Modal>
 
       <Modal
         open={!!editing}

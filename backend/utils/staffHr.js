@@ -36,8 +36,9 @@ const SWITCH = {
 
 // each group (staff / trainer / member) has its own switch in Settings > Modules; a missing key means ON
 const MODULE_OF = { trainer: "trainerAttendance", member: "memberAttendance" };
+// attendance is opt-in: a missing key means OFF
 const moduleOn = (s, role = "staff") =>
-  s?.modules?.[MODULE_OF[role] || "staffAttendance"] !== false;
+  s?.modules?.[MODULE_OF[role] || "staffAttendance"] === true;
 const getSetting = (tenantId) => Setting.findOne({ tenantId }).lean();
 
 async function sendStaffWhatsApp(

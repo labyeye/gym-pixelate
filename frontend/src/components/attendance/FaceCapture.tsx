@@ -53,7 +53,7 @@ export default function FaceCapture({
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4">
-      <div className="bg-white border-2 border-black w-full max-w-md">
+      <div className="nb-modal bg-white border-2 border-black w-full max-w-md">
         <div className="flex items-center justify-between border-b-2 border-black px-4 py-3">
           <p className="font-bold flex items-center gap-2">
             <Camera className="w-4 h-4" /> {title}

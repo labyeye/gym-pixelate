@@ -1,3 +1,4 @@
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -5,7 +6,7 @@ import {
   AlertTriangle,
   CalendarClock,
   Eye,
-  MessageCircle,
+  IdCard,
   Pencil,
   Plus,
   Trash2,
@@ -30,8 +31,6 @@ import {
   RowActions,
   SearchBox,
   SelectInput,
-  StatCard,
-  StatGrid,
   Td,
   TextArea,
   TextInput,
@@ -46,6 +45,7 @@ import {
 import { PhotoUpload } from "@/components/gym/PhotoUpload";
 import { useTrainers, usePlans } from "@/components/gym/pickers";
 import { ExportImport } from "@/components/gym/ExportImport";
+import { PrintIdCardDialog } from "@/components/idcard/PrintIdCardDialog";
 import { SellMembershipModal } from "@/components/gym/SellMembershipModal";
 
 const GOALS = [
@@ -158,6 +158,7 @@ export default function MembersPage() {
   const [tab, setTab] = useState(0);
   const [saving, setSaving] = useState(false);
   const [sell, setSell] = useState<any>(null);
+  const [idPrint, setIdPrint] = useState<any[] | null>(null);
   const trainers = useTrainers();
 
   const params = useMemo(
@@ -310,37 +311,6 @@ export default function MembersPage() {
 
   return (
     <AppLayout title="Members">
-      <StatGrid>
-        <StatCard
-          label="Total members"
-          value={data?.total ?? 0}
-          icon={Users}
-          color="#024BAB"
-          onClick={() => setStatus("")}
-        />
-        <StatCard
-          label="Expiring ≤ 7 days"
-          value={expiringSoon}
-          icon={CalendarClock}
-          color="#FA731C"
-          sub="on this page"
-        />
-        <StatCard
-          label="Payment dues"
-          value={withDues}
-          icon={AlertTriangle}
-          color={withDues ? "#EF4444" : "#14B8A6"}
-          sub="on this page"
-        />
-        <StatCard
-          label="Lapsed / no plan"
-          value={lapsed}
-          icon={UserCheck}
-          color="#A855F7"
-          sub="on this page"
-        />
-      </StatGrid>
-
       <Toolbar
         right={
           <>
@@ -416,12 +386,8 @@ export default function MembersPage() {
                 });
               }}
               onImported={() => qc.invalidateQueries({ queryKey: ["members"] })}
+              add={can("Members", "create") ? { label: "Add member", onClick: openNew } : undefined}
             />
-            {can("Members", "create") && (
-              <Btn onClick={openNew}>
-                <Plus className="w-4 h-4" /> Add member
-              </Btn>
-            )}
           </>
         }
       >
@@ -435,15 +401,11 @@ export default function MembersPage() {
         />
         {(
           [
-            ["status", "Status", ["active", "inactive", "blacklisted"]],
             [
               "planStatus",
               "Plan status",
               ["active", "expiring", "expired", "dues", "none"],
             ],
-            ["gender", "Gender", ["male", "female", "other"]],
-            ["goal", "Goal", GOALS],
-            ["source", "Source", SOURCES],
           ] as [string, string, string[]][]
         ).map(([k, label, opts]) => (
           <select
@@ -577,8 +539,13 @@ export default function MembersPage() {
                     />
                   )}
                   <ActionButton
+                    label="Print ID card"
+                    icon={IdCard}
+                    onClick={() => setIdPrint([m])}
+                  />
+                  <ActionButton
                     label="WhatsApp"
-                    icon={MessageCircle}
+                    icon={WhatsAppIcon}
                     onClick={() =>
                       window.open(wa(m.phone, `Hi ${m.name}, `), "_blank")
                     }
@@ -605,6 +572,10 @@ export default function MembersPage() {
         })}
       </DataTable>
       <Pager page={page} pages={data?.pages || 1} onPage={setPage} />
+
+      {idPrint && (
+        <PrintIdCardDialog employees={idPrint} onClose={() => setIdPrint(null)} />
+      )}
 
       <SellMembershipModal
         open={!!sell}

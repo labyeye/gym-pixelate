@@ -38,6 +38,12 @@ const KINDS = [
     def: false,
   },
   {
+    key: "receipt",
+    label: "Payment receipt (PDF)",
+    desc: "Sends the member a PDF receipt on WhatsApp after every payment.",
+    def: false,
+  },
+  {
     key: "memberCheckin",
     label: "Member check-in / check-out",
     desc: "Tells the member on WhatsApp when they are checked in or out (needs Member attendance module).",
@@ -117,6 +123,7 @@ export default function RemindersSettings() {
           expired: false,
           birthday: false,
           anniversary: false,
+          receipt: false,
           memberCheckin: false,
           staffCheckin: false,
           staffLeave: false,

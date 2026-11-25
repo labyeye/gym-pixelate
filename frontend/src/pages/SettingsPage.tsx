@@ -1,3 +1,4 @@
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { PhotoUpload } from "@/components/gym/PhotoUpload";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { useEffect, useState } from "react";
@@ -17,8 +18,8 @@ import {
   FileText,
   Receipt,
   ShieldCheck,
-  MessageCircle,
   Trash2,
+  IdCard,
 } from "lucide-react";
 import {
   Dialog,
@@ -46,6 +47,7 @@ import {
 } from "@/lib/chequeReceipt";
 import { TEMPLATE_FIELD } from "@/lib/invoiceTemplate";
 import InvoiceDesigner from "@/components/settings/invoice-designer/InvoiceDesigner";
+import { IdCardDesigner } from "@/components/idcard/IdCardDesigner";
 import RemindersSettings from "@/components/settings/RemindersSettings";
 import AttendanceSettings from "@/components/settings/AttendanceSettings";
 import AttendanceProfileFields, { emptyProfile, saveProfile, type AttProfile } from "@/components/attendance/AttendanceProfileFields";
@@ -327,8 +329,9 @@ export default function SettingsPage() {
                           {
                             id: "reminders",
                             label: "WhatsApp",
-                            icon: MessageCircle,
+                            icon: WhatsAppIcon,
                           },
+                          { id: "idcard", label: "Member ID card", icon: IdCard },
                           { id: "bin", label: "Recycle bin", icon: Trash2 },
                         ],
                       },
@@ -935,6 +938,12 @@ export default function SettingsPage() {
             {isOwner && (
               <TabsContent value="reminders" className="mt-3 w-full">
                 <RemindersSettings />
+              </TabsContent>
+            )}
+
+            {isOwner && (
+              <TabsContent value="idcard" className="mt-3 w-full">
+                <IdCardDesigner />
               </TabsContent>
             )}
 

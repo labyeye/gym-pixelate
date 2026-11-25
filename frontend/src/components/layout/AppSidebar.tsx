@@ -5,7 +5,10 @@ import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, LogOut, X } from "lucide-react";
 import logoLong from "@/assets/images/logo_long.png";
 import logoShort from "@/assets/images/logo_short.png";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+
+// Sidebar remounts per page; keep nav scroll position here.
+let navScrollTop = 0;
 
 interface AppSidebarProps {
   mobileOpen: boolean;
@@ -16,6 +19,11 @@ export function AppSidebar({ mobileOpen, onClose }: AppSidebarProps) {
   const { user, logout, modules } = useAuth();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    if (navRef.current) navRef.current.scrollTop = navScrollTop;
+  }, [user]);
 
   if (!user) return null;
 
@@ -63,7 +71,11 @@ export function AppSidebar({ mobileOpen, onClose }: AppSidebarProps) {
           </button>
         </div>
 
-        <nav className="flex-1 py-3 px-2 overflow-y-auto space-y-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <nav
+          ref={navRef}
+          onScroll={(e) => (navScrollTop = e.currentTarget.scrollTop)}
+          className="flex-1 py-3 px-2 overflow-y-auto space-y-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        >
           {groups.map((group) => (
             <div key={group.label}>
               {!collapsed && (
@@ -107,8 +119,12 @@ export function AppSidebar({ mobileOpen, onClose }: AppSidebarProps) {
           )}
         >
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 bg-[#024BAB] border-2 text-white border-black flex items-center justify-center text-xs font-bold shrink-0">
-              {user.name?.[0]?.toUpperCase() ?? "U"}
+            <div className="w-7 h-7 border-2 border-black shrink-0 overflow-hidden bg-[#024BAB] flex items-center justify-center text-xs font-bold text-white">
+              {user.avatar ? (
+                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                (user.name?.[0]?.toUpperCase() ?? "U")
+              )}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-black truncate">

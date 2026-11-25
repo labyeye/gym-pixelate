@@ -1,3 +1,4 @@
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { waDigits } from "@/lib/countries";
 import { useState } from "react";
 import { ArrowLeft, FileText, Search, X } from "lucide-react";
@@ -8,7 +9,6 @@ import {
   CalendarClock,
   Download,
   IndianRupee,
-  MessageCircle,
   Percent,
   Printer,
   TrendingDown,
@@ -725,7 +725,7 @@ export default function ReportsPage() {
                               rel="noreferrer"
                               href={`https://wa.me/${waDigits(r.member.phone)}?text=${encodeURIComponent(`Hi ${r.member.name}, a gentle reminder: ₹${r.due} is pending at the gym. Please pay at your earliest.`)}`}
                             >
-                              <MessageCircle className="inline w-3 h-3" />{" "}
+                              <WhatsAppIcon className="inline w-3 h-3" />{" "}
                               Remind
                             </a>
                           )}
@@ -804,7 +804,7 @@ export default function ReportsPage() {
                               rel="noreferrer"
                               href={r.whatsapp}
                             >
-                              <MessageCircle className="inline w-3 h-3" />{" "}
+                              <WhatsAppIcon className="inline w-3 h-3" />{" "}
                               WhatsApp
                             </a>
                           )}

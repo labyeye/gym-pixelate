@@ -322,6 +322,7 @@ router.get(
 );
 router.post("/staff-attendance", protect, can("Staff", "update"), staff.mark);
 router.get("/payroll", protect, can("Staff", "read"), staff.payroll);
+router.get("/payroll/slip", protect, can("Staff", "read"), staff.salarySlip);
 
 // Optional staff self check-in/out + leave (gated by Settings.modules.staffAttendance inside the controller)
 router.get("/staff-attendance/me", protect, self.me);

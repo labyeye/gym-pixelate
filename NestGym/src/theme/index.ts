@@ -1,3 +1,4 @@
+export * from './responsive';
 import { StyleSheet } from 'react-native';
 
 export const FONT = {
@@ -8,8 +9,8 @@ export const FONT = {
 };
 
 export const C = {
-  primary: '#024BAB',
-  secondary: '#FA731C',
+  primary: '#044bab',
+  secondary: '#FA731A',
   success: '#00C48C',
   warning: '#F59E0B',
   danger: '#EF4444',
@@ -19,7 +20,7 @@ export const C = {
   card: '#ffffff',
   border: '#000000',
   textMuted: '#000000',
-  textLight: '#000000',
+  textLight: '#6B7280',
 };
 
 export const S = StyleSheet.create({
@@ -40,8 +41,8 @@ export const S = StyleSheet.create({
     backgroundColor: C.white,
     borderWidth: 2,
     borderRadius: 8,
-    borderRightWidth: 5,
-    borderBottomWidth: 5,
+    borderRightWidth: 4,
+    borderBottomWidth: 4,
     borderRightColor: '#0A0A0A',
     borderBottomColor: '#0A0A0A',
     borderColor: C.black,
@@ -73,8 +74,6 @@ export const S = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     color: C.black,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   body: {
     fontFamily: FONT.medium,
@@ -95,13 +94,13 @@ export const S = StyleSheet.create({
     backgroundColor: C.primary,
     borderWidth: 2,
     borderRadius: 8,
-    borderRightWidth: 5,
-    borderBottomWidth: 5,
+    borderRightWidth: 4,
+    borderBottomWidth: 4,
     borderRightColor: '#0A0A0A',
     borderBottomColor: '#0A0A0A',
     borderColor: C.black,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -112,19 +111,18 @@ export const S = StyleSheet.create({
     color: C.white,
     fontWeight: '400',
     fontSize: 13,
-    textTransform: 'uppercase',
   },
   btnSecondary: {
     backgroundColor: C.white,
     borderWidth: 2,
     borderRadius: 8,
-    borderRightWidth: 5,
-    borderBottomWidth: 5,
+    borderRightWidth: 4,
+    borderBottomWidth: 4,
     borderRightColor: '#0A0A0A',
     borderBottomColor: '#0A0A0A',
     borderColor: C.black,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -135,7 +133,6 @@ export const S = StyleSheet.create({
     color: C.black,
     fontWeight: '400',
     fontSize: 13,
-    textTransform: 'uppercase',
   },
   btnDanger: {
     backgroundColor: '#FEF2F2',
@@ -143,7 +140,7 @@ export const S = StyleSheet.create({
     borderRadius: 8,
     borderColor: C.danger,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -155,13 +152,13 @@ export const S = StyleSheet.create({
     fontFamily: FONT.medium,
     borderWidth: 2,
     borderRadius: 8,
-    borderRightWidth: 5,
-    borderBottomWidth: 5,
+    borderRightWidth: 4,
+    borderBottomWidth: 4,
     borderRightColor: '#0A0A0A',
     borderBottomColor: '#0A0A0A',
     borderColor: C.black,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     fontSize: 14,
     fontWeight: '400',
     color: C.black,
@@ -213,7 +210,7 @@ export const S = StyleSheet.create({
     fontFamily: FONT.bold,
     fontSize: 12,
     fontWeight: '400',
-    textTransform: 'uppercase',
+    textTransform: 'capitalize',
   },
 
   // Divider
@@ -226,7 +223,7 @@ export const S = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
     backgroundColor: C.white,
     borderBottomWidth: 2,
     borderBottomColor: C.black,

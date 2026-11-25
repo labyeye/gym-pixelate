@@ -1,7 +1,7 @@
 import { Dumbbell, Layers, Snowflake, Tag, Users } from "lucide-react";
 import { ResourcePage } from "@/components/gym/ResourcePage";
 import { Check2 } from "@/components/gym/pickers";
-import { Pill, StatCard, StatGrid, inr, titleCase } from "@/components/gym/kit";
+import { Pill, inr, titleCase } from "@/components/gym/kit";
 import { gym } from "@/services/gymApi";
 
 const TYPES = [
@@ -35,38 +35,6 @@ export default function PlansPage() {
       filters={[
         { key: "isActive", label: "plans", options: ["true", "false"] },
       ]}
-      stats={(rows, total) => (
-        <StatGrid cols={5}>
-          <StatCard label="Plans" value={total} icon={Layers} color="#024BAB" />
-          <StatCard
-            label="On sale"
-            value={rows.filter((r) => r.isActive).length}
-            icon={Tag}
-            color="#00C48C"
-          />
-          <StatCard
-            label="Active subscribers"
-            value={rows.reduce((n, r) => n + (r.subscribers?.active || 0), 0)}
-            icon={Users}
-            color="#F59E0B"
-          />
-          <StatCard
-            label="Allow freezing"
-            value={rows.filter((r) => r.freezeAllowedDays > 0).length}
-            icon={Snowflake}
-            color="#14B8A6"
-          />
-          <StatCard
-            label="With classes / PT"
-            value={
-              rows.filter((r) => r.includes?.classes || r.includes?.ptSessions)
-                .length
-            }
-            icon={Dumbbell}
-            color="#A855F7"
-          />
-        </StatGrid>
-      )}
       columns={[
         {
           label: "Plan",

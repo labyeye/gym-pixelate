@@ -22,8 +22,6 @@ import {
   Pill,
   RowActions,
   SelectInput,
-  StatCard,
-  StatGrid,
   Tabs,
   Td,
   Thumb,
@@ -156,34 +154,6 @@ export default function PersonalTrainingPage() {
 
   return (
     <AppLayout title="Personal Training">
-      <StatGrid>
-        <StatCard
-          label="Packages"
-          value={data?.count ?? 0}
-          sub={status}
-          icon={Dumbbell}
-          color="#024BAB"
-        />
-        <StatCard
-          label="Sessions left"
-          value={pkgs.reduce((s, p) => s + p.remainingSessions, 0)}
-          icon={CalendarPlus}
-          color="#A855F7"
-        />
-        <StatCard
-          label="Revenue (these)"
-          value={inr(pkgs.reduce((s, p) => s + p.totalAmount, 0))}
-          icon={BadgeIndianRupee}
-          color="#00C48C"
-        />
-        <StatCard
-          label="Trainers"
-          value={trainers.length}
-          icon={Users}
-          color="#FA731C"
-        />
-      </StatGrid>
-
       <div className="flex flex-wrap justify-between gap-3">
         <Tabs
           value={tab}
@@ -255,12 +225,8 @@ export default function PersonalTrainingPage() {
                 can("PersonalTraining", "create") ? importRow : undefined
               }
               onImported={refresh}
+              add={can("PersonalTraining", "create") ? { label: "Sell package", onClick: () => setSell(true) } : undefined}
             />
-            {can("PersonalTraining", "create") && (
-              <Btn onClick={() => setSell(true)}>
-                <Plus className="w-4 h-4" /> Sell package
-              </Btn>
-            )}
           </div>
         )}
       </div>

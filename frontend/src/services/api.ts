@@ -418,6 +418,23 @@ export const creditsAPI = {
 };
 
 export const settingsAPI = {
+  uploadIdCardImage: async (file: File) => {
+    const token = getToken();
+    const form = new FormData();
+    form.append("image", file);
+    const res = await fetch(`${API_BASE}/settings/id-card-image`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        "X-CSRF-Token": getCsrfToken(),
+      },
+      body: form,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Upload failed");
+    return data as { success: boolean; url: string };
+  },
   get: () => request<{ success: boolean; data: any }>("/settings"),
   update: (settings: any) =>
     request<{ success: boolean; data: any }>("/settings", {

@@ -31,6 +31,7 @@ import { Passkey } from 'react-native-passkey';
 import { C } from '../../theme';
 import { PhoneInput } from '../../components/PhoneInput';
 import WhatsAppIcon from '../../components/WhatsAppIcon';
+import LegalLinks from '../../components/LegalLinks';
 
 const loginAnim = require('../../assets/lottie/login.json');
 const otpAnim = require('../../assets/lottie/otp.json');
@@ -551,6 +552,10 @@ export default function LoginScreen({ navigation }: any) {
             </>
           )}
         </>
+        <LegalLinks
+          prefix="By signing in you agree to the"
+          style={{ marginTop: 20 }}
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -587,8 +592,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderRadius: 8,
-    borderRightWidth: 5,
-    borderBottomWidth: 5,
+    borderRightWidth: 4,
+    borderBottomWidth: 4,
     borderRightColor: '#0A0A0A',
     borderBottomColor: '#0A0A0A',
     borderColor: C.black,
@@ -608,8 +613,8 @@ const styles = StyleSheet.create({
     backgroundColor: C.primary,
     borderWidth: 2,
     borderRadius: 8,
-    borderRightWidth: 5,
-    borderBottomWidth: 5,
+    borderRightWidth: 4,
+    borderBottomWidth: 4,
     borderRightColor: '#0A0A0A',
     borderBottomColor: '#0A0A0A',
     borderColor: C.black,

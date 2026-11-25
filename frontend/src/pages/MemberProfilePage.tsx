@@ -1,3 +1,4 @@
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { waDigits } from "@/lib/countries";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -10,7 +11,6 @@ import {
   CreditCard,
   LogIn,
   Loader2,
-  MessageCircle,
   Printer,
   Repeat,
   ShoppingBag,
@@ -228,7 +228,7 @@ export default function MemberProfilePage() {
               window.open(`https://wa.me/${waDigits(member.phone)}`, "_blank")
             }
           >
-            <MessageCircle className="w-4 h-4" /> WhatsApp
+            <WhatsAppIcon className="w-4 h-4" /> WhatsApp
           </Btn>
         </div>
       </div>
@@ -674,7 +674,7 @@ export default function MemberProfilePage() {
                 )
               }
             >
-              <MessageCircle className="w-4 h-4" /> Send on WhatsApp
+              <WhatsAppIcon className="w-4 h-4" /> Send on WhatsApp
             </Btn>
           </>
         }

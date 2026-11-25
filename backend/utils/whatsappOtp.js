@@ -57,6 +57,7 @@ async function sendPlatformTemplate(
   params,
   languageCode = "en",
   charge = null,
+  document = null, // { buffer, filename } -> sent as the template's DOCUMENT header
 ) {
   const accessToken = process.env.WHATSAPP_PLATFORM_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PLATFORM_PHONE_NUMBER_ID;
@@ -84,6 +85,7 @@ async function sendPlatformTemplate(
       languageCode,
       accessToken,
       phoneNumberId,
+      document,
     );
   } catch (err) {
     if (hold) await credits.refund(hold);
@@ -100,7 +102,36 @@ async function postTemplate(
   languageCode,
   accessToken,
   phoneNumberId,
+  document = null,
 ) {
+  const components = [];
+  if (document) {
+    const form = new FormData();
+    form.append("messaging_product", "whatsapp");
+    form.append("type", "application/pdf");
+    form.append(
+      "file",
+      new Blob([document.buffer], { type: "application/pdf" }),
+      document.filename,
+    );
+    const up = await fetch(`${WA_API}/${phoneNumberId}/media`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form,
+    });
+    const upData = await up.json();
+    if (!up.ok || !upData.id)
+      throw new Error(upData?.error?.message || "WhatsApp media upload failed");
+    components.push({
+      type: "header",
+      parameters: [
+        {
+          type: "document",
+          document: { id: upData.id, filename: document.filename },
+        },
+      ],
+    });
+  }
   const res = await fetch(`${WA_API}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: {
@@ -115,6 +146,7 @@ async function postTemplate(
         name: templateName,
         language: { code: languageCode },
         components: [
+          ...components,
           {
             type: "body",
             parameters: params.map((text) => ({

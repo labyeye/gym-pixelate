@@ -1,3 +1,4 @@
+import { AnimatedValue } from "@/components/gym/AnimatedValue";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -199,7 +200,7 @@ export default function SubscriptionPage() {
           sub={sub?.billingCycle ? titleCase(sub.billingCycle) : undefined}
         />
         <StatCard
-          label={current === "trial" ? "Trial ends in" : "Renews in"}
+          label="Renews in"
           value={daysLeft == null ? "—" : `${Math.max(0, daysLeft)} days`}
           sub={expires ? fmtDate(expires) : undefined}
           icon={CalendarClock}
@@ -297,7 +298,7 @@ export default function SubscriptionPage() {
                 {total != null ? (
                   <>
                     <p className="text-3xl font-black tabular-nums">
-                      {rupees(total / months)}
+                      <AnimatedValue value={rupees(total / months)} />
                       <span className="text-sm font-bold text-black/50">
                         {" "}
                         /mo
@@ -366,8 +367,7 @@ export default function SubscriptionPage() {
         })}
       </div>
       <p className="text-xs font-bold text-black/50 mb-6">
-        All plans start with a {plansRes?.data?.starter?.trialDays ?? 14}-day
-        free trial. Prices are per gym per month, exclusive of 18% GST. Longer
+        Prices are per gym per month, exclusive of 18% GST. Longer
         terms are billed upfront at a discount; limits count active members,
         branches and staff accounts.
       </p>

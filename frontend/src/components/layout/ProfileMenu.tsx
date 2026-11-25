@@ -1,3 +1,4 @@
+import { AnimatedValue } from "@/components/gym/AnimatedValue";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, Coins, Crown, LogOut, Plus, Wallet } from "lucide-react";
@@ -40,7 +41,7 @@ export function ProfileMenu() {
 
   const isTrial = tenant?.plan === "trial";
   const isPaid = !!tenant && tenant.status === "active" && !isTrial;
-  const badge = isPaid ? "Premium" : isTrial ? "Trial" : null;
+  const badge = isPaid ? "Premium" : null;
   const metered = !!credits?.metered;
   const go = (to: string) => {
     setOpen(false);
@@ -68,7 +69,7 @@ export function ProfileMenu() {
             className={`flex items-center gap-1 border-2 border-black px-1.5 py-0.5 text-[11px] font-bold text-white ${credits?.zero ? "bg-red-600" : credits?.low ? "bg-[#FA731C]" : "bg-[#00A878]"}`}
             title="WhatsApp credits"
           >
-            <Coins className="w-3 h-3" /> {fmtCredits(credits?.total)}
+            <Coins className="w-3 h-3" /> <AnimatedValue value={fmtCredits(credits?.total)} />
           </span>
         )}
         <ChevronDown
@@ -96,7 +97,7 @@ export function ProfileMenu() {
                 <Crown className="w-3.5 h-3.5 text-[#024BAB]" /> {badge}
               </span>
               <span className="text-[11px] text-muted-foreground font-medium">
-                {isTrial ? "Free trial" : `${titleCase(tenant?.plan)} plan`}
+                {`${titleCase(tenant?.plan)} plan`}
               </span>
             </div>
           )}
@@ -110,7 +111,7 @@ export function ProfileMenu() {
                 <span
                   className={`text-xl font-black ${credits?.zero ? "text-red-600" : "text-black"}`}
                 >
-                  {fmtCredits(credits?.total)}
+                  <AnimatedValue value={fmtCredits(credits?.total)} />
                 </span>
               </div>
               {!!credits?.bonus && (

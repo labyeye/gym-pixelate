@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import {
   authAPI,
+  request,
   getToken,
   removeToken,
   setToken,
@@ -110,6 +111,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const finish = async (res: any): Promise<Result> => {
     const { token, tenant: t, ...u } = res.data;
     await setToken(token);
+    // the login / register screens show the Terms + Privacy links, so signing in counts as accepting them
+    request('/legal/accept', { method: 'POST' }).catch(() => {});
     setUser(mapUser(u));
     setTenant(t || null);
     return { success: true };

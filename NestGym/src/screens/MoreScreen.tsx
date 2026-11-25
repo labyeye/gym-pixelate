@@ -197,8 +197,8 @@ export default function MoreScreen() {
 const box = {
   borderWidth: 2,
   borderRadius: 8,
-  borderRightWidth: 5,
-  borderBottomWidth: 5,
+  borderRightWidth: 4,
+  borderBottomWidth: 4,
   borderRightColor: '#0A0A0A',
   borderBottomColor: '#0A0A0A',
   borderColor: '#000',

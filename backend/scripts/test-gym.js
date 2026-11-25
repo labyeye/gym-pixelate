@@ -823,6 +823,7 @@ const ok = async (fn, user, req) => {
 
   console.log("\nStaff self check-in & leave (optional module)");
   await test("check-in/out, half day, leave request -> approval marks attendance, module off blocks all", async () => {
+    await require("../models/Setting").updateOne({ tenantId: A.tid }, { $set: { "modules.trainerAttendance": true, "modules.staffAttendance": true, "modules.memberAttendance": true } }, { upsert: true });
     const SS = require("../controllers/staffSelfController");
     const SA = require("../models/StaffAttendance");
     const Set_ = require("../models/Setting");
@@ -900,7 +901,7 @@ const ok = async (fn, user, req) => {
     await rejects(ok(SS.me, trainer), 403, /turned off/);
     await Set_.updateOne(
       { tenantId: A.tid },
-      { $unset: { "modules.trainerAttendance": 1 } },
+      { $set: { "modules.trainerAttendance": true } },
     );
   });
 
@@ -950,14 +951,13 @@ const ok = async (fn, user, req) => {
     await Set_.updateOne(
       { tenantId: A.tid },
       {
-        $set: { "modules.trainerAttendance": false },
-        $unset: { "modules.memberAttendance": 1 },
+        $set: { "modules.trainerAttendance": false, "modules.memberAttendance": true },
       },
     );
     await rejects(ok(SS.me, A.trainer), 403, /turned off/);
     await Set_.updateOne(
       { tenantId: A.tid },
-      { $unset: { "modules.trainerAttendance": 1 } },
+      { $set: { "modules.trainerAttendance": true } },
     );
   });
 

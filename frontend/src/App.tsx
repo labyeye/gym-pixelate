@@ -42,10 +42,12 @@ import TrainersTeamPage from "./pages/gym/TrainersTeamPage";
 import SupportPage from "./pages/gym/SupportPage";
 import StaffAttendancePage from "./pages/gym/StaffAttendancePage";
 import LeavePage from "./pages/gym/LeavePage";
+import PayrollPage from "./pages/gym/PayrollPage";
 import BiometricPage from "./pages/gym/BiometricPage";
 import PosPage from "./pages/gym/PosPage";
 import MemberPortal from "./pages/portal/MemberPortal";
 import ReportsPage from "./pages/gym/ReportsPage";
+import InsightsPage from "./pages/gym/InsightsPage";
 import {
   LockersPage,
   ExpensesPage,
@@ -251,6 +253,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/payroll"
+        element={
+          <ProtectedRoute>
+            <PayrollPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/staff-attendance"
         element={
           <ProtectedRoute>
@@ -287,6 +297,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <CouponsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/insights"
+        element={
+          <ProtectedRoute>
+            <InsightsPage />
           </ProtectedRoute>
         }
       />

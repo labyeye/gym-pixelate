@@ -72,6 +72,8 @@ const settingSchema = new mongoose.Schema(
       staffLeave: { type: Boolean, default: false },
       staffAbsent: { type: Boolean, default: false },
       memberCheckin: { type: Boolean, default: false },
+      // PDF payment receipt sent on WhatsApp after every payment (utils/receiptSend.js)
+      receipt: { type: Boolean, default: false },
     },
     // attendance rules: GPS fence around the gym for self check-in (lat/lng null = record the location but don't restrict it),
     // and whether a self check-in also needs a matching selfie
@@ -95,7 +97,7 @@ const settingSchema = new mongoose.Schema(
       default: null,
     },
 
-    // optional modules the owner switched off in Settings > Modules, e.g. { pos: false }; a missing key means ON
+    // optional modules the owner switched off in Settings > Modules, e.g. { pos: false }; a missing key means ON (attendance keys: OFF)
     modules: { type: mongoose.Schema.Types.Mixed, default: {} },
 
     // invoice layout from the Invoice Designer (validated by utils/invoiceTemplate.js); null = the classic layout
@@ -108,6 +110,8 @@ const settingSchema = new mongoose.Schema(
 
     // member receipt look (cheque-style or standard), sanitised in settingController
     receiptDesign: { type: mongoose.Schema.Types.Mixed, default: null },
+    // member ID-card design (front/back elements); validated by utils/idCardTemplate.js
+    idCardTemplate: { type: mongoose.Schema.Types.Mixed, default: null },
 
     // printed on the invoice: bank details, website, state, terms
     companyWebsite: { type: String, default: "" },

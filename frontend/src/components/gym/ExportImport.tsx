@@ -1,6 +1,8 @@
-import { useRef, useState } from "react";
-import { Download, Upload, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Download, Upload, Loader2, FileSpreadsheet, FileText, Plus, ChevronDown } from "lucide-react";
+import { Modal } from "@/components/gym/kit";
 import { downloadSheet, readRows } from "@/lib/spreadsheet";
+import { exportTablePdf } from "@/lib/exportPdf";
 import { useNotify } from "@/components/ui/Notification";
 import { cn } from "@/lib/utils";
 
@@ -19,19 +21,30 @@ interface Props<T> {
   importTemplate?: { headers: string[]; example: (string | number)[] };
   onImportRow?: (row: Record<string, any>) => Promise<any>;
   onImported?: () => void;
+  /** the page's "Add …" action; with an importer it becomes an Add ▾ menu: Manually / From Excel */
+  add?: { label: string; onClick: () => void };
 }
 
 const btn =
-  "flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-50 disabled:opacity-50";
+  "flex items-center gap-1.5 px-3 py-2 bg-white text-blue-700 font-medium uppercase text-xs tracking-widest border-2 border-black whitespace-nowrap disabled:opacity-50";
 const stamp = () => new Date().toISOString().slice(0, 10);
 
 export function ExportImport<T>(p: Props<T>) {
   const notify = useNotify();
   const [busy, setBusy] = useState<"" | "export" | "import">("");
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const file = useRef<HTMLInputElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) =>
+      !menu.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
 
-  const doExport = async (ext: "xlsx" | "csv") => {
+  const doExport = async (ext: "xlsx" | "csv" | "pdf") => {
     setOpen(false);
     try {
       setBusy("export");
@@ -40,7 +53,8 @@ export function ExportImport<T>(p: Props<T>) {
         p.cols.map((c) => c.header),
         ...rows.map((r) => p.cols.map((c) => c.value(r) ?? "")),
       ];
-      await downloadSheet(`${p.name}_${stamp()}`, aoa, ext, p.name);
+      if (ext === "pdf") exportTablePdf(p.name, aoa[0] as string[], aoa.slice(1) as any);
+      else await downloadSheet(`${p.name}_${stamp()}`, aoa, ext, p.name);
     } catch (e: any) {
       notify.error("Export failed", e.message);
     } finally {
@@ -62,6 +76,7 @@ export function ExportImport<T>(p: Props<T>) {
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f || !p.onImportRow) return;
+    setImportOpen(false);
     try {
       setBusy("import");
       const rows = await readRows(f);
@@ -91,10 +106,10 @@ export function ExportImport<T>(p: Props<T>) {
   };
 
   const item =
-    "w-full px-3 py-2 text-xs font-bold text-left hover:bg-[#024BAB]/10";
+    "w-full px-3 py-2 text-xs font-medium uppercase tracking-wider text-left cursor-pointer hover:bg-muted/50";
   return (
     <>
-      <div className="relative">
+      <div className="relative" ref={menu}>
         <button
           type="button"
           className={btn}
@@ -102,46 +117,65 @@ export function ExportImport<T>(p: Props<T>) {
           onClick={() => setOpen((o) => !o)}
         >
           {busy ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : (
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
           )}{" "}
-          Export
+          Export <ChevronDown className="w-3.5 h-3.5" />
         </button>
         {open && (
           <div
-            className="absolute right-0 mt-1 w-40 bg-white border-2 border-black z-30"
-            onMouseLeave={() => setOpen(false)}
+            className="absolute left-0 mt-1 w-48 bg-white border-2 border-black z-30"
           >
-            <button className={item} onClick={() => doExport("xlsx")}>
-              Excel (.xlsx)
+            <button className={`${item} flex items-center gap-2 text-emerald-700`} onClick={() => doExport("xlsx")}>
+              <FileSpreadsheet className="w-3.5 h-3.5" /> Excel (.xlsx)
             </button>
-            <button className={item} onClick={() => doExport("csv")}>
-              CSV
+            <button className={`${item} flex items-center gap-2 text-[#EF4444]`} onClick={() => doExport("pdf")}>
+              <FileText className="w-3.5 h-3.5" /> PDF
+            </button>
+            <button className={`${item} flex items-center gap-2 text-blue-700`} onClick={() => doExport("csv")}>
+              <FileText className="w-3.5 h-3.5" /> CSV
             </button>
           </div>
         )}
       </div>
       {p.onImportRow && (
         <>
-          <button
-            type="button"
-            className={cn(btn)}
-            disabled={!!busy}
-            onClick={() => file.current?.click()}
-            title="Upload .xlsx / .csv"
-          >
-            <Upload className="w-4 h-4" /> Import
-          </button>
-          {p.importTemplate && (
+          {!p.add && (
             <button
               type="button"
-              className="text-xs font-bold underline self-center"
-              onClick={template}
+              className={cn(btn)}
+              disabled={!!busy}
+              onClick={() => setImportOpen(true)}
             >
-              Template
+              <Upload className="w-4 h-4" /> Import
             </button>
           )}
+          <Modal
+            open={importOpen}
+            title="Import from Excel"
+            subtitle="Upload a filled .xlsx or .csv sheet"
+            onClose={() => setImportOpen(false)}
+          >
+            <div className="space-y-3">
+              {p.importTemplate && (
+                <button
+                  type="button"
+                  className={cn(btn, "w-full justify-center")}
+                  onClick={template}
+                >
+                  <FileSpreadsheet className="w-4 h-4" /> Download template
+                </button>
+              )}
+              <button
+                type="button"
+                className="w-full flex items-center justify-center gap-2 px-4 py-6 bg-[#024BAB] text-white text-sm font-bold border-2 border-black"
+                onClick={() => file.current?.click()}
+              >
+                <Upload className="w-4 h-4" /> Upload file (.xlsx / .csv)
+              </button>
+            </div>
+          </Modal>
           <input
             ref={file}
             type="file"
@@ -150,6 +184,52 @@ export function ExportImport<T>(p: Props<T>) {
             onChange={onFile}
           />
         </>
+      )}
+      {p.add && !p.onImportRow && (
+        <button
+          type="button"
+          className="flex items-center gap-1.5 px-3 py-2 bg-white text-green-600 font-medium uppercase text-xs tracking-widest border-2 border-black whitespace-nowrap"
+          onClick={p.add.onClick}
+        >
+          <Plus className="w-3.5 h-3.5" /> {p.add.label}
+        </button>
+      )}
+      {p.add && p.onImportRow && (
+        <div className="relative">
+          <button
+            type="button"
+            className="flex items-center gap-1.5 px-3 py-2 bg-white text-green-600 font-medium uppercase text-xs tracking-widest border-2 border-black whitespace-nowrap"
+            onClick={() => setAddOpen((o) => !o)}
+          >
+            <Plus className="w-3.5 h-3.5" /> {p.add.label}{" "}
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+          {addOpen && (
+            <div
+              className="absolute left-0 mt-1 w-52 bg-white border-2 border-black z-30"
+              onMouseLeave={() => setAddOpen(false)}
+            >
+              <button
+                className={cn(item, "flex items-center gap-2 text-green-700")}
+                onClick={() => {
+                  setAddOpen(false);
+                  p.add!.onClick();
+                }}
+              >
+                <Plus className="w-3.5 h-3.5" /> Add manually
+              </button>
+              <button
+                className={cn(item, "flex items-center gap-2 text-emerald-700")}
+                onClick={() => {
+                  setAddOpen(false);
+                  setImportOpen(true);
+                }}
+              >
+                <FileText className="w-3.5 h-3.5" /> Import Excel / CSV
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </>
   );

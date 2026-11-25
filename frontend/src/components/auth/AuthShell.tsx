@@ -43,9 +43,6 @@ export function AuthShell({
         />
 
         <div className="relative z-10">
-          <h1 className="text-3xl xl:text-4xl font-display font-bold text-white leading-tight mb-5">
-            {headline}
-          </h1>
           {points ? (
             <div className="space-y-3">
               {points.map((p) => (

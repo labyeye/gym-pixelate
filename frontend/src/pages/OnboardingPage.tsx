@@ -151,15 +151,6 @@ export default function OnboardingPage() {
     navigate(to, { replace: true });
   };
 
-  const startTrial = async () => {
-    try {
-      await finish("/welcome");
-    } catch (e: any) {
-      finishing.current = false;
-      notify.error("Could not start trial", e.message);
-    }
-  };
-
   const pay = async () => {
     setPaying(true);
     try {
@@ -547,13 +538,6 @@ export default function OnboardingPage() {
                 className="w-full text-center text-xs text-gray-400 hover:text-black font-bold transition-colors"
               >
                 ← Back to plan selection
-              </button>
-              <button
-                onClick={startTrial}
-                disabled={paying}
-                className="w-full text-center text-xs text-[#024BAB] hover:underline font-bold"
-              >
-                Not ready? Start the free trial instead
               </button>
             </div>
           </div>

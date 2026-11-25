@@ -19,6 +19,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { C } from '../../theme';
 import { PhoneInput } from '../../components/PhoneInput';
 import PasswordChecklist from '../../components/PasswordChecklist';
+import LegalLinks from '../../components/LegalLinks';
 import { passwordOk } from '../../utils/passwordRules';
 
 const loginAnim = require('../../assets/lottie/login.json');
@@ -164,6 +165,11 @@ export default function RegisterScreen({ navigation }: any) {
             )}
           </TouchableOpacity>
 
+          <LegalLinks
+            prefix="By creating an account you agree to the"
+            style={{ marginTop: 16 }}
+          />
+
           <TouchableOpacity
             style={styles.backLink}
             onPress={() => navigation.navigate('Login')}
@@ -202,8 +208,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderRadius: 8,
-    borderRightWidth: 5,
-    borderBottomWidth: 5,
+    borderRightWidth: 4,
+    borderBottomWidth: 4,
     borderRightColor: '#0A0A0A',
     borderBottomColor: '#0A0A0A',
     borderColor: C.black,
@@ -221,8 +227,8 @@ const styles = StyleSheet.create({
     backgroundColor: C.primary,
     borderWidth: 2,
     borderRadius: 8,
-    borderRightWidth: 5,
-    borderBottomWidth: 5,
+    borderRightWidth: 4,
+    borderBottomWidth: 4,
     borderRightColor: '#0A0A0A',
     borderBottomColor: '#0A0A0A',
     borderColor: C.black,

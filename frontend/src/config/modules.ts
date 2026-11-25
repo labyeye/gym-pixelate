@@ -11,13 +11,14 @@ import {
   Megaphone,
   UserCog,
   UserCheck,
+  FolderLock,
   type LucideIcon,
 } from "lucide-react";
 
 /**
  * Optional parts of NestGym. The owner can switch each one off in Settings > Modules; its menu
  * entries and pages then disappear. Core screens (members, plans, invoices, reports,
- * subscription, settings) are always on. A module missing from Settings.modules counts as ON.
+ * subscription, settings) are always on. A module missing from Settings.modules counts as ON, except the attendance groups (OFF until the owner enables them).
  */
 export interface GymModule {
   key: string;
@@ -92,6 +93,13 @@ export const MODULES: GymModule[] = [
     paths: ["/announcements"],
   },
   {
+    key: "vault",
+    label: "Document vault",
+    desc: "Store and send member documents.",
+    icon: FolderLock,
+    paths: ["/vault"],
+  },
+  {
     key: "trainerAttendance",
     label: "Trainer attendance & leave",
     desc: "Trainers check in / out and request leave; owner approves.",
@@ -116,8 +124,10 @@ export const MODULES: GymModule[] = [
 
 export type ModuleFlags = Record<string, boolean> | null | undefined;
 
+// attendance is opt-in: off until the owner switches it on in Settings > Modules
+const DEFAULT_OFF = ["trainerAttendance", "staffAttendance", "memberAttendance"];
 export const moduleOn = (flags: ModuleFlags, key: string) =>
-  flags?.[key] !== false;
+  DEFAULT_OFF.includes(key) ? flags?.[key] === true : flags?.[key] !== false;
 
 export function moduleOfPath(path: string): GymModule | undefined {
   return MODULES.find((m) =>
@@ -128,7 +138,7 @@ export function moduleOfPath(path: string): GymModule | undefined {
 // the attendance page is open while any of its three groups is on
 const ATTENDANCE = ["trainerAttendance", "staffAttendance", "memberAttendance"];
 export const pathEnabled = (flags: ModuleFlags, path: string) => {
-  if (["/staff-attendance", "/leave", "/biometric"].includes(path))
+  if (["/staff-attendance", "/leave", "/biometric", "/payroll"].includes(path))
     return ATTENDANCE.some((k) => moduleOn(flags, k));
   const m = moduleOfPath(path);
   return !m || moduleOn(flags, m.key);

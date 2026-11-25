@@ -43,7 +43,6 @@ app.set("trust proxy", 1);
 app.use(
   helmet({
     crossOriginEmbedderPolicy: false,
-    contentSecurityPolicy: false,
   }),
 );
 

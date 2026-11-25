@@ -1,10 +1,11 @@
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { useCallback, useEffect, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtCredits, useCredits } from "@/contexts/CreditsContext";
 import { creditsAPI } from "@/services/api";
 import { useNotify } from "@/components/ui/Notification";
-import { Coins, Gift, MessageCircle, Plus, ShieldCheck } from "lucide-react";
+import { Coins, Gift, Plus, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const loadRazorpay = (): Promise<boolean> =>
@@ -207,7 +208,7 @@ export default function CreditsPage() {
               </div>
               <div className="border-2 border-black bg-[#F0F7FF] p-5 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-                  <MessageCircle className="w-4 h-4 text-[#25D366]" /> How it's
+                  <WhatsAppIcon className="w-4 h-4 text-[#25D366]" /> How it's
                   charged
                 </div>
                 <p className="text-sm text-black">

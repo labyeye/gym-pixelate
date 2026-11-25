@@ -353,12 +353,27 @@ const deleteInvoice = asyncHandler(async (req, res) => {
   res.json({ success: true, message: "Invoice deleted successfully" });
 });
 
+// Receipt PDF for the "Download receipt" button (tenant-scoped by the Invoice plugin)
 const getInvoicePdf = asyncHandler(async (req, res) => {
-  res.status(501).json({
-    success: false,
-    message:
-      "Use the browser print view (GET /invoices/:id returns all fields incl. company details)",
+  const invoice = await Invoice.findById(req.params.id).populate(
+    "memberId",
+    "name memberCode phone",
+  );
+  if (!invoice) throw fail(404, "Invoice not found");
+  const setting = await Setting.findOne({ tenantId: invoice.tenantId }).lean();
+  const member =
+    invoice.memberId && invoice.memberId.name ? invoice.memberId : null;
+  const pdf = await require("../utils/receiptPdf").buildReceiptPdf({
+    invoice,
+    member,
+    setting,
   });
+  const fname = String(invoice.invoiceNumber).replace(/[^\w-]/g, "_");
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `attachment; filename="Receipt_${fname}.pdf"`,
+  });
+  res.send(pdf);
 });
 
 module.exports = {

@@ -1,6 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
-import { Pencil, Plus, Trash2 } from 'lucide-react-native';
+import {
+  Pencil,
+  Plus,
+  SlidersHorizontal,
+  Trash2,
+} from 'lucide-react-native';
+import HeaderIconBtn from './common/HeaderIconBtn';
+import HeaderMenu, { MenuItem } from './common/HeaderMenu';
+import FilterSortModal from './common/FilterSortModal';
 import { Api } from '../api/gym';
 import { useAuth, isManager } from '../contexts/AuthContext';
 import { useDebounced, useFetch } from '../hooks/useFetch';
@@ -140,6 +148,9 @@ export default function ResourceScreen(p: Props) {
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
   const [exp, setExp] = useState<ExportSpec | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [sortKey, setSortKey] = useState('');
+  const [desc, setDesc] = useState(false);
   const trainers = useTrainers();
   const plans = usePlans(false);
   const classes = useClasses();
@@ -159,7 +170,25 @@ export default function ResourceScreen(p: Props) {
     () => p.api.list(params),
     [params],
   );
-  const rows: any[] = data?.data || [];
+  const raw: any[] = data?.data || [];
+  // ponytail: sorts the loaded page only (API has no sort param); add server-side sort if lists outgrow 25/page
+  const rows = useMemo(() => {
+    if (!sortKey) return raw;
+    const k = (r: any) => {
+      const v = getPath(r, sortKey);
+      return v && typeof v === 'object' ? v.name || v.title || '' : v ?? '';
+    };
+    return [...raw].sort((a, b) => {
+      const x = k(a),
+        y = k(b);
+      const c =
+        typeof x === 'number' && typeof y === 'number'
+          ? x - y
+          : String(x).localeCompare(String(y), undefined, { numeric: true });
+      return desc ? -c : c;
+    });
+  }, [raw, sortKey, desc]);
+  const nFilters = Object.values(filter).filter(Boolean).length;
 
   // every field of the form becomes a column; all pages of the current search / filters are exported
   const cell = (row: any, f: FieldDef) => {
@@ -384,12 +413,15 @@ export default function ResourceScreen(p: Props) {
       onRefresh={reload}
       right={
         <>
-          <Btn
-            small
-            label="Export"
-            icon={<ExportIcon />}
-            onPress={openExport}
+          <HeaderIconBtn
+            label="Filter and sort"
+            icon={<SlidersHorizontal size={22} color={C.black} />}
+            dot={nFilters > 0 || !!sortKey}
+            onPress={() => setFilterOpen(true)}
           />
+          <HeaderMenu>
+            <MenuItem icon={ExportIcon} label="Export" onPress={openExport} />
+          </HeaderMenu>
           {canWrite && (
             <Btn
               small
@@ -412,20 +444,51 @@ export default function ResourceScreen(p: Props) {
           placeholder={`Search ${p.noun}s…`}
         />
       )}
-      {p.filters?.map(f => (
-        <Tabs
-          key={f.key}
-          value={filter[f.key] || ''}
-          onChange={v => {
+      <FilterSortModal
+        visible={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        groups={p.filters?.map(f => ({
+          title: f.label,
+          options: [
+            { key: '', label: 'All' },
+            ...f.options.map(o => ({ key: o, label: o })),
+          ],
+          value: filter[f.key] || '',
+          onPick: (v: string) => {
             setFilter(s => ({ ...s, [f.key]: v }));
             setPage(1);
-          }}
-          tabs={[
-            { id: '', label: `All ${f.label}` },
-            ...f.options.map(o => ({ id: o, label: o.replace(/_/g, ' ') })),
-          ]}
-        />
-      ))}
+          },
+        }))}
+        sortOptions={[
+          { key: '', label: 'Default' },
+          ...p.fields
+            .filter(f => !['textarea', 'checkbox'].includes(f.type || ''))
+            .map(f => ({ key: f.key, label: f.label })),
+        ]}
+        sortValue={sortKey}
+        onSort={setSortKey}
+        extra={
+          !!sortKey && (
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[false, true].map(d => (
+                <Btn
+                  key={String(d)}
+                  small
+                  light={desc !== d}
+                  label={d ? 'Descending' : 'Ascending'}
+                  onPress={() => setDesc(d)}
+                />
+              ))}
+            </View>
+          )
+        }
+        onReset={() => {
+          setFilter({});
+          setSortKey('');
+          setDesc(false);
+          setPage(1);
+        }}
+      />
 
       {loading && !data ? (
         <Loader />

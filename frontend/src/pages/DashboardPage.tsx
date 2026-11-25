@@ -32,6 +32,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { dashboardService } from "@/services/dashboardService";
 import { gym } from "@/services/gymApi";
 import { useAuth } from "@/contexts/AuthContext";
+import { AnimatedNumber } from "@/components/motion/AnimatedNumber";
+import { FadeIn } from "@/components/motion/FadeIn";
 import { Panel, StatCard, fmtDate, inr, titleCase } from "@/components/gym/kit";
 import RangeChartPanel from "@/components/gym/RangeChartPanel";
 import { moduleOn } from "@/config/modules";
@@ -136,13 +138,6 @@ export default function DashboardPage() {
   const todaysBirthdays = (bday.data?.data || []).filter(
     (m: any) => m.day === today,
   );
-  const daysLeftTrial =
-    tenant && (tenant as any).planExpiresAt
-      ? Math.ceil(
-          (new Date((tenant as any).planExpiresAt).getTime() - Date.now()) /
-            86400000,
-        )
-      : null;
 
   if (isLoading)
     return (
@@ -164,101 +159,59 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {tenant?.plan === "trial" && user?.role === "gym_owner" && (
-        <Link
-          to="/subscription"
-          className="nb-rise block border-2 border-black bg-[#FA731C]/15 p-3 mb-5 text-sm font-bold hover:bg-[#FA731C]/25"
-        >
-          Free trial
-          {daysLeftTrial != null
-            ? `: ${Math.max(0, daysLeftTrial)} days left`
-            : ""}{" "}
-          — pick a plan to keep your data flowing →
-        </Link>
-      )}
-
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-        {money && (
-          <StatCard
-            label="Collected today"
-            value={inr(st.todayRevenue)}
-            icon={IndianRupee}
-            color="#00C48C"
-          />
-        )}
-        <StatCard
-          label="New members today"
-          value={st.newMembersToday ?? 0}
-          icon={Users}
-          color="#14B8A6"
-        />
-        <StatCard
-          label="Active memberships"
-          value={st.activeMemberships ?? 0}
-          icon={BadgeCheck}
-          color="#84CC16"
-        />
-        <StatCard
-          label="Expired"
-          value={st.expiredMemberships ?? 0}
-          icon={BadgeX}
-          color="#EF4444"
-        />
-        <StatCard
-          label="Renewals (7 days)"
-          value={st.pendingRenewals ?? 0}
-          icon={Clock3}
-          color="#FA731C"
-        />
-        {money && (
-          <StatCard
-            label="This month"
-            value={inr(st.monthlyRevenue)}
-            icon={Wallet}
-            color="#00C48C"
-          />
-        )}
-        {money && (
-          <StatCard
-            label="Dues outstanding"
-            value={inr(st.pendingPayments)}
-            icon={Receipt}
-            color={st.pendingPayments > 0 ? "#EF4444" : "#14B8A6"}
-            sub={`${st.membersWithDues ?? 0} members`}
-          />
-        )}
-        <StatCard
-          label="Low-stock products"
-          value={st.lowStockProducts ?? 0}
-          icon={Boxes}
-          color={st.lowStockProducts ? "#EF4444" : "#14B8A6"}
-        />
-        <StatCard
-          label="Equipment service due"
-          value={st.equipmentServiceDue ?? 0}
-          icon={Wrench}
-          color={st.equipmentServiceDue ? "#FA731C" : "#14B8A6"}
-        />
-        <StatCard
-          label="Total members"
-          value={st.totalMembers ?? 0}
-          icon={Users}
-          color="#024BAB"
-          sub={`${st.newMembersThisMonth ?? 0} joined this month`}
-        />
-        <StatCard
-          label="Renewed this month"
-          value={st.renewedThisMonth ?? 0}
-          icon={RefreshCw}
-          color="#00C48C"
-        />
-        <StatCard
-          label="Frozen memberships"
-          value={st.frozenMemberships ?? 0}
-          icon={Snowflake}
-          color="#38BDF8"
-        />
+        {[
+          money && {
+            label: "Collected this month",
+            n: st.monthlyRevenue || 0,
+            prefix: "₹",
+            icon: Wallet,
+            color: "#00C48C",
+            sub: `${inr(st.todayRevenue)} today`,
+          },
+          {
+            label: "Active members",
+            n: st.activeMemberships ?? 0,
+            icon: BadgeCheck,
+            color: "#024BAB",
+            sub: `${st.newMembersThisMonth ?? 0} joined this month`,
+          },
+          {
+            label: "Renewals (7 days)",
+            n: st.pendingRenewals ?? 0,
+            icon: Clock3,
+            color: "#FA731C",
+            sub: `${st.expiredMemberships ?? 0} expired`,
+          },
+          money && {
+            label: "Dues outstanding",
+            n: st.pendingPayments || 0,
+            prefix: "₹",
+            icon: Receipt,
+            color: st.pendingPayments > 0 ? "#EF4444" : "#14B8A6",
+            sub: `${st.membersWithDues ?? 0} members`,
+          },
+        ]
+          .filter(Boolean)
+          .map((c: any, i) => (
+            <FadeIn key={c.label} delay={i * 0.05}>
+              <StatCard
+                label={c.label}
+                value={<AnimatedNumber value={c.n} prefix={c.prefix} />}
+                icon={c.icon}
+                color={c.color}
+                sub={c.sub}
+              />
+            </FadeIn>
+          ))}
       </div>
+      {(st.lowStockProducts > 0 || st.equipmentServiceDue > 0) && (
+        <div className="border-2 border-black bg-[#FA731C]/15 p-3 mb-5 text-sm font-bold">
+          {st.lowStockProducts > 0 && `${st.lowStockProducts} low-stock products`}
+          {st.lowStockProducts > 0 && st.equipmentServiceDue > 0 && " · "}
+          {st.equipmentServiceDue > 0 && `${st.equipmentServiceDue} equipment due for service`}
+        </div>
+      )}
 
       {money && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
@@ -349,7 +302,20 @@ export default function DashboardPage() {
         </Panel>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <Panel title="Plan popularity">
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={st.planMix || []}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="plan" tick={{ fontSize: 10 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                <Tooltip content={<NbTooltip />} />
+                <Bar dataKey="members" name="Members" fill="#024BAB" radius={[6, 6, 0, 0]} stroke="#0A0A0A" strokeWidth={2} animationDuration={900} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
         {desk && (
           <Panel
             title="Renew this week"
@@ -388,93 +354,6 @@ export default function DashboardPage() {
             )}
           </Panel>
         )}
-        <Panel title="Recent renewals">
-          {(st.recentRenewals || []).length === 0 ? (
-            <Empty>No renewals yet</Empty>
-          ) : (
-            <ul className="nb-list divide-y divide-black/10">
-              {st.recentRenewals.map((r: any) => (
-                <li
-                  key={r._id}
-                  className="py-2 flex items-center justify-between gap-2 text-sm"
-                >
-                  <span className="font-black truncate">
-                    {r.memberId?.name}
-                  </span>
-                  <span className="text-xs text-black/60 whitespace-nowrap">
-                    {r.planName} · {fmtDate(r.createdAt)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-        <Panel title="New members this month">
-          {(st.newMembersList || []).length === 0 ? (
-            <Empty>No new members yet</Empty>
-          ) : (
-            <ul className="nb-list divide-y divide-black/10">
-              {st.newMembersList.map((r: any) => (
-                <li
-                  key={r._id}
-                  className="py-2 flex items-center justify-between gap-2 text-sm"
-                >
-                  <Link
-                    to={`/members/${r._id}`}
-                    className="font-black truncate hover:underline"
-                  >
-                    {r.name}
-                  </Link>
-                  <span className="text-xs text-black/60 whitespace-nowrap">
-                    {fmtDate(r.createdAt)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        <Panel title="Active members by plan">
-          {(st.planMix || []).length === 0 ? (
-            <Empty>No active memberships</Empty>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] font-black uppercase text-black/50">
-                  <th className="py-1">Plan</th>
-                  <th className="py-1 text-right">Members</th>
-                  {money && <th className="py-1 text-right">Billed</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black/10">
-                {st.planMix.map((p: any) => (
-                  <tr key={p.plan}>
-                    <td className="py-2 font-bold">{p.plan}</td>
-                    <td className="py-2 text-right font-black">{p.members}</td>
-                    {money && (
-                      <td className="py-2 text-right">{inr(p.billed)}</td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Panel>
-        <Panel title="Plan popularity">
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={st.planMix || []}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="plan" tick={{ fontSize: 10 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
-                <Tooltip content={<NbTooltip />} />
-                <Bar dataKey="members" name="Members" fill="#024BAB" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Panel>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

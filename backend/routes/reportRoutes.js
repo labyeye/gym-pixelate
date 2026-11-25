@@ -7,6 +7,7 @@ const { checkPermission } = require("../middleware/checkPermission");
 router.use(protect);
 const read = checkPermission("Reports", "read");
 
+router.get("/analytics", read, require("../controllers/analyticsController").analytics);
 router.get("/overview", read, c.overview);
 router.get("/dues", read, c.dues);
 router.get("/renewals", read, c.renewals);

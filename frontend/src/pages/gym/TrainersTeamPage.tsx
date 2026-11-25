@@ -27,8 +27,6 @@ import {
   Pill,
   RowActions,
   SelectInput,
-  StatCard,
-  StatGrid,
   Td,
   TextArea,
   TextInput,
@@ -265,36 +263,6 @@ export default function TrainersTeamPage() {
 
   return (
     <AppLayout title="Trainers">
-      <StatGrid>
-        <StatCard
-          label="Trainers"
-          value={trainers.filter((t) => t.status === "active").length}
-          icon={Dumbbell}
-          color="#024BAB"
-        />
-        <StatCard
-          label="Assigned clients"
-          value={assignments.length}
-          icon={Users}
-          color="#00C48C"
-        />
-        <StatCard
-          label="Active PT packages"
-          value={pts?.count ?? 0}
-          icon={Dumbbell}
-          color="#A855F7"
-        />
-        <StatCard
-          label="Avg clients / trainer"
-          value={
-            trainers.length
-              ? (assignments.length / trainers.length).toFixed(1)
-              : "0"
-          }
-          icon={Users}
-          color="#FA731C"
-        />
-      </StatGrid>
       <div className="flex justify-end mb-5">
         {can("Trainers", "create") && (
           <Btn onClick={() => openEdit()}>

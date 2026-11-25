@@ -30,7 +30,7 @@ import { usePermission } from "@/hooks/usePermission";
 import { useAuth } from "@/contexts/AuthContext";
 import { moduleOn } from "@/config/modules";
 import { cn } from "@/lib/utils";
-import { Btn, Modal, SelectInput, StatCard, TextInput } from "@/components/gym/kit";
+import { Btn, Modal, SelectInput, TextInput } from "@/components/gym/kit";
 import { MemberPicker } from "@/components/gym/pickers";
 import FaceCapture from "@/components/attendance/FaceCapture";
 import FaceKioskModal from "@/components/attendance/FaceKioskModal";
@@ -308,13 +308,6 @@ export default function StaffAttendancePage() {
                 </button>
               </div>
             )}
-          </div>
-
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3 mb-5">
-            {cards.map((c) => {
-              const active = activeFilter === c.key;
-              return <StatCard key={c.key} label={c.label} value={c.value} icon={c.icon} color={c.color} active={active} onClick={() => setActiveFilter(active || c.key === "total" ? null : c.key)} />;
-            })}
           </div>
 
           {/* Date strip */}

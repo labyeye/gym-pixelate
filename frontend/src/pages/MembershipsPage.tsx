@@ -7,7 +7,7 @@ import {
   CalendarX2,
   IndianRupee,
   Plus,
-  Printer,
+  Download,
   RefreshCw,
   TrendingUp,
   Wallet,
@@ -19,7 +19,8 @@ import { usePermission } from "@/hooks/usePermission";
 import { SellMembershipModal } from "@/components/gym/SellMembershipModal";
 import { PaymentModal } from "@/components/gym/ActionModals";
 import { ExportImport } from "@/components/gym/ExportImport";
-import { printInvoice } from "@/components/gym/printInvoice";
+import { downloadReceipt } from "@/components/gym/printInvoice";
+import { useNotify } from "@/components/ui/Notification";
 import {
   ActionButton,
   Btn,
@@ -29,8 +30,6 @@ import {
   Pill,
   RowActions,
   SearchBox,
-  StatCard,
-  StatGrid,
   Td,
   Thumb,
   Toolbar,
@@ -67,6 +66,7 @@ export default function MembershipsPage() {
     mode: "sell" | "renew" | "upgrade";
     membership?: any;
   } | null>(null);
+  const notify = useNotify();
   const [collect, setCollect] = useState<any>(null);
   const [term, setTerm] = useState<any>(null);
   const [reason, setReason] = useState("");
@@ -99,41 +99,6 @@ export default function MembershipsPage() {
 
   return (
     <AppLayout title="Memberships">
-      <StatGrid>
-        <StatCard
-          label="Active"
-          value={c.active ?? 0}
-          icon={BadgeCheck}
-          color="#00C48C"
-          active={status === "active" && !only}
-          onClick={() => pick("active")}
-        />
-        <StatCard
-          label="Expiring ≤ 7 days"
-          value={c.expiring ?? 0}
-          icon={AlertTriangle}
-          color="#FA731C"
-          active={only === "expiring"}
-          onClick={() => pick("", "expiring")}
-        />
-        <StatCard
-          label="Expired"
-          value={c.expired ?? 0}
-          icon={CalendarX2}
-          color="#EF4444"
-          active={status === "expired"}
-          onClick={() => pick("expired")}
-        />
-        <StatCard
-          label="With dues"
-          value={c.dues ?? 0}
-          icon={IndianRupee}
-          color="#A855F7"
-          active={only === "dues"}
-          onClick={() => pick("", "dues")}
-        />
-      </StatGrid>
-
       <Toolbar
         right={
           can("Memberships", "create") && (
@@ -242,6 +207,17 @@ export default function MembershipsPage() {
               </Td>
               <Td>
                 <RowActions>
+                  {m.invoiceId && (
+                    <ActionButton
+                      icon={Download}
+                      label="Download receipt"
+                      onClick={() =>
+                        downloadReceipt(m.invoiceId, m.invoiceNumber).catch(
+                          (e: any) => notify.error("Receipt failed", e.message),
+                        )
+                      }
+                    />
+                  )}
                   {can("Memberships", "update") && m.status === "active" && (
                     <ActionButton
                       icon={TrendingUp}

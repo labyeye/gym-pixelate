@@ -188,7 +188,14 @@ const mark = asyncHandler(async (req, res) => {
 });
 
 // Payroll sheet for a month: pro-rata base pay by attendance + trainer commission for PT sessions delivered.
-const payroll = asyncHandler(async (req, res) => {
+const buildPayroll = async (req) => {
+  // payroll is part of the attendance module: usable only while at least one attendance group is on
+  const hr = require("../utils/staffHr");
+  const cfg = await require("../models/Setting")
+    .findOne({ tenantId: req.user.tenantId })
+    .lean();
+  if (!["staff", "trainer", "member"].some((r) => hr.moduleOn(cfg, r)))
+    throw fail(403, "Turn on an attendance module in Settings > Modules to use payroll");
   const b = monthBounds(req.query.month);
   const [staff, rows, pkgs] = await Promise.all([
     staffList(req),
@@ -242,8 +249,7 @@ const payroll = asyncHandler(async (req, res) => {
       unmarkedDays: Math.max(0, b.days - mine.length),
     };
   });
-  res.json({
-    success: true,
+  return {
     month: b.label,
     data,
     totals: {
@@ -251,7 +257,32 @@ const payroll = asyncHandler(async (req, res) => {
       commission: r2(data.reduce((s, r) => s + r.commission, 0)),
       total: r2(data.reduce((s, r) => s + r.total, 0)),
     },
-  });
+  };
+};
+const payroll = asyncHandler(async (req, res) => {
+  res.json({ success: true, ...(await buildPayroll(req)) });
 });
 
-module.exports = { getMonth, records, mark, payroll };
+// Salary slip PDF on the NestHR payroll cheque template (utils/salarySlipPdf.js)
+const salarySlip = asyncHandler(async (req, res) => {
+  const out = await buildPayroll(req);
+  const row = out.data.find((r) => String(r.userId) === String(req.query.userId));
+  if (!row) throw fail(404, "Staff member not found");
+  const Setting = require("../models/Setting");
+  const s = await Setting.findOne({ tenantId: req.user.tenantId }).lean();
+  const pdf = await require("../utils/salarySlipPdf").buildSalarySlipPdf({
+    row,
+    month: out.month,
+    mode: req.query.mode === "cash" ? "cash" : "bank",
+    gymName: s?.companyName,
+    gymAddress: s?.companyAddress,
+    empId: String(row.userId).slice(-6).toUpperCase(),
+  });
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `attachment; filename="Salary_${row.name.replace(/[^\w-]/g, "_")}_${out.month}.pdf"`,
+  });
+  res.send(pdf);
+});
+
+module.exports = { getMonth, records, mark, payroll, salarySlip };

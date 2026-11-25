@@ -4,6 +4,7 @@ const { invalidatePermissionsCache } = require("../middleware/checkPermission");
 const { clearPolicyCache } = require("../utils/twoFaPolicy");
 const { encrypt } = require("../utils/encryption");
 const { sanitizeInvoiceTemplate } = require("../utils/invoiceTemplate");
+const { sanitizeIdCardTemplate } = require("../utils/idCardTemplate");
 
 // keep in sync with frontend/src/config/modules.ts
 const MODULE_KEYS = [
@@ -16,6 +17,7 @@ const MODULE_KEYS = [
   "expenses",
   "equipment",
   "announcements",
+  "vault",
   "staffAttendance",
   "trainerAttendance",
   "memberAttendance",
@@ -91,6 +93,14 @@ const updateSettings = asyncHandler(async (req, res) => {
   const tenantFilter = { tenantId: req.user.tenantId || null };
   if (req.body && "modules" in req.body)
     req.body.modules = sanitizeModules(req.body.modules);
+  if (req.body && req.body.idCardTemplate != null) {
+    try {
+      req.body.idCardTemplate = sanitizeIdCardTemplate(req.body.idCardTemplate);
+    } catch (err) {
+      res.status(400);
+      throw err;
+    }
+  }
   if (req.body && req.body.receiptDesign != null)
     req.body.receiptDesign = sanitizeReceiptDesign(req.body.receiptDesign);
   for (const f of [

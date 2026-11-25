@@ -78,7 +78,7 @@ function AskModal({ ask }: { ask: Ask }) {
       onClick={() => ask.resolve(false)}
     >
       <div
-        className="w-full max-w-md border-2 border-black bg-white shadow-[6px_6px_0px_#000]"
+        className="nb-modal w-full max-w-md border-2 border-black bg-white shadow-[6px_6px_0px_#000]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3 p-5">

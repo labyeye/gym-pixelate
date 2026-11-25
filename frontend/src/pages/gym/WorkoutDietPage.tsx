@@ -1,3 +1,4 @@
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -10,7 +11,6 @@ import {
   Dumbbell,
   ClipboardList,
   FileDown,
-  MessageCircle,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { gym } from "@/services/gymApi";
@@ -25,8 +25,6 @@ import {
   Pill,
   RowActions,
   SelectInput,
-  StatCard,
-  StatGrid,
   Tabs,
   Td,
   TextArea,
@@ -365,27 +363,6 @@ export default function WorkoutDietPage() {
 
   return (
     <AppLayout title="Workout & Diet Plans">
-      <StatGrid cols={3}>
-        <StatCard
-          label={tab === "workout" ? "Workout plans" : "Diet plans"}
-          value={data?.total ?? 0}
-          icon={tab === "workout" ? Dumbbell : Apple}
-          color="#024BAB"
-        />
-        <StatCard
-          label="Templates"
-          value={rows.filter((r) => r.isTemplate).length}
-          icon={ClipboardList}
-          color="#A855F7"
-        />
-        <StatCard
-          label="Assigned to members"
-          value={rows.filter((r) => !r.isTemplate).length}
-          icon={Flame}
-          color="#FA731C"
-        />
-      </StatGrid>
-
       <div className="flex flex-wrap justify-between gap-3">
         <div className="flex gap-3 flex-wrap">
           <Tabs
@@ -443,12 +420,8 @@ export default function WorkoutDietPage() {
             }}
             onImportRow={can("WorkoutPlans", "create") ? importRow : undefined}
             onImported={refresh}
+            add={can("WorkoutPlans", "create") ? { label: `New ${tab} plan`, onClick: () => openNew() } : undefined}
           />
-          {can("WorkoutPlans", "create") && (
-            <Btn onClick={() => openNew()}>
-              <Plus className="w-4 h-4" /> New {tab} plan
-            </Btn>
-          )}
         </div>
       </div>
       <div className="flex flex-col sm:flex-row gap-2 mb-5">
@@ -544,7 +517,7 @@ export default function WorkoutDietPage() {
                 {r.memberId?.phone && (
                   <ActionButton
                     label="Send on WhatsApp"
-                    icon={MessageCircle}
+                    icon={WhatsAppIcon}
                     onClick={() => waOf(r)}
                   />
                 )}
@@ -601,7 +574,7 @@ export default function WorkoutDietPage() {
             {!(tab === "workout" ? w.isTemplate : d.isTemplate) &&
               (tab === "workout" ? w.member : d.member)?.phone && (
                 <Btn busy={busy} onClick={() => save(true)}>
-                  <MessageCircle className="w-4 h-4" /> Save & send on WhatsApp
+                  <WhatsAppIcon className="w-4 h-4" /> Save & send on WhatsApp
                 </Btn>
               )}
           </>

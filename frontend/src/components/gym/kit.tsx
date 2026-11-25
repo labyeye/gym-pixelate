@@ -830,16 +830,16 @@ export const Panel = ({
   right?: ReactNode;
   className?: string;
 }) => (
-  <div className={cn("nb-card nb-rise", className)}>
+  <div className={cn("nb-rise border-2 bg-white p-5", className)}>
     {title && (
-      <div className="flex items-center justify-between border-b-2 border-black px-4 py-2.5 bg-[#024BAB]/5">
-        <h3 className="text-xs font-black uppercase tracking-widest">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <h3 className="font-display font-bold text-base text-black">
           {title}
         </h3>
         {right}
       </div>
     )}
-    <div className="p-4">{children}</div>
+    {children}
   </div>
 );
 

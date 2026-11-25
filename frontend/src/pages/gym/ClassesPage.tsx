@@ -25,8 +25,6 @@ import {
   Pill,
   RowActions,
   SelectInput,
-  StatCard,
-  StatGrid,
   Tabs,
   Td,
   TextArea,
@@ -226,38 +224,6 @@ export default function ClassesPage() {
 
   return (
     <AppLayout title="Group Classes">
-      <StatGrid>
-        <StatCard
-          label="Sessions (7 days)"
-          value={sessions.length}
-          icon={CalendarDays}
-          color="#024BAB"
-        />
-        <StatCard
-          label="Seats booked"
-          value={booked}
-          sub={
-            totalSeats
-              ? `${Math.round((booked / totalSeats) * 100)}% full`
-              : undefined
-          }
-          icon={Armchair}
-          color="#00C48C"
-        />
-        <StatCard
-          label="On waitlists"
-          value={sessions.reduce((s, x) => s + x.waitlisted, 0)}
-          icon={Hourglass}
-          color="#FA731C"
-        />
-        <StatCard
-          label="Active classes"
-          value={(classes?.data || []).filter((c: any) => c.isActive).length}
-          icon={Users}
-          color="#A855F7"
-        />
-      </StatGrid>
-
       <div className="flex flex-wrap justify-between gap-3">
         <Tabs
           value={tab}

@@ -4,6 +4,7 @@ import { Menu, Search, Bell, Hand, Coins } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { fmtCredits, useCreditBalance } from '../../hooks/useCreditBalance';
 import { C } from '../../theme';
+import { useResponsive } from '../../theme/responsive';
 
 interface Props {
   name?: string;
@@ -27,6 +28,7 @@ export default function AppHeader({
   onBell,
   onAvatar,
 }: Props) {
+  const { isTablet, maxContentWidth } = useResponsive();
   const h = new Date().getHours();
   const greeting =
     h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
@@ -35,9 +37,19 @@ export default function AppHeader({
   const { credits } = useCreditBalance();
   return (
     <View style={s.wrap}>
+      <View
+        style={[
+          s.inner,
+          isTablet && {
+            maxWidth: maxContentWidth,
+            width: '100%',
+            alignSelf: 'center',
+          },
+        ]}
+      >
       <View style={s.row}>
         <TouchableOpacity onPress={onMenu} hitSlop={10}>
-          <Menu size={26} color={C.black} />
+          <Menu size={24} color={C.black} />
         </TouchableOpacity>
         <View style={s.right}>
           <TouchableOpacity onPress={onSearch} hitSlop={10}>
@@ -75,9 +87,10 @@ export default function AppHeader({
       </View>
       <Text style={s.greet}>
         {greeting}, {first}{' '}
-        <Hand size={14} color="#475569" style={{ marginLeft: 4 }} />
+        <Hand size={14} color="#374151" style={{ marginLeft: 4 }} />
       </Text>
       <Text style={s.title}>{title}</Text>
+      </View>
     </View>
   );
 }
@@ -85,10 +98,11 @@ export default function AppHeader({
 const s = StyleSheet.create({
   wrap: {
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingTop: 12,
     paddingBottom: 0,
     backgroundColor: C.white,
   },
+  inner: { width: '100%' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -126,6 +140,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: { color: C.white, fontSize: 16, fontWeight: '400' },
-  greet: { marginTop: 14, fontSize: 13, color: '#475569', fontWeight: '400' },
+  greet: { marginTop: 16, fontSize: 13, color: '#374151', fontWeight: '400' },
   title: { fontSize: 28, fontWeight: '400', color: C.black, marginTop: 2 },
 });

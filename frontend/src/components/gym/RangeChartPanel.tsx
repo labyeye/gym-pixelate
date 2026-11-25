@@ -118,6 +118,8 @@ export default function RangeChartPanel({
             fill={color}
             stroke="#0A0A0A"
             strokeWidth={2}
+            radius={[6, 6, 0, 0]}
+            animationDuration={900}
           />
         </BarChart>
       </ResponsiveContainer>

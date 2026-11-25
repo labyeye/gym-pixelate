@@ -16,7 +16,7 @@ const notificationLogSchema = new mongoose.Schema(
     },
     kind: {
       type: String,
-      enum: ["expiring", "expired", "birthday", "anniversary", "staffAbsent"],
+      enum: ["expiring", "expired", "birthday", "anniversary", "staffAbsent", "receipt"],
       required: true,
     },
     channel: { type: String, default: "whatsapp" },
