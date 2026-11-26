@@ -204,7 +204,7 @@ export const gym = {
   billing: {
     plans: () => get("/billing/plans"),
     subscription: () => get("/billing/subscription"),
-    razorpayOrder: (b: any) => post("/billing/razorpay/create-order", b),
-    razorpayVerify: (b: any) => post("/billing/razorpay/verify", b),
+    cashfreeOrder: (b: any) => post("/billing/cashfree/create-order", b),
+    cashfreeVerify: (b: any) => post("/billing/cashfree/verify", b),
   },
 };

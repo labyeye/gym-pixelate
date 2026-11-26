@@ -406,11 +406,7 @@ export const creditsAPI = {
       method: "POST",
       body: JSON.stringify({ packId }),
     }),
-  verifyTopup: (body: {
-    razorpayOrderId: string;
-    razorpayPaymentId: string;
-    razorpaySignature: string;
-  }) =>
+  verifyTopup: (body: { orderId: string }) =>
     request<{ success: boolean; data: any }>("/credits/topup/verify", {
       method: "POST",
       body: JSON.stringify(body),

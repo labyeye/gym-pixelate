@@ -7,16 +7,7 @@ import { creditsAPI } from "@/services/api";
 import { useNotify } from "@/components/ui/Notification";
 import { Coins, Gift, Plus, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const loadRazorpay = (): Promise<boolean> =>
-  new Promise((resolve) => {
-    if ((window as any).Razorpay) return resolve(true);
-    const s = document.createElement("script");
-    s.src = "https://checkout.razorpay.com/v1/checkout.js";
-    s.onload = () => resolve(true);
-    s.onerror = () => resolve(false);
-    document.body.appendChild(s);
-  });
+import { payWithCashfree } from "@/lib/cashfree";
 
 const FILTERS = [
   { key: "", label: "All" },
@@ -92,49 +83,18 @@ export default function CreditsPage() {
     try {
       const res = await creditsAPI.createTopup(pack.id);
       const order = res.data;
-      if (!(await loadRazorpay()))
-        throw new Error(
-          "Could not load the payment window. Check your connection.",
-        );
-      await new Promise<void>((resolve, reject) => {
-        const rzp = new (window as any).Razorpay({
-          key: order.keyId,
-          order_id: order.orderId,
-          amount: Math.round(order.amount * 100),
-          currency: order.currency || "INR",
-          name: "NestGym",
-          description: `${fmtCredits(pack.credits)} WhatsApp credits`,
-          theme: { color: "#024BAB" },
-          prefill: { name: user?.name, email: user?.email },
-          handler: async (response: any) => {
-            try {
-              await creditsAPI.verifyTopup({
-                razorpayOrderId: response.razorpay_order_id,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpaySignature: response.razorpay_signature,
-              });
-              notify.success(
-                "Credits added",
-                `${fmtCredits(pack.credits)} credits are in your wallet.`,
-              );
-              await refresh();
-              creditsAPI
-                .topups()
-                .then((r) => setTopups(r.data))
-                .catch(() => {});
-              loadLedger(1, filter);
-              resolve();
-            } catch (e) {
-              reject(e);
-            }
-          },
-          modal: { ondismiss: () => resolve() },
-        });
-        rzp.on("payment.failed", (r: any) =>
-          reject(new Error(r?.error?.description || "Payment failed")),
-        );
-        rzp.open();
-      });
+      if ((await payWithCashfree(order)) === "cancelled") return;
+      await creditsAPI.verifyTopup({ orderId: order.orderId });
+      notify.success(
+        "Credits added",
+        `${fmtCredits(pack.credits)} credits are in your wallet.`,
+      );
+      await refresh();
+      creditsAPI
+        .topups()
+        .then((r) => setTopups(r.data))
+        .catch(() => {});
+      loadLedger(1, filter);
     } catch (e: any) {
       notify.error("Could not add credits", e.message);
     }

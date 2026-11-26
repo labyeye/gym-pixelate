@@ -172,32 +172,23 @@ router.post(
   protect,
   owner,
   asyncHandler(async (req, res) => {
-    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
-    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+    const { orderId } = req.body;
+    if (!orderId) {
       res.status(400);
-      throw new Error("Missing payment details");
+      throw new Error("Missing order id");
     }
-    if (
-      !credits.verifySignature({
-        razorpayOrderId,
-        razorpayPaymentId,
-        razorpaySignature,
-      })
-    ) {
-      res.status(400);
-      throw new Error("Payment verification failed. Invalid signature.");
-    }
-    const order = await CreditTopup.findOne({
-      orderId: razorpayOrderId,
-    }).select("tenantId");
+    const order = await CreditTopup.findOne({ orderId }).select("tenantId");
     if (!order || String(order.tenantId) !== String(req.user.tenantId)) {
       res.status(404);
       throw new Error("Order not found");
     }
-    await credits.completeTopup({
-      orderId: razorpayOrderId,
-      paymentId: razorpayPaymentId,
-    }); // null = webhook already did it
+    // ask Cashfree whether it is really paid (the browser cannot fake this)
+    const v = await require("../utils/cashfreeService").verifyOrder(orderId);
+    if (!v.paid) {
+      res.status(400);
+      throw new Error("Payment not completed yet");
+    }
+    await credits.completeTopup({ orderId, paymentId: v.paymentId }); // null = webhook already did it
     res.json({
       success: true,
       data: await credits.getBalance(req.user.tenantId),

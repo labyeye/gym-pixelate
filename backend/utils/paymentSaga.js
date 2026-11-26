@@ -95,6 +95,7 @@ class Saga {
 }
 
 let client; // replaced in tests
+let cfClient; // Cashfree refunds, replaced in tests
 const rz = () =>
   client ||
   (client = new Razorpay({
@@ -104,10 +105,27 @@ const rz = () =>
 const _setClient = (c) => {
   client = c;
 };
+const _setCashfree = (c) => {
+  cfClient = c;
+};
 
 async function tryRefund(inc) {
   inc.attempts += 1;
   try {
+    if (inc.gateway === "cashfree") {
+      if (!inc.orderId || !inc.amount)
+        throw new Error("order id / amount missing, refund it from the Cashfree dashboard");
+      const r = await (cfClient || require("./cashfreeService")).refund({
+        orderId: inc.orderId,
+        amount: inc.amount,
+        refundId: `rf_${inc._id}`,
+        note: "Subscription could not be activated",
+      });
+      inc.refundId = String(r.cf_refund_id || r.refund_id || r.id);
+      inc.status = "refund_initiated";
+      inc.lastError = undefined;
+      return;
+    }
     let paise = Math.round((inc.amount || 0) * 100);
     if (!paise) paise = (await rz().payments.fetch(inc.paymentId)).amount;
     const r = await rz().payments.refund(inc.paymentId, {
@@ -267,4 +285,5 @@ module.exports = {
   refundAfterFailure,
   retryPendingRefunds,
   _setClient,
+  _setCashfree,
 };

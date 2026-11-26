@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 // and kept until the money is back with the customer.
 const paymentIncidentSchema = new mongoose.Schema(
   {
-    gateway: { type: String, required: true, enum: ["razorpay"] },
+    gateway: { type: String, required: true, enum: ["razorpay", "cashfree"] },
     paymentId: { type: String, required: true },
     orderId: { type: String },
     amount: { type: Number }, // rupees

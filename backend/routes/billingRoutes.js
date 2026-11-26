@@ -73,6 +73,28 @@ router.get("/plans", (req, res) => {
   res.json({
     success: true,
     data: {
+      nestgym: {
+        name: "Nest Gym",
+        currency: "INR",
+        priceYearly: Subscription.FLAT_YEARLY.nestgym,
+        prices: { yearly: Subscription.FLAT_YEARLY.nestgym },
+        gstRate: Subscription.GST_RATE,
+        limits: limitsFor("nestgym"),
+        trialDays: Subscription.TRIAL_DAYS,
+        members: 1500,
+        features: [
+          "Up to 1,500 active members, 3 branches",
+          "Membership plans, dues & renewals, GST invoices",
+          "One-tap WhatsApp renewal & due reminders",
+          "Face-recognition & QR check-in",
+          "Group classes, bookings & waitlist",
+          "Personal-training packages & trainer commission",
+          "Workout & diet plans, body progress",
+          "Staff attendance & payroll",
+          "Lockers, POS, expenses & coupons",
+          "Advanced reports, GST register & P&L",
+        ],
+      },
       starter: card("starter", "Starter", {
         members: 150,
         features: [
@@ -429,7 +451,7 @@ router.post(
 
 // Activates a paid Razorpay order without a signed-in browser (used when only the webhook told us about the payment).
 // Same steps and the same refund protection as the browser's verify call above.
-async function provisionRazorpay({ orderId, paymentId }) {
+async function provisionRazorpay({ orderId, paymentId, gateway = "razorpay" }) {
   const subscription = await Subscription.findOne({
     "pendingOrder.razorpayOrderId": orderId,
   });
@@ -454,9 +476,9 @@ async function provisionRazorpay({ orderId, paymentId }) {
         startDate: new Date(),
         nextBillingDate: addTerm(new Date(), billingCycle),
         amount,
-        paymentMethod: "razorpay",
+        paymentMethod: gateway,
         paymentDetails: {
-          razorpayOrderId: orderId,
+          razorpayOrderId: orderId, // legacy field name, holds the Cashfree order id too
           razorpayPaymentId: paymentId,
           status: "captured",
         },
@@ -467,6 +489,10 @@ async function provisionRazorpay({ orderId, paymentId }) {
             razorpayPaymentId: paymentId,
             razorpayOrderId: orderId,
             amount: amountPaise,
+            ...(subscription.pendingOrder.base != null && {
+              baseAmount: Math.round(subscription.pendingOrder.base * 100),
+              gstAmount: Math.round(subscription.pendingOrder.gst * 100),
+            }),
             plan,
             billingCycle,
             status: "paid",
@@ -507,7 +533,7 @@ async function provisionRazorpay({ orderId, paymentId }) {
     const undone = await saga.rollback();
     await refundAfterFailure(
       {
-        gateway: "razorpay",
+        gateway,
         paymentId,
         orderId,
         amount,
@@ -519,6 +545,96 @@ async function provisionRazorpay({ orderId, paymentId }) {
     );
   }
 }
+
+// ---- Cashfree checkout for the one plan we sell (Rs 5,000 + 18% GST per year) ----------------------------
+const cashfree = require("../utils/cashfreeService");
+const round2 = (n) => Math.round(n * 100) / 100;
+
+router.post(
+  "/cashfree/create-order",
+  protect,
+  asyncHandler(async (req, res) => {
+    const { plan = "nestgym", billingCycle = "yearly" } = req.body;
+    if (plan !== "nestgym" || billingCycle !== "yearly")
+      return res.status(400).json({ success: false, message: "Invalid plan" });
+    const base = Subscription.FLAT_YEARLY.nestgym / 100;
+    const gst = round2(base * Subscription.GST_RATE);
+    const total = round2(base + gst);
+    const tenant = await Tenant.findById(req.user.tenantId);
+    let order;
+    try {
+      order = await cashfree.createOrder({
+        amount: total,
+        receipt: `sub_${String(req.user.tenantId).slice(-10)}_${Date.now()}`,
+        notes: { plan, billingCycle, tenantId: String(req.user.tenantId) },
+        customer: {
+          id: req.user.tenantId,
+          name: tenant?.name || req.user.name,
+          email: tenant?.email || req.user.email,
+          phone: tenant?.phone || req.user.phone,
+        },
+      });
+    } catch (e) {
+      console.error("Cashfree create-order error:", e.message);
+      return res
+        .status(400)
+        .json({ success: false, message: "Failed to create order", error: e.message });
+    }
+    await Subscription.findOneAndUpdate(
+      { tenant: req.user.tenantId },
+      {
+        pendingOrder: {
+          razorpayOrderId: order.orderId, // legacy field name (webhook lookup), holds the Cashfree order id
+          plan,
+          billingCycle,
+          amount: total,
+          base,
+          gst,
+          createdAt: new Date(),
+        },
+      },
+      { upsert: true, new: true },
+    );
+    res.json({
+      success: true,
+      data: {
+        orderId: order.orderId,
+        paymentSessionId: order.paymentSessionId,
+        mode: order.mode,
+        amount: total,
+        base,
+        gst,
+      },
+    });
+  }),
+);
+
+router.post(
+  "/cashfree/verify",
+  protect,
+  asyncHandler(async (req, res) => {
+    const { orderId } = req.body;
+    if (!orderId)
+      return res.status(400).json({ success: false, message: "Missing order id" });
+    const sub = await Subscription.findOne({ tenant: req.user.tenantId });
+    const mine = sub?.pendingOrder?.razorpayOrderId === orderId;
+    const done = (sub?.invoices || []).some((i) => i.razorpayOrderId === orderId);
+    if (!mine && !done)
+      return res.status(404).json({ success: false, message: "Order not found" });
+    if (done) return res.json({ success: true, message: "Payment successful" }); // webhook got there first
+    const v = await cashfree.verifyOrder(orderId);
+    if (!v.paid)
+      return res.status(400).json({ success: false, message: "Payment not completed yet" });
+    try {
+      await provisionRazorpay({ orderId, paymentId: v.paymentId, gateway: "cashfree" });
+    } catch (e) {
+      if (e.refund)
+        return res.status(409).json({ success: false, refund: true, message: e.message });
+      throw e;
+    }
+    res.json({ success: true, message: "Payment successful" });
+  }),
+);
 
 module.exports = router;
 module.exports.provisionRazorpay = provisionRazorpay;

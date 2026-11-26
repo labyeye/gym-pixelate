@@ -114,6 +114,11 @@ app.post(
   express.raw({ type: "*/*", limit: "1mb" }),
   require("./utils/paymentReconcile").webhook,
 );
+app.post(
+  "/api/webhooks/cashfree-billing",
+  express.raw({ type: "*/*", limit: "1mb" }),
+  require("./utils/paymentReconcile").cashfreeWebhook,
+);
 app.use(
   "/api/webhooks/razorpay/:tenantId",
   express.raw({ type: "*/*", limit: "1mb" }),

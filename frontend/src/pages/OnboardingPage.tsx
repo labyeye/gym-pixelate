@@ -23,8 +23,8 @@ const STEPS: { id: Step; label: string }[] = [
   { id: "plan", label: "Plan" },
   { id: "payment", label: "Payment" },
 ];
-const CYCLES = [{ id: "monthly", label: "Monthly", months: 1, off: 0 }];
-const ORDER = ["starter", "growth", "pro"];
+const CYCLES = [{ id: "yearly", label: "Yearly", months: 12, off: 0 }];
+const ORDER = ["nestgym"];
 const rupees = (paise: number) =>
   "₹" + Math.round(paise / 100).toLocaleString("en-IN");
 
@@ -33,17 +33,6 @@ const field =
 const lbl = "block text-xs font-bold uppercase tracking-wider text-black mb-2";
 const cta =
   "w-full bg-[#024BAB] text-white border-2 border-black font-bold uppercase text-sm px-4 py-3 flex items-center justify-center gap-2 hover:bg-[#023590] disabled:opacity-60 disabled:cursor-not-allowed transition-all";
-
-function loadRazorpay(): Promise<boolean> {
-  return new Promise((resolve) => {
-    if ((window as any).Razorpay) return resolve(true);
-    const s = document.createElement("script");
-    s.src = "https://checkout.razorpay.com/v1/checkout.js";
-    s.onload = () => resolve(true);
-    s.onerror = () => resolve(false);
-    document.body.appendChild(s);
-  });
-}
 
 function StepIndicator({ current }: { current: Step }) {
   const idx = STEPS.findIndex((s) => s.id === current);
@@ -93,7 +82,7 @@ function StepIndicator({ current }: { current: Step }) {
   );
 }
 
-// Same wizard as Nest HR: details -> plan -> Razorpay payment -> /welcome.
+// Same wizard as Nest HR: details -> plan -> Cashfree payment -> /welcome.
 export default function OnboardingPage() {
   const { user, tenant, logout, refreshTenant } = useAuth();
   const navigate = useNavigate();
@@ -109,8 +98,8 @@ export default function OnboardingPage() {
   });
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [cycle, setCycle] = useState("monthly");
-  const [planKey, setPlanKey] = useState("growth");
+  const [cycle, setCycle] = useState("yearly");
+  const [planKey, setPlanKey] = useState("nestgym");
   const [paying, setPaying] = useState(false);
 
   const { data: plansRes } = useQuery({
@@ -154,56 +143,23 @@ export default function OnboardingPage() {
   const pay = async () => {
     setPaying(true);
     try {
-      if (!(await loadRazorpay()))
-        throw new Error(
-          "Could not load the payment window. Check your connection.",
-        );
-      const o = await gym.billing.razorpayOrder({
+      const o = await gym.billing.cashfreeOrder({
         plan: planKey,
         billingCycle: cycle,
       });
       const d = o.data;
-      await new Promise<void>((resolve, reject) => {
-        const rzp = new (window as any).Razorpay({
-          key: d.key,
-          amount: d.amount,
-          currency: d.currency,
-          order_id: d.orderId,
-          name: "NestGym",
-          description: `${titleCase(planKey)} · ${CYCLES.find((c) => c.id === cycle)?.label}`,
-          prefill: {
-            name: d.customerName,
-            email: d.customerEmail,
-            contact: d.customerPhone,
-          },
-          theme: { color: "#024BAB" },
-          handler: async (r: any) => {
-            try {
-              await gym.billing.razorpayVerify({
-                razorpayOrderId: r.razorpay_order_id,
-                razorpayPaymentId: r.razorpay_payment_id,
-                razorpaySignature: r.razorpay_signature,
-              });
-              notify.success(
-                "Payment successful",
-                "Your plan is active. Welcome to NestGym!",
-              );
-              await finish("/welcome");
-              resolve();
-            } catch (err) {
-              reject(err);
-            }
-          },
-          modal: { ondismiss: () => reject(new Error("Payment cancelled")) },
-        });
-        rzp.open();
-      });
+      if ((await payWithCashfree(d)) === "cancelled") return setPaying(false);
+      await gym.billing.cashfreeVerify({ orderId: d.orderId });
+      notify.success(
+        "Payment successful",
+        "Your plan is active. Welcome to NestGym!",
+      );
+      await finish("/welcome");
     } catch (e: any) {
-      if (e.message !== "Payment cancelled")
-        notify.error(
-          "Could not complete payment",
-          e.message || "Please try again.",
-        );
+      notify.error(
+        "Could not complete payment",
+        e.message || "Please try again.",
+      );
       setPaying(false);
     }
   };
@@ -353,7 +309,7 @@ export default function OnboardingPage() {
                 Choose your plan
               </h1>
               <p className="text-gray-500 font-medium text-sm">
-                Billed monthly. Prices exclude GST.
+                Billed yearly. Price excludes 18% GST.
               </p>
             </div>
             <div className="flex justify-center mb-6">
@@ -413,16 +369,16 @@ export default function OnboardingPage() {
                     </p>
                     {t != null && (
                       <div className="font-display font-bold text-2xl text-[#024BAB]">
-                        {rupees(t / months)}
+                        {rupees(t)}
                         <span className="text-xs text-gray-500 font-medium">
                           {" "}
-                          /mo
+                          /year
                         </span>
                       </div>
                     )}
-                    {t != null && months > 1 && (
+                    {t != null && (
                       <div className="text-[11px] text-gray-500 font-medium">
-                        {rupees(t)} every {months} months
+                        + 18% GST = {rupees(Math.round(t * 1.18))}
                       </div>
                     )}
                     <ul className="mt-3 space-y-1">
@@ -475,7 +431,7 @@ export default function OnboardingPage() {
                 Confirm &amp; Pay
               </h1>
               <p className="text-gray-500 font-medium text-sm">
-                A secure Razorpay checkout will open to complete your payment
+                A secure Cashfree checkout will open to complete your payment
               </p>
             </div>
             <div className="max-w-md mx-auto space-y-4">
@@ -500,14 +456,17 @@ export default function OnboardingPage() {
                     v={CYCLES.find((c) => c.id === cycle)?.label || ""}
                   />
                   {total != null && (
-                    <Row k="Per month" v={rupees(total / months)} muted />
+                    <Row k="Price" v={rupees(total)} muted />
+                  )}
+                  {total != null && (
+                    <Row k="GST (18%)" v={rupees(Math.round(total * 0.18))} muted />
                   )}
                   <div className="border-t-2 border-black pt-3 flex justify-between items-center">
                     <span className="font-bold text-sm uppercase">
-                      Total (excl. GST)
+                      Total (incl. GST)
                     </span>
                     <span className="font-bold text-xl text-[#024BAB]">
-                      {total != null ? rupees(total) : "—"}
+                      {total != null ? rupees(Math.round(total * 1.18)) : "—"}
                     </span>
                   </div>
                 </div>
@@ -525,13 +484,13 @@ export default function OnboardingPage() {
                 ) : (
                   <>
                     <ExternalLink className="w-5 h-5" />
-                    Pay {total != null ? rupees(total) : ""} via Razorpay
+                    Pay {total != null ? rupees(Math.round(total * 1.18)) : ""} via Cashfree
                   </>
                 )}
               </button>
               <div className="flex items-center justify-center gap-2 text-xs text-gray-400 font-medium">
                 <AlertCircle className="w-3.5 h-3.5" />
-                Secured by Razorpay · PCI-DSS compliant
+                Secured by Cashfree · PCI-DSS compliant
               </div>
               <button
                 onClick={() => setStep("plan")}

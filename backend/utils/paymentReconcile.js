@@ -60,6 +60,52 @@ async function webhook(req, res) {
   }
 }
 
+/** POST /api/webhooks/cashfree-billing  (raw body; signed with CASHFREE_SECRET_KEY) */
+async function cashfreeWebhook(req, res) {
+  try {
+    const cashfree = require("./cashfreeService");
+    const raw = Buffer.isBuffer(req.body) ? req.body : req.rawBody;
+    if (!process.env.CASHFREE_SECRET_KEY || !raw)
+      return res
+        .status(503)
+        .json({ success: false, message: "Webhook not configured" });
+    if (
+      !cashfree.verifyWebhook(
+        raw,
+        req.get("x-webhook-signature"),
+        req.get("x-webhook-timestamp"),
+      )
+    )
+      return res.status(400).json({ success: false, message: "Bad signature" });
+    const ev = JSON.parse(raw.toString("utf8"));
+    const p = ev?.data?.payment;
+    const orderId = ev?.data?.order?.order_id;
+    if (
+      ev.type === "PAYMENT_SUCCESS_WEBHOOK" &&
+      p?.cf_payment_id &&
+      orderId &&
+      (await app.ownsOrder(orderId))
+    ) {
+      await PaymentEvent.updateOne(
+        { gateway: "cashfree", paymentId: String(p.cf_payment_id) },
+        {
+          $setOnInsert: {
+            orderId,
+            amount: Number(p.payment_amount) || 0,
+            receivedAt: new Date(),
+            status: "pending",
+          },
+        },
+        { upsert: true },
+      );
+    }
+    res.json({ success: true });
+  } catch (e) {
+    console.error("[PaymentReconcile] cashfree webhook:", e.message);
+    res.status(500).json({ success: false });
+  }
+}
+
 /** Runs every couple of minutes: activate (or refund) payments nobody verified. Safe to run on several workers. */
 async function reconcile() {
   const events = await PaymentEvent.find({
@@ -78,7 +124,7 @@ async function reconcile() {
     try {
       if (
         await PaymentIncident.exists({
-          gateway: "razorpay",
+          gateway: ev.gateway || "razorpay",
           paymentId: ev.paymentId,
         })
       ) {
@@ -92,6 +138,7 @@ async function reconcile() {
           orderId: ev.orderId,
           paymentId: ev.paymentId,
           amount: ev.amount,
+          gateway: ev.gateway || "razorpay",
         });
         claimed.status = "done";
         claimed.note = "activated from webhook";
@@ -109,4 +156,4 @@ async function reconcile() {
   }
 }
 
-module.exports = { webhook, reconcile };
+module.exports = { webhook, cashfreeWebhook, reconcile };

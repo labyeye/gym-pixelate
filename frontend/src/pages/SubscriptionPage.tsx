@@ -30,32 +30,22 @@ import {
   titleCase,
 } from "@/components/gym/kit";
 import { cn } from "@/lib/utils";
+import { payWithCashfree } from "@/lib/cashfree";
 import { printSubscriptionBill } from "@/lib/subscriptionBill";
 import { settingsAPI } from "@/services/api";
 
 const CYCLES: { id: string; label: string; months: number; off: number }[] = [
-  { id: "monthly", label: "Monthly", months: 1, off: 0 },
+  { id: "yearly", label: "Yearly", months: 12, off: 0 },
 ];
 const rupees = (paise: number) =>
   "₹" + Math.round(paise / 100).toLocaleString("en-IN");
-const ORDER = ["starter", "growth", "pro"];
-
-function loadRazorpay(): Promise<boolean> {
-  return new Promise((resolve) => {
-    if ((window as any).Razorpay) return resolve(true);
-    const s = document.createElement("script");
-    s.src = "https://checkout.razorpay.com/v1/checkout.js";
-    s.onload = () => resolve(true);
-    s.onerror = () => resolve(false);
-    document.body.appendChild(s);
-  });
-}
+const ORDER = ["nestgym"];
 
 export default function SubscriptionPage() {
   const notify = useNotify();
   const qc = useQueryClient();
   const { refreshTenant } = useAuth();
-  const [cycle, setCycle] = useState("monthly");
+  const [cycle, setCycle] = useState("yearly");
   const [busy, setBusy] = useState("");
   const { data: gymSettings } = useQuery({
     queryKey: ["gym-settings"],
@@ -113,49 +103,18 @@ export default function SubscriptionPage() {
   const pay = async (planKey: string) => {
     try {
       setBusy(planKey);
-      if (!(await loadRazorpay()))
-        throw new Error(
-          "Could not load the payment window. Check your connection.",
-        );
-      const o = await gym.billing.razorpayOrder({
+      const o = await gym.billing.cashfreeOrder({
         plan: planKey,
         billingCycle: cycle,
       });
       const d = o.data;
-      const rzp = new (window as any).Razorpay({
-        key: d.key,
-        amount: d.amount,
-        currency: d.currency,
-        order_id: d.orderId,
-        name: "NestGym",
-        description: `${titleCase(planKey)} · ${CYCLES.find((c) => c.id === cycle)?.label}`,
-        prefill: {
-          name: d.customerName,
-          email: d.customerEmail,
-          contact: d.customerPhone,
-        },
-        theme: { color: "#024BAB" },
-        handler: async (r: any) => {
-          try {
-            await gym.billing.razorpayVerify({
-              razorpayOrderId: r.razorpay_order_id,
-              razorpayPaymentId: r.razorpay_payment_id,
-              razorpaySignature: r.razorpay_signature,
-            });
-            notify.success(
-              "Plan upgraded",
-              `${titleCase(planKey)} is now active`,
-            );
-            await refreshTenant();
-            qc.invalidateQueries();
-          } catch (e: any) {
-            notify.error("Verification failed", e.message);
-          }
-        },
-      });
-      rzp.open();
+      if ((await payWithCashfree(d)) === "cancelled") return;
+      await gym.billing.cashfreeVerify({ orderId: d.orderId });
+      notify.success("Plan active", "Nest Gym is now active for a year.");
+      await refreshTenant();
+      qc.invalidateQueries();
     } catch (e: any) {
-      notify.error("Could not start payment", e.message);
+      notify.error("Could not complete payment", e.message);
     } finally {
       setBusy("");
     }
@@ -298,16 +257,14 @@ export default function SubscriptionPage() {
                 {total != null ? (
                   <>
                     <p className="text-3xl font-black tabular-nums">
-                      <AnimatedValue value={rupees(total / months)} />
+                      <AnimatedValue value={rupees(total)} />
                       <span className="text-sm font-bold text-black/50">
                         {" "}
-                        /mo
+                        /year
                       </span>
                     </p>
                     <p className="text-xs font-bold text-black/50">
-                      {months > 1
-                        ? `${rupees(total)} billed every ${months} months · excl. GST`
-                        : "excl. GST"}
+                      + 18% GST = {rupees(Math.round(total * 1.18))} billed yearly
                     </p>
                   </>
                 ) : (
@@ -367,9 +324,8 @@ export default function SubscriptionPage() {
         })}
       </div>
       <p className="text-xs font-bold text-black/50 mb-6">
-        Prices are per gym per month, exclusive of 18% GST. Longer
-        terms are billed upfront at a discount; limits count active members,
-        branches and staff accounts.
+        Price is per gym per year, plus 18% GST, billed upfront; limits count
+        active members, branches and staff accounts.
       </p>
 
       <h3 className="text-xs font-black uppercase tracking-widest mb-2">

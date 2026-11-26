@@ -1,5 +1,3 @@
-const crypto = require("crypto");
-const Razorpay = require("razorpay");
 const mongoose = require("mongoose");
 const cfg = require("../config/credits");
 const CreditWallet = require("../models/CreditWallet");
@@ -236,30 +234,7 @@ async function onSubscriptionPaid(tenantId) {
   });
 }
 
-// ---- top-up (Razorpay) ------------------------------------------------------
-
-function razorpayClient() {
-  const key_id = process.env.RAZORPAY_KEY_ID;
-  const key_secret = process.env.RAZORPAY_KEY_SECRET;
-  if (!key_id || !key_secret)
-    throw new Error("Razorpay credentials not configured");
-  return { client: new Razorpay({ key_id, key_secret }), key_id, key_secret };
-}
-
-function verifySignature({
-  razorpayOrderId,
-  razorpayPaymentId,
-  razorpaySignature,
-}) {
-  const { key_secret } = razorpayClient();
-  const expected = crypto
-    .createHmac("sha256", key_secret)
-    .update(`${razorpayOrderId}|${razorpayPaymentId}`)
-    .digest("hex");
-  const a = Buffer.from(expected);
-  const b = Buffer.from(String(razorpaySignature || ""));
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
-}
+// ---- top-up (Cashfree) ------------------------------------------------------
 
 async function createTopup(user, packId) {
   const pack = cfg.PACKS.find((p) => p.id === packId);
@@ -271,12 +246,11 @@ async function createTopup(user, packId) {
     });
   const gst = round2((pack.price * cfg.GST_PCT) / 100);
   const total = round2(pack.price + gst);
-  const { client, key_id } = razorpayClient();
-  const order = await client.orders.create({
-    amount: Math.round(total * 100),
-    currency: "INR",
+  const order = await require("./cashfreeService").createOrder({
+    amount: total,
     receipt: `cr_${String(user.tenantId).slice(-10)}_${Date.now()}`,
     notes: { kind: "credits", tenantId: String(user.tenantId) },
+    customer: { id: user.tenantId, name: user.name, email: user.email, phone: user.phone },
   });
   await CreditTopup.create({
     tenantId: user.tenantId,
@@ -286,11 +260,12 @@ async function createTopup(user, packId) {
     price: pack.price,
     gst,
     total,
-    orderId: order.id,
+    orderId: order.orderId,
   });
   return {
-    orderId: order.id,
-    keyId: key_id,
+    orderId: order.orderId,
+    paymentSessionId: order.paymentSessionId,
+    mode: order.mode,
     amount: total,
     currency: "INR",
     pack: { ...pack, gst, total },
@@ -298,7 +273,7 @@ async function createTopup(user, packId) {
 }
 
 /**
- * Credit the wallet for a paid order. Called by the browser verify call AND the Razorpay webhook; whichever
+ * Credit the wallet for a paid order. Called by the browser verify call AND the payment webhook; whichever
  * arrives first wins the atomic created->paid flip, the other one is a no-op.
  * ponytail: a process crash between the flip and the wallet update loses that top-up; reconcile by hand from Razorpay.
  */
@@ -380,5 +355,4 @@ module.exports = {
   onSubscriptionPaid,
   createTopup,
   completeTopup,
-  verifySignature,
 };
