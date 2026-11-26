@@ -152,6 +152,7 @@ const tele = require("./utils/telemetry")("NESTGYM_SECRET");
 app.use(tele.middleware);
 app.use("/api/telemetry", tele.ingest);
 app.use("/api/crm/metrics", tele.metrics);
+app.use("/api/crm/invoices", require("./utils/crmInvoices")("NESTGYM_SECRET"));
 app.use(
   "/api/crm/accounts",
   require("./utils/crmAccounts")(

@@ -18,6 +18,7 @@ const subscriptionSchema = new mongoose.Schema(
         "elite",
         "enterprise",
         "professional",
+        "nestgym",
         "business",
       ],
       default: "trial",
@@ -50,6 +51,8 @@ const subscriptionSchema = new mongoose.Schema(
         amount: Number,
         plan: String,
         billingCycle: String,
+        baseAmount: Number, // paise, ex-GST (set for CRM-issued invoices)
+        gstAmount: Number, // paise
         status: {
           type: String,
           enum: ["paid", "failed", "refunded"],
@@ -75,9 +78,14 @@ const PLAN_PRICES_MONTHLY = {
   pro: 249900, // Rs 2,499 - up to 1,500 members, 3 branches
   elite: 399900, // Rs 3,999 - unlimited members, 10 branches
   enterprise: null, // custom
+  nestgym: null, // flat yearly plan, see FLAT_YEARLY
   professional: 249900, // legacy -> pro
   business: 399900, // legacy -> elite
 };
+
+// The one plan we sell now: Rs 5,000 per year + 18% GST (paise, ex-GST). Billed yearly only.
+const FLAT_YEARLY = { nestgym: 500000 };
+const GST_RATE = 0.18;
 
 const TERM_MONTHS = { monthly: 1, quarterly: 3, half_yearly: 6, yearly: 12 };
 const TERM_DISCOUNT = {
@@ -89,6 +97,7 @@ const TERM_DISCOUNT = {
 
 /** Total price (paise) to charge for the whole term, or null for custom-priced plans. */
 function planPrice(plan, cycle = "monthly") {
+  if (FLAT_YEARLY[plan]) return cycle === "yearly" ? FLAT_YEARLY[plan] : null;
   const monthly = PLAN_PRICES_MONTHLY[plan];
   if (monthly == null) return null;
   const months = TERM_MONTHS[cycle] || 1;
@@ -105,6 +114,7 @@ const PLAN_LIMITS = {
   starter: { members: 150, branches: 1, staff: 5 },
   growth: { members: 500, branches: 1, staff: 15 },
   pro: { members: 1500, branches: 3, staff: 40 },
+  nestgym: { members: 1500, branches: 3, staff: 40 },
   elite: { members: Infinity, branches: 10, staff: 150 },
   enterprise: { members: Infinity, branches: Infinity, staff: Infinity },
   professional: { members: 1500, branches: 3, staff: 40 },
@@ -121,6 +131,8 @@ Subscription.PLAN_PRICES_YEARLY = PLAN_PRICES_YEARLY;
 Subscription.TERM_MONTHS = TERM_MONTHS;
 Subscription.TERM_DISCOUNT = TERM_DISCOUNT;
 Subscription.TRIAL_DAYS = TRIAL_DAYS;
+Subscription.FLAT_YEARLY = FLAT_YEARLY;
+Subscription.GST_RATE = GST_RATE;
 Subscription.planPrice = planPrice;
 
 module.exports = Subscription;

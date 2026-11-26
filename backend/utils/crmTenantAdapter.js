@@ -29,6 +29,8 @@ module.exports = (cfg) => {
     ownerRole: cfg.ownerRole,
     createLimitDefaults: cfg.defaultLimits,
     createExtraFields: cfg.createExtraFields || [],
+    pricing: cfg.pricing,
+    defaultPlan: cfg.defaultPlan,
     accountExtraFields: [],
   };
 
@@ -148,7 +150,7 @@ module.exports = (cfg) => {
         throw H.fail("Organisation name and admin name are required");
       if (!/^\S+@\S+\.\S+$/.test(email))
         throw H.fail("A valid email is required");
-      const plan = b.plan || "trial";
+      const plan = b.plan || cfg.defaultPlan || "trial";
       if (!meta.planOptions.includes(plan)) throw H.fail("Invalid plan");
       const password = H.checkPassword(String(b.password || ""));
       if (await User.findOne({ email }))
@@ -190,7 +192,13 @@ module.exports = (cfg) => {
         });
         user.tenantId = t._id;
         await user.save({ validateBeforeSave: false });
-        return { id: t._id, email, password, validTill: t.planExpiresAt };
+        const invoice = cfg.afterCreate
+          ? await cfg.afterCreate(t, b).catch((e) => {
+              console.error("afterCreate failed:", e.message);
+              return null;
+            })
+          : null;
+        return { id: t._id, email, password, validTill: t.planExpiresAt, invoice };
       } catch (e) {
         if (user) await User.deleteOne({ _id: user._id }).catch(() => {});
         throw e;

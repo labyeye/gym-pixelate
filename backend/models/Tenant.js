@@ -29,6 +29,7 @@ const tenantSchema = new mongoose.Schema(
         "elite",
         "enterprise",
         "professional",
+        "nestgym",
         "business",
       ],
       default: "trial",
