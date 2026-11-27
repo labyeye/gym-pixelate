@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import RazorpayCheckout from 'react-native-razorpay';
+import { payWithCashfree } from '../utils/cashfree';
 import { Check, ChevronRight } from 'lucide-react-native';
 import { authAPI } from '../api/api';
 import { gym } from '../api/gym';
@@ -32,13 +32,8 @@ const STEPS: { id: Step; label: string }[] = [
   { id: 'plan', label: 'Plan' },
   { id: 'payment', label: 'Payment' },
 ];
-const CYCLES = [
-  { id: 'monthly', label: 'Monthly', months: 1, off: 0 },
-  { id: 'quarterly', label: '3 mo', months: 3, off: 10 },
-  { id: 'half_yearly', label: '6 mo', months: 6, off: 20 },
-  { id: 'yearly', label: 'Yearly', months: 12, off: 30 },
-];
-const ORDER = ['starter', 'growth', 'pro', 'elite'];
+const CYCLES = [{ id: 'yearly', label: 'Yearly', months: 12, off: 0 }];
+const ORDER = ['nestgym'];
 const rupees = (paise: number) => inr(Math.round(paise / 100));
 
 function StepBar({ current }: { current: Step }) {
@@ -121,7 +116,7 @@ function StepBar({ current }: { current: Step }) {
   );
 }
 
-// Same wizard as NestHR / the web app: gym details -> plan -> Razorpay payment (or start the free trial).
+// Same wizard as NestHR / the web app: gym details -> plan -> Cashfree payment (or start the free trial).
 export default function OnboardingScreen() {
   const { user, logout, completeOnboarding } = useAuth();
   const [step, setStep] = useState<Step>('gym');
@@ -135,7 +130,7 @@ export default function OnboardingScreen() {
   });
   const [saving, setSaving] = useState(false);
   const [cycle, setCycle] = useState('yearly');
-  const [planKey, setPlanKey] = useState('growth');
+  const [planKey, setPlanKey] = useState('nestgym');
   const [paying, setPaying] = useState(false);
   const plansRes = useFetch(() => gym.billing.plans(), []);
   const plans: any = (plansRes.data as any)?.data || {};
@@ -173,32 +168,13 @@ export default function OnboardingScreen() {
   const pay = async () => {
     try {
       setPaying(true);
-      const o: any = await gym.billing.razorpayOrder({
+      const o: any = await gym.billing.cashfreeOrder({
         plan: planKey,
         billingCycle: cycle,
       });
       const d = o.data;
-      const r = await RazorpayCheckout.open({
-        key: d.key,
-        order_id: d.orderId,
-        amount: d.amount,
-        currency: d.currency,
-        name: 'NestGym',
-        description: `${titleCase(planKey)} · ${
-          CYCLES.find(c => c.id === cycle)?.label
-        }`,
-        prefill: {
-          name: d.customerName,
-          email: d.customerEmail,
-          contact: d.customerPhone,
-        },
-        theme: { color: C.primary },
-      });
-      await gym.billing.razorpayVerify({
-        razorpayOrderId: r.razorpay_order_id,
-        razorpayPaymentId: r.razorpay_payment_id,
-        razorpaySignature: r.razorpay_signature,
-      });
+      if ((await payWithCashfree(d)) === 'cancelled') return;
+      await gym.billing.cashfreeVerify({ orderId: d.orderId });
       notify.success(
         'Payment successful',
         'Your plan is active. Welcome to NestGym!',
@@ -314,7 +290,7 @@ export default function OnboardingScreen() {
               Choose your plan
             </Text>
             <Text style={[S.small, { textAlign: 'center', marginBottom: 14 }]}>
-              Longer terms cost less per month. Prices exclude GST.
+              One simple yearly plan. Price excludes 18% GST.
             </Text>
             <Tabs
               fill
@@ -374,13 +350,13 @@ export default function OnboardingScreen() {
                             color: C.primary,
                           }}
                         >
-                          {rupees(t / months)}
-                          <Text style={[S.small, { fontSize: 12 }]}> /mo</Text>
+                          {rupees(t)}
+                          <Text style={[S.small, { fontSize: 12 }]}> /year</Text>
                         </Text>
                       )}
-                      {t != null && months > 1 && (
+                      {t != null && (
                         <Text style={S.small}>
-                          {rupees(t)} every {months} months
+                          + 18% GST = {rupees(Math.round(t * 1.18))}
                         </Text>
                       )}
                       {(p.features || []).slice(0, 4).map((f: string) => (
@@ -422,7 +398,7 @@ export default function OnboardingScreen() {
           <FadeInUp key="payment" distance={18}>
             <Text style={[S.h1, { textAlign: 'center' }]}>Confirm & pay</Text>
             <Text style={[S.small, { textAlign: 'center', marginBottom: 16 }]}>
-              A secure Razorpay window will open to complete your payment.
+              A secure Cashfree window will open to complete your payment.
             </Text>
             <View
               style={brut({
@@ -440,8 +416,9 @@ export default function OnboardingScreen() {
                 }
               />
               <Row k="Term" v={CYCLES.find(c => c.id === cycle)?.label} />
+              {total != null && <Row k="Price" v={rupees(total)} />}
               {total != null && (
-                <Row k="Per month" v={rupees(total / months)} />
+                <Row k="GST (18%)" v={rupees(Math.round(total * 0.18))} />
               )}
               <View
                 style={{
@@ -452,21 +429,23 @@ export default function OnboardingScreen() {
                 }}
               >
                 <Row
-                  k="Total (excl. GST)"
-                  v={total != null ? rupees(total) : '—'}
+                  k="Total (incl. GST)"
+                  v={total != null ? rupees(Math.round(total * 1.18)) : '—'}
                   bold
                   color={C.primary}
                 />
               </View>
             </View>
             <Btn
-              label={`Pay ${total != null ? rupees(total) : ''} via Razorpay`}
+              label={`Pay ${
+                total != null ? rupees(Math.round(total * 1.18)) : ''
+              } via Cashfree`}
               busy={paying}
               disabled={total == null}
               onPress={pay}
             />
             <Text style={[S.small, { textAlign: 'center', marginTop: 10 }]}>
-              Secured by Razorpay · PCI-DSS compliant
+              Secured by Cashfree · PCI-DSS compliant
             </Text>
             <TouchableOpacity
               onPress={() => setStep('plan')}
